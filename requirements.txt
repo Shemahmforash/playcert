@@ -1,0 +1,18 @@
+Chameleon==2.22
+Mako==1.0.1
+MarkupSafe==0.23
+PasteDeploy==1.5.2
+## !! Could not determine repository location
+playcert==0.0
+Pygments==2.0.2
+pyramid==1.5.7
+pyramid-chameleon==0.3
+pyramid-debugtoolbar==2.3
+pyramid-mako==1.0.2
+repoze.lru==0.6
+translationstring==1.3
+venusian==1.0
+waitress==0.8.9
+WebOb==1.4.1
+zope.deprecation==4.1.2
+zope.interface==4.1.2
