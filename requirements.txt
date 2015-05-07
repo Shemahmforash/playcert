@@ -1,15 +1,19 @@
 Chameleon==2.22
+eventful==0.3
+httplib2==0.9.1
 Mako==1.0.1
 MarkupSafe==0.23
 PasteDeploy==1.5.2
-## !! Could not determine repository location
-playcert==0.0
+-e git+git@github.com:Shemahmforash/playcert.git@0e03b26612dbb6f2228f74d9d9dd9ba3d248fafa#egg=playcert-develop
 Pygments==2.0.2
 pyramid==1.5.7
 pyramid-chameleon==0.3
 pyramid-debugtoolbar==2.3
 pyramid-mako==1.0.2
 repoze.lru==0.6
+requests==2.7.0
+simplejson==3.6.5
+spotipy==2.3.6
 translationstring==1.3
 venusian==1.0
 waitress==0.8.9
