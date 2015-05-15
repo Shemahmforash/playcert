@@ -26,6 +26,12 @@
       <ul>
         <li tal:repeat="event events" tal:content="event.title + ' at ' + event.venue + ' by ' + event.artist" />
       </ul>
+
+      <p>These are your songs:</p>
+      <ul>
+        <li tal:repeat="song songs" tal:content="song.title + ' - ' + song.foreign_id" />
+      </ul>
+
     </div>
 
     <!-- Bootstrap core JavaScript
