@@ -4,12 +4,14 @@ httplib2==0.9.1
 Mako==1.0.1
 MarkupSafe==0.23
 PasteDeploy==1.5.2
--e git+git@github.com:Shemahmforash/playcert.git@0e03b26612dbb6f2228f74d9d9dd9ba3d248fafa#egg=playcert-develop
+-e git+git@github.com:Shemahmforash/playcert.git@2a275e6052dff858e59a22879c269268c49f8a3a#egg=playcert-feature_get_songs_from_events
+pyechonest==9.0.0
 Pygments==2.0.2
 pyramid==1.5.7
 pyramid-chameleon==0.3
 pyramid-debugtoolbar==2.3
 pyramid-mako==1.0.2
+redis==2.10.3
 repoze.lru==0.6
 requests==2.7.0
 simplejson==3.6.5
