@@ -2,7 +2,7 @@ from pyramid.view import view_config
 import os, eventful, redis, datetime, json
 from pyechonest import config, artist, song
 
-config.ECHO_NEST_API_KEY=os.environ['ECHONEST_KEY']
+config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
 api = eventful.API(os.environ['EVENTFUL_KEY'])
 redisClient = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -39,31 +39,32 @@ def process_events(events):
         event_processed['artist'] = ''
         event_processed['songs'] = ''
 
+        #TODO: if no performers from the event, use echonest to get the name of the artist from the event title
         if isinstance(event['performers'], dict):
             event_processed['artist'] = event['performers']['performer']['name']
 
-            songs = ''#redisClient.hget('artist.songs', event_processed['artist'])
-
-            print 'songs', songs
+            songs = redisClient.hget('artist.songs', event_processed['artist'])
 
             if not songs :
-                songs = song.search(artist=event_processed['artist'], buckets=['id:spotify-WW', 'tracks'], limit=True, results=1)
-                redisClient.hset('artist.songs', event_processed['artist'], songs)
+                echonest_songs = song.search(artist=event_processed['artist'], buckets=['id:spotify-WW', 'tracks'], limit=True, results=1)
 
-            simplified_songs = []
-            for s in songs:
-                print 'song: ', s 
-                track = s.get_tracks('spotify-WW')[0]
-                print 'track', track
-                simplified_songs.append({'title': s.title, 'foreign_id': track['foreign_id'],} )
-                global_songs.append({'title': s.title, 'foreign_id': track['foreign_id'],} )
+                simplified_songs = []
+                for s in echonest_songs:
+                    print 'song: ', s
+                    track = s.get_tracks('spotify-WW')[0]
+                    print 'track', track
+                    simplified_songs.append({'title': s.title, 'foreign_id': track['foreign_id'],} )
+                    global_songs.append({'title': s.title, 'foreign_id': track['foreign_id'],} )
 
-            event_processed['songs'] = simplified_songs
+                event_processed['songs'] = simplified_songs
+
+                redisClient.hset('artist.songs', event_processed['artist'], simplified_songs)
+            else :
+                event_processed['songs'] = songs
 
         processed.append(event_processed)
 
     return {'events': processed, 'songs': global_songs}
-
 
 """
         if isinstance(event['performers'], dict):
@@ -90,7 +91,7 @@ def process_events(events):
             #print 'Blogs about weezer:', [blog.get('url') for blog in weezer_blogs]
 
             songs = []
-            for song in artist_info.songs: 
+            for song in artist_info.songs:
                 songs.append({'title': song.title, 'foreign': song.get_foreign_id("spotify-WW")})
 
             event_processed['songs'] = songs
