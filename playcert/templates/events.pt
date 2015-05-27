@@ -29,7 +29,7 @@
 
       <p>These are your songs:</p>
       <ul>
-        <li tal:repeat="song songs" tal:content="song.title + ' - ' + song.foreign_id" />
+        <li tal:repeat="song songs" tal:content="song.artist + ' - ' + song.title + ' - ' + song.foreign_id" />
       </ul>
 
     </div>

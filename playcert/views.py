@@ -53,8 +53,11 @@ def process_events(events):
                     print 'song: ', s
                     track = s.get_tracks('spotify-WW')[0]
                     print 'track', track
-                    simplified_songs.append({'title': s.title, 'foreign_id': track['foreign_id'],} )
-                    global_songs.append({'title': s.title, 'foreign_id': track['foreign_id'],} )
+    
+                    simple_song = { 'title': s.title, 'foreign_id': track['foreign_id'], 'artist': event_processed['artist'] }
+
+                    simplified_songs.append( simple_song )
+                    global_songs.append( simple_song )
 
                 event_processed['songs'] = simplified_songs
 
