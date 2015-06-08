@@ -14,16 +14,18 @@ def my_view(request):
 def events_view(request):
     today = datetime.date.today()
 
+    location = 'Lisbon'
+
     #get events from redis
-    events = redisClient.get('events.' + str(today))
+    events = redisClient.get(location + '.events.' + str(today))
     events = json.loads(events) if events else ''
     if not events :
         #or get the events from the eventful api
-        events = api.call('/events/search', c='music', l='Lisbon', date='This week')
+        events = api.call('/events/search', c='music', l=location, date='This week')
 
         events = process_events(events)
 
-        redisClient.set('events.' + str(today), json.dumps(events))
+        redisClient.set(location + '.events.' + str(today), json.dumps(events))
 
     print 'songs'
     print events['songs']
@@ -56,7 +58,7 @@ def process_events(events):
                 simplified_songs = []
                 for s in echonest_songs:
                     track = s.get_tracks('spotify-WW')[0]
-    
+
                     simple_song = { 'title': s.title, 'foreign_id': track['foreign_id'], 'artist': event_processed['artist'] }
 
                     simplified_songs.append( simple_song )
