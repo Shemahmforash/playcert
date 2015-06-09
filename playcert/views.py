@@ -25,6 +25,7 @@ def events_view(request):
 
         events = process_events(events)
 
+        #and set them on redis
         redisClient.set(location + '.events.' + str(today), json.dumps(events))
 
     print 'songs'
@@ -49,9 +50,11 @@ def process_events(events):
         if isinstance(event['performers'], dict):
             event_processed['artist'] = event['performers']['performer']['name']
 
+            #get artist songs from redis hash
             songs = redisClient.hget('artist.songs', event_processed['artist'])
 
             if not songs :
+                #or use the echonest api to find songs for an artist
                 echonest_songs = song.search(artist=event_processed['artist'], buckets=['id:spotify-WW', 'tracks'], limit=True, results=1)
 
                 #filter song data
@@ -66,6 +69,7 @@ def process_events(events):
 
                 event_processed['songs'] = simplified_songs
 
+                #set the artist songs on a redis hash
                 redisClient.hset('artist.songs', event_processed['artist'], simplified_songs)
             else :
                 global_songs = songs
