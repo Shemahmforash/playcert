@@ -52,6 +52,7 @@ def process_events(events):
 
             #get artist songs from redis hash
             songs = redisClient.hget('artist.songs', event_processed['artist'])
+            songs = json.loads(songs) if songs else ''
 
             if not songs :
                 #or use the echonest api to find songs for an artist
@@ -70,7 +71,7 @@ def process_events(events):
                 event_processed['songs'] = simplified_songs
 
                 #set the artist songs on a redis hash
-                redisClient.hset('artist.songs', event_processed['artist'], simplified_songs)
+                redisClient.hset('artist.songs', event_processed['artist'], json.dumps(simplified_songs))
             else :
                 global_songs = songs
 
