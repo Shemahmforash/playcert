@@ -4,3 +4,6 @@ venv
 # Packages
 *.egg
 *.egg-info
+.env
+src
+build
