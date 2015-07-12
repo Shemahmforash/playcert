@@ -2,6 +2,10 @@ from pyramid.view import view_config
 import os, eventful, redis, datetime, json
 from pyechonest import config, artist, song
 
+import logging
+
+log = logging.getLogger(__name__)
+
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
 api = eventful.API(os.environ['EVENTFUL_KEY'])
 redisClient = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -16,20 +20,23 @@ def events_view(request):
 
     location = 'Lisbon'
 
+    log.debug('Location %s', location);
+
     #get events from redis
     events = redisClient.get(location + '.events.' + str(today))
     events = json.loads(events) if events else ''
     if not events :
         #or get the events from the eventful api
         events = api.call('/events/search', c='music', l=location, date='This week')
+        log.debug('api response: %s', events)
 
         events = process_events(events)
+        log.debug('processed_events: %s', events)
 
         #and set them on redis
         redisClient.set(location + '.events.' + str(today), json.dumps(events))
 
-    print 'songs'
-    print events['songs']
+    log.debug('songs: %s', events['songs'])
 
     return {'events': events['events'], 'songs': events['songs']}
 
