@@ -61,7 +61,10 @@ def generate_playlist(songs):
     """ Creates a playlist string to be rendered
     """
     # just use the foreign id from songs
-    ids = map(lambda x: x['foreign_id'], songs)
+    ids = []
+    for s in songs:
+        log.debug('song %s', s)
+        ids.append(s['foreign_id'])
 
     ids = ','.join(ids)
 
@@ -70,6 +73,21 @@ def generate_playlist(songs):
     ids = pattern.sub('', ids)
 
     return ids
+
+
+def filter_songs(songs, artist):
+    """Filters songs retrieving just the important fields
+    """
+
+    filtered_songs = []
+    for s in songs:
+        track = s.get_tracks('spotify-WW')[0]
+
+        simple_song = {'title': s.title, 'foreign_id': track[
+            'foreign_id'], 'artist': artist}
+        filtered_songs.append(simple_song)
+
+    return filtered_songs
 
 
 def process_events(events):
@@ -104,17 +122,11 @@ def process_events(events):
                     buckets=['id:spotify-WW', 'tracks'], limit=True, results=1)
 
                 # filter song data
-                simplified_songs = []
-                for s in echonest_songs:
-                    track = s.get_tracks('spotify-WW')[0]
-
-                    simple_song = {'title': s.title, 'foreign_id': track[
-                        'foreign_id'], 'artist': event_processed['artist']}
-
-                    simplified_songs.append(simple_song)
-                    global_songs.append(simple_song)
+                simplified_songs = filter_songs(
+                    echonest_songs, event_processed['artist'])
 
                 event_processed['songs'] = simplified_songs
+                global_songs = global_songs + simplified_songs
 
                 # set the artist songs on a redis hash
                 redisClient.hset(
