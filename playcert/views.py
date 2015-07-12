@@ -1,8 +1,6 @@
 from pyramid.view import view_config
-import os, eventful, redis, datetime, json
+import os, eventful, redis, datetime, json, logging, re
 from pyechonest import config, artist, song
-
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -17,13 +15,14 @@ def my_view(request):
 @view_config(route_name='events', renderer='templates/events.pt')
 def events_view(request):
     today = datetime.date.today()
-
     location = 'Lisbon'
+    events_redis_key = location + '.events.' + str(today)
 
     log.debug('Location %s', location);
 
+
     #get events from redis
-    events = redisClient.get(location + '.events.' + str(today))
+    events = redisClient.get(events_redis_key)
     events = json.loads(events) if events else ''
     if not events :
         #or get the events from the eventful api
@@ -34,11 +33,29 @@ def events_view(request):
         log.debug('processed_events: %s', events)
 
         #and set them on redis
-        redisClient.set(location + '.events.' + str(today), json.dumps(events))
+        redisClient.set(events_redis_key, json.dumps(events))
 
     log.debug('songs: %s', events['songs'])
 
-    return {'events': events['events'], 'songs': events['songs']}
+    playlist = generate_playlist(events['songs'])
+
+    log.debug('Playlist: %s', playlist)
+
+    return {'events': events['events'], 'songs': events['songs'], 'playlist': playlist}
+
+def generate_playlist(songs):
+    """ Creates a playlist string to be rendered
+    """
+    #just use the foreign id from songs
+    ids = map(lambda x: x['foreign_id'], songs)
+
+    ids = ','.join(ids)
+
+    #remove reference to spotify:track
+    pattern = re.compile( 'spotify\:track\:')
+    ids = pattern.sub('', ids)
+
+    return ids
 
 def process_events(events):
     processed = []
