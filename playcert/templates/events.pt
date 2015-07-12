@@ -32,7 +32,9 @@
         <li tal:repeat="song songs" tal:content="song.artist + ' - ' + song.title + ' - ' + song.foreign_id" />
       </ul>
 
-      <iframe src="https://embed.spotify.com/?uri=spotify:trackset:Playlist for:${playlist}" style="width:640px; height:520px;" frameborder="0" allowtransparency="true">    </iframe>
+      <div class="text-center">
+          <iframe src="https://embed.spotify.com/?uri=spotify:trackset:Playlist for:${playlist}" style="width:640px; height:520px;" frameborder="0" allowtransparency="true">    </iframe>
+      </div>vic>
 
     </div>
 
