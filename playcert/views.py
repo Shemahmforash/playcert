@@ -63,7 +63,6 @@ def generate_playlist(songs):
     # just use the foreign id from songs
     ids = []
     for s in songs:
-        log.debug('song %s', s)
         ids.append(s['foreign_id'])
 
     ids = ','.join(ids)
