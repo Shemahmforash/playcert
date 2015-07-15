@@ -1,5 +1,5 @@
 from pyramid.view import view_config
-from pyechonest import config, artist, song
+from pyechonest import config, song, artist
 import os
 import eventful
 import redis
@@ -89,6 +89,22 @@ def filter_songs(songs, artist):
     return filtered_songs
 
 
+def find_artist(event):
+    if isinstance(event['performers'], dict):
+        return event[
+            'performers']['performer']['name']
+
+    # get artist from echonest api
+    event_artist = artist.extract(text=event['title'], results=1)
+
+    log.debug('Event artist from echonest: %s', event_artist)
+
+    if event_artist:
+        return event_artist[0].name
+
+    return
+
+
 def process_events(events):
     """ Transforms the events returned from the
      eventful api in something meaningful
@@ -104,11 +120,10 @@ def process_events(events):
         event_processed['artist'] = ''
         event_processed['songs'] = ''
 
-        # TODO: if no performers from the event, use echonest to get the name
-        # of the artist from the event title
-        if isinstance(event['performers'], dict):
-            event_processed['artist'] = event[
-                'performers']['performer']['name']
+        event_artist = find_artist(event)
+
+        if event_artist:
+            event_processed['artist'] = event_artist
 
             # get artist songs from redis hash
             songs = redisClient.hget('artist.songs', event_processed['artist'])
