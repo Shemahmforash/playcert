@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import re
+import sys
 
 log = logging.getLogger(__name__)
 
@@ -95,10 +96,13 @@ def find_artist(event):
             'performers']['performer']['name']
 
     # get artist from echonest api
-    event_artist = artist.extract(text=event['title'], results=1)
+    try:
+        event_artist = artist.extract(text=event['title'], results=1)
+    except:
+        log.error('could not find artist %s', sys.exc_info()[0])
+        return
 
     log.debug('Event artist from echonest: %s', event_artist)
-
     if event_artist:
         return event_artist[0].name
 
@@ -131,25 +135,30 @@ def process_events(events):
 
             if not songs:
                 # or use the echonest api to find songs for an artist
-                echonest_songs = song.search(
-                    artist=event_processed['artist'],
-                    buckets=['id:spotify-WW', 'tracks'], limit=True, results=1)
+                try:
+                    echonest_songs = song.search(artist=event_processed['artist'], buckets=[
+                                                 'id:spotify-WW', 'tracks'], limit=True, results=1)
+                except:
+                    log.error(
+                        'could not find songs in echonest %s', sys.exc_info()[0])
 
-                # filter song data
-                simplified_songs = filter_songs(
-                    echonest_songs, event_processed['artist'])
+                if echonest_songs:
+                    # filter song data
+                    simplified_songs = filter_songs(
+                        echonest_songs, event_processed['artist'])
 
-                event_processed['songs'] = simplified_songs
-                global_songs = global_songs + simplified_songs
+                    event_processed['songs'] = simplified_songs
+                    global_songs = global_songs + simplified_songs
 
-                # set the artist songs on a redis hash
-                redisClient.hset(
-                    'artist.songs',
-                    event_processed['artist'],
-                    json.dumps(simplified_songs)
-                )
+                    # set the artist songs on a redis hash
+                    redisClient.hset(
+                        'artist.songs',
+                        event_processed['artist'],
+                        json.dumps(simplified_songs)
+                    )
             else:
                 global_songs = songs
+                event_processed['songs'] = songs
 
         processed.append(event_processed)
 
