@@ -1,5 +1,5 @@
 from pyramid.view import view_config
-from pyechonest import config
+from pyechonest import config, artist as echonest_artist
 import os
 import eventful
 import redis
@@ -15,6 +15,7 @@ import track
 import random
 import urllib
 import dill
+from IPython.lib.pretty import pprint
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,9 @@ def new_events_view(request):
     playlist = create_playlist(events)
 
     log.debug('Playlist: %s', playlist)
+    log.debug('Events: %s', events)
+
+    pprint(events)
 
     return {
         'events': events,
@@ -90,7 +94,7 @@ def find_artist_and_songs(event, response):
     if not artist_name:
         # get artist from echonest api
         try:
-            event_artist = pyechonest.artist.extract(
+            event_artist = echonest_artist.extract(
                 text=event.title, results=1)
         except:
             log.error('could not find artist %s', sys.exc_info()[0])

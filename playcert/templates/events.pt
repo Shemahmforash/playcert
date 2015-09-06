@@ -24,13 +24,9 @@
     <div tal:condition="events">
       <p>These are your events:</p>
       <ul>
-        <li tal:repeat="event events" tal:content="event.when + ' - ' + event.title + ' at ' + event.venue + ' by ' + event.artist" />
+        <li tal:repeat="event events" tal:content="event.when + ' - ' + event.title + ' at ' + event.venue + ' buy ' + event.artist.name " />
       </ul>
 
-      <p>These are your songs:</p>
-      <ul>
-        <li tal:repeat="song songs" tal:content="song.artist + ' - ' + song.title + ' - ' + song.foreign_id" />
-      </ul>
 
       <div class="text-center">
           <iframe src="https://embed.spotify.com/?uri=spotify:trackset:Playlist for:${playlist}" style="width:640px; height:520px;" frameborder="0" allowtransparency="true">    </iframe>
