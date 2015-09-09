@@ -24,7 +24,7 @@
     <div tal:condition="events">
       <p>These are your events:</p>
       <ul>
-        <li tal:repeat="event events" tal:content="event.when + ' - ' + event.title + ' at ' + event.venue + ' buy ' + event.artist.name " />
+        <li tal:repeat="event events" tal:content="event.when + ' - ' + event.title + ' at ' + event.venue + ' buy ' + event.artist.name"/>
       </ul>
 
 

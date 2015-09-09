@@ -1,5 +1,5 @@
 from pyramid.view import view_config
-from pyechonest import config, artist as echonest_artist
+from pyechonest import config, artist as echonest_artist, song as echonest_song
 import os
 import eventful
 import redis
@@ -110,13 +110,21 @@ def find_artist_and_songs(event, response):
     log.debug('artist name %s', artist_name)
 
     artistObj = artist.Artist(artist_name)
-    artist_uri = urllib.quote(artist_name)
+    try:
+        artist_uri = urllib.quote(artist_name)
+    except Exception:
+        log.debug('error quoting artist_name')
+        return
 
     uri = "http://api.thisdayinmusic.net/app/api/artists/%s" % artist_uri
     log.debug('uri %s', uri)
 
-    request = requests.get(uri)
-    artist_info = request.json()
+    try:
+        request = requests.get(uri)
+        artist_info = request.json()
+    except Exception:
+        log.error('could not reach thisdayinmusic api %s', sys.exc_info()[0])
+        return
 
     log.debug('artist_info')
     log.debug(artist_info)
@@ -126,9 +134,34 @@ def find_artist_and_songs(event, response):
     if 'data' in artist_info:
         tracks = []
         for song in artist_info['data']['tracks']['data']:
-            tracks.append(track.Track(song.name, song.spotifyId))
+            tracks.append(track.Track(song['name'], song['spotifyId']))
 
         artistObj.songs = tracks
+    else:
+        # couldn't find artist in thisdayinmusic, trying echonest
+        try:
+            echonest_songs = echonest_song.search(
+                artist=artist_name,
+                buckets=['id:spotify-WW', 'tracks'],
+                limit=True, results=1)
+
+            log.debug('echonest_songs')
+            log.debug(echonest_songs)
+
+            if echonest_songs:
+                tracks = []
+                for s in echonest_songs:
+                    t = s.get_tracks('spotify-WW')[0]
+
+                    tracks.append(track.Track(s.title, t['foreign_id']))
+
+            artistObj.songs = tracks
+        except:
+            log.error(
+                'could not find songs in echonest %s',
+                sys.exc_info()[0])
+
+        pass
 
     return artistObj
 
@@ -145,7 +178,7 @@ def create_playlist(events):
         artist = event.artist
 
         if artist.songs:
-            track = random.choice(artist.tracks)
+            track = random.choice(artist.songs)
             ids.append(track.spotifyId)
 
     ids = ','.join(ids)
