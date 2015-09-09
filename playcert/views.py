@@ -15,7 +15,6 @@ import track
 import random
 import urllib
 import dill
-from IPython.lib.pretty import pprint
 
 log = logging.getLogger(__name__)
 
@@ -54,12 +53,8 @@ def new_events_view(request):
         # and set them on redis
         redisClient.set(events_redis_key, dill.dumps(events))
 
+    # now create the playlist
     playlist = create_playlist(events)
-
-    log.debug('Playlist: %s', playlist)
-    log.debug('Events: %s', events)
-
-    pprint(events)
 
     return {
         'events': events,
