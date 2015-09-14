@@ -83,7 +83,10 @@ def find_artist_and_songs(event, response):
 
     artist_name = ''
     if isinstance(response['performers'], dict):
-        artist_name = response['performers']['performer']['name']
+        if isinstance(response['performers']['performer'], dict):
+            artist_name = response['performers']['performer']['name']
+        else:
+            artist_name = response['performers']['performer'][0]['name']
 
     if not artist_name:
         # get artist from echonest api
