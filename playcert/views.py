@@ -50,7 +50,9 @@ def new_events_view(request):
 
     return {
         'events': events,
-        'playlist': playlist
+        'playlist': playlist,
+        'location': location,
+        'today': today
     }
 
 
