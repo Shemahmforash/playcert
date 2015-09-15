@@ -5,7 +5,6 @@ httplib2==0.9.1
 Mako==1.0.2
 MarkupSafe==0.23
 PasteDeploy==1.5.2
--e git+git@github.com:Shemahmforash/playcert.git@7d1a433671eed854cb190939aee28cf07a49f8ec#egg=playcert-develop
 pyechonest==9.0.0
 Pygments==2.0.2
 pyramid==1.5.7
@@ -22,3 +21,5 @@ waitress==0.8.10
 WebOb==1.5.0b0
 zope.deprecation==4.1.2
 zope.interface==4.1.2
+
+-e .
