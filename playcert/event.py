@@ -8,5 +8,5 @@ class Event:
         self.when = when
         self.venue = venue
 
-        # creates finds and creates artist from event title
+        # finds and creates artist from event title
         self.artist = artist.Artist.create_artist_from_text(title)

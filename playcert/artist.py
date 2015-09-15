@@ -5,6 +5,10 @@ import logging
 import urllib
 import requests
 import track
+import redis
+import dill
+
+redisClient = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
 log = logging.getLogger(__name__)
@@ -46,6 +50,15 @@ class Artist:
         '''
         finds songs for this artist
         '''
+
+        # try to get songs from cache
+        songs = redisClient.hget('artist', self.name)
+        songs = dill.loads(songs) if songs else ''
+        if songs:
+            self.songs = songs
+            log.debug('%s songs obtained from cache', self.name)
+            return
+
         try:
             artist_uri = urllib.quote(self.name)
         except Exception:
@@ -74,6 +87,9 @@ class Artist:
                 tracks.append(track.Track(song['name'], song['spotifyId']))
 
             self.songs = tracks
+
+            # set songs on cache
+            redisClient.hset('artist', self.name, dill.dumps(tracks))
         else:
             # couldn't find artist in thisdayinmusic, trying echonest
             try:
@@ -94,6 +110,9 @@ class Artist:
                         tracks.append(track.Track(s.title, t['foreign_id']))
 
                 self.songs = tracks
+
+                # set songs on cache
+                redisClient.hset('artist', self.name, dill.dumps(tracks))
             except:
                 log.error(
                     'could not find songs in echonest %s',
