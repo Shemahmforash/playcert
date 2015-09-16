@@ -45,8 +45,16 @@ def new_events_view(request):
         # and set them on redis
         redisClient.set(events_redis_key, dill.dumps(events))
 
-    # now create the playlist
-    playlist = create_playlist(events)
+    # try to obtain the playlist from redis
+    playlist_redis_key = location + '.playlist.' + str(today)
+    playlist = redisClient.get(playlist_redis_key)
+    playlist = dill.loads(playlist) if playlist else ''
+
+    # if no playlist on redis, create it and set it on redis
+    if not playlist:
+        playlist = create_playlist(events)
+
+        redisClient.set(playlist_redis_key, dill.dumps(playlist))
 
     return {
         'events': events,
