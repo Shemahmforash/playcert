@@ -39,6 +39,18 @@ def new_events_view(request):
         )
         # log.debug('api response: %s', events)
 
+        # log.debug('api response total_items: %s', events['total_items'])
+
+        # could not find events in api, empty response
+        if not events or int(events['total_items']) == 0:
+            # TODO: support this correctly in the template
+            return {
+                'events': [],
+                'playlist': [],
+                'location': location,
+                'today': today
+            }
+
         events = simplify_events(events)
         log.debug('processed_events: %s', events)
 
