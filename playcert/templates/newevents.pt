@@ -87,7 +87,7 @@
                 <h1>Playcert<small>playlist based on concerts near you</small></h1>
                 <nav class="ink-navigation">
                     <ul class="menu horizontal black">
-                        <li class="active"><a href="#">Events</a></li>
+                        <li class="active"><a href="#">Home</a></li>
                         <li><a href="#">About</a></li>
                     </ul>
                 </nav>
@@ -117,11 +117,13 @@
                 </ul>
                 <p class="note">
                     Created by <a href="https://twitter.com/shemahmforash/" target="_blank">Carlos Rosão</a> using
-                    <a href="http://www.pylonsproject.org/" target="_blank">Pyramid</a>.
+                    <a href="http://www.pylonsproject.org/" target="_blank">Pyramid</a> framework and <a href="http://the.echonest.com/" target="_blank">the.echonest</a> and <a href="http://eventful.com/" target="_blank">eventful</a> apis.
+                </p>
+                <p class="note">
 
                     Source code is available at github:
                     <a href="https://github.com/Shemahmforash/playcert" target="_blank">https://github.com/Shemahmforash/playcert</a>.
-              </p>
+                </p>
             </div>
         </footer>
     </body>
