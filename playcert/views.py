@@ -20,7 +20,7 @@ def my_view(request):
     return {'project': 'playcert'}
 
 
-@view_config(route_name='newevents', renderer='templates/events.pt')
+@view_config(route_name='newevents', renderer='templates/newevents.pt')
 def new_events_view(request):
     location = request.matchdict['location']
     today = datetime.date.today()
