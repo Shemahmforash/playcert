@@ -8,7 +8,7 @@ In order to use this app, you need to clone it and then install its requirements
 You'll need a wsgi server to run the app. The package *waitress* is part of the requirements and you can serve this app with it by running the following at the root of the project:
 
 ```
-pserve --development.ini
+pserve development.ini --reload
 ```
 
 You can now use the uri /events/{location} in order to obtain a spotify playlist based on the events around your location.
