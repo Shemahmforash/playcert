@@ -11,6 +11,7 @@
 
     <!-- Bootstrap core CSS -->
     <link href="//oss.maxcdn.com/libs/twitter-bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/sticky-footer.css" rel="stylesheet">
 
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -65,6 +66,25 @@
             </div>
         </div>
     </div>
+
+    <footer class="footer footer-dark">
+      <div class="container">
+
+        <hr>
+
+        <div class="row">
+          <div class="col-sm-6">
+            <p class="copyright">
+                  Created by <a href="https://twitter.com/shemahmforash/" target="_blank">Carlos Rosão</a> using
+                  <a href="http://www.pylonsproject.org/" target="_blank">Pyramid</a>.
+
+                  Source code is available at github:
+                  <a href="https://github.com/Shemahmforash/playcert" target="_blank">https://github.com/Shemahmforash/playcert</a>.
+                </p>
+          </div>
+        </div>
+      </div>
+    </footer>
 
     <!-- Bootstrap core JavaScript
     ================================================== -->
