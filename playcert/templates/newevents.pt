@@ -81,8 +81,6 @@
             </div>
             -->
 
-            <!-- Add your site or application content here -->
-
             <header class="vertical-space">
                 <h1>Playcert<small>playlist based on concerts near you</small></h1>
                 <nav class="ink-navigation">
@@ -101,7 +99,7 @@
                 <div class="all-50 small-100 tiny-100">
                     <h3>Events</h3>
                     <ul>
-                       <li tal:repeat="event events" tal:content="event.when + ' - ' + event.title + ' at ' + event.venue + ' by ' + event.artist.name"/>
+                       <li tal:repeat="event events" tal:content="event.when + ' - ' + event.title + ' at ' + event.venue"/>
                     </ul>
                 </div>
                 <div class="all-50 small-100 tiny-100">
