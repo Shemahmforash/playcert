@@ -9,7 +9,6 @@ import redis
 import dill
 
 redisClient = redis.StrictRedis(host='localhost', port=6379, db=0)
-
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
 log = logging.getLogger(__name__)
 

@@ -124,20 +124,3 @@ def create_playlist(events):
     log.info('ids - %s', ids)
 
     return ids
-
-
-def generate_playlist(songs):
-    """ Creates a playlist string to be rendered
-    """
-    # just use the foreign id from songs
-    ids = []
-    for s in songs:
-        ids.append(s['foreign_id'])
-
-    ids = ','.join(ids)
-
-    # remove reference to spotify:track
-    pattern = re.compile('spotify\:track\:')
-    ids = pattern.sub('', ids)
-
-    return ids
