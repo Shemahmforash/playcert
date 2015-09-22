@@ -9,4 +9,4 @@ class Event:
         self.venue = venue
 
         # finds and creates artist from event title
-        self.artist = artist.Artist.create_artist_from_text(title)
+        self.artist = artist.Artist.create_artist_from_text(title, venue)

@@ -22,11 +22,17 @@ class Artist:
         self.find_songs()
 
     @staticmethod
-    def create_artist_from_text(text):
+    def create_artist_from_text(text, venue):
         '''
         Static method that aims in extracting artist name from a text
         and creating an instance of this class based on it
         '''
+
+        # remove venue name from the title of the event
+        # it will improve the finding of the artist name from the event title
+        if venue:
+            text = text.replace(venue, "")
+
         try:
             event_artist = echonest_artist.extract(
                 text=text, results=1)
