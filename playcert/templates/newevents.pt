@@ -4,7 +4,7 @@
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-        <title>3 Boxes</title>
+        <title>Playcert - ${location}</title>
         <meta name="description" content="Playlist for events near ${location}">
         <meta name="author" content="Carlos Rosão">
         <meta name="HandheldFriendly" content="True">
