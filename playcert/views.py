@@ -37,9 +37,9 @@ def new_events_view(request):
         events = api.call(
             '/events/search', c='music', l=location, date='This week'
         )
-        # log.debug('api response: %s', events)
+        log.debug('api response: %s', events)
 
-        # log.debug('api response total_items: %s', events['total_items'])
+        log.debug('api response total_items: %s', events['total_items'])
 
         # could not find events in api, empty response
         if not events or int(events['total_items']) == 0:
@@ -80,7 +80,14 @@ def simplify_events(events):
 
     evs = []
 
-    for ev in events['events']['event']:
+    event_list = events['events']['event']
+
+    # eventful api does not respond with list when the result is just one item
+    # so we force it to be a list
+    if not isinstance(event_list, list):
+        event_list = [event_list]
+
+    for ev in event_list:
         log.debug('event %s', ev)
         eventObj = event.Event(ev['title'], ev['start_time'], ev['venue_name'])
 
