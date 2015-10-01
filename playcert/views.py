@@ -12,7 +12,6 @@ import dill
 log = logging.getLogger(__name__)
 
 api = eventful.API(os.environ['EVENTFUL_KEY'])
-redisClient = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 @view_config(route_name='home', renderer='templates/mytemplate.pt')
@@ -29,7 +28,7 @@ def new_events_view(request):
     log.debug('location %s', location)
 
     # get events from redis
-    events = redisClient.get(events_redis_key)
+    events = request.redis.get(events_redis_key)
 
     events = dill.loads(events) if events else ''
     if not events:
@@ -55,18 +54,18 @@ def new_events_view(request):
         log.debug('processed_events: %s', events)
 
         # and set them on redis
-        redisClient.set(events_redis_key, dill.dumps(events))
+        request.redis.set(events_redis_key, dill.dumps(events))
 
     # try to obtain the playlist from redis
     playlist_redis_key = location + '.playlist.' + str(today)
-    playlist = redisClient.get(playlist_redis_key)
+    playlist = request.redis.get(playlist_redis_key)
     playlist = dill.loads(playlist) if playlist else ''
 
     # if no playlist on redis, create it and set it on redis
     if not playlist:
         playlist = create_playlist(events)
 
-        redisClient.set(playlist_redis_key, dill.dumps(playlist))
+        request.redis.set(playlist_redis_key, dill.dumps(playlist))
 
     return {
         'events': events,
