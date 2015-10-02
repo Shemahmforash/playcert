@@ -10,3 +10,6 @@ class Event:
 
         # finds and creates artist from event title
         self.artist = artist.Artist.create_artist_from_text(title, venue)
+
+    def __repr__(self):
+        return 'Event(%s, %s, %s, %s)' % (self.title.encode('utf-8'), self.when.encode('utf-8'), self.venue.encode('utf-8'), self.artist)

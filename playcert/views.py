@@ -25,7 +25,7 @@ def new_events_view(request):
     today = datetime.date.today()
     events_redis_key = location + '.events.' + str(today)
 
-    log.debug('location %s', location)
+    # log.debug('location %s', location)
 
     # get events from redis
     events = request.redis.get(events_redis_key)
@@ -36,9 +36,9 @@ def new_events_view(request):
         events = api.call(
             '/events/search', c='music', l=location, date='This week'
         )
-        log.debug('api response: %s', events)
+        # log.debug('api response: %s', events)
 
-        log.debug('api response total_items: %s', events['total_items'])
+        # log.debug('api response total_items: %s', events['total_items'])
 
         # could not find events in api, empty response
         if not events or int(events['total_items']) == 0:
@@ -51,7 +51,6 @@ def new_events_view(request):
             }
 
         events = simplify_events(events)
-        log.debug('processed_events: %s', events)
 
         # and set them on redis
         request.redis.set(events_redis_key, dill.dumps(events))
@@ -66,6 +65,8 @@ def new_events_view(request):
         playlist = create_playlist(events)
 
         request.redis.set(playlist_redis_key, dill.dumps(playlist))
+
+    log.debug('events: %s', events)
 
     return {
         'events': events,

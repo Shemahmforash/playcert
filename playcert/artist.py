@@ -17,6 +17,9 @@ Song = collections.namedtuple('Song', ['name', 'spotify_id'])
 
 class Artist:
 
+    def __repr__(self):
+        return 'Artist(%s, %s)' % (self.name.encode('utf-8'), self.songs)
+
     def __init__(self, name):
         self.songs = []
         self.name = name
