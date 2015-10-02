@@ -12,7 +12,7 @@ redisClient = redis.StrictRedis(host='localhost', port=6379, db=0)
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
 log = logging.getLogger(__name__)
 
-Track = collections.namedtuple('Track', ['name', 'spotify_id'])
+Song = collections.namedtuple('Song', ['name', 'spotify_id'])
 
 
 class Artist:
@@ -91,7 +91,7 @@ class Artist:
         if 'data' in artist_info:
             tracks = []
             for song in artist_info['data']['tracks']['data']:
-                tracks.append(Track(song['name'], song['spotifyId']))
+                tracks.append(Song(song['name'], song['spotifyId']))
 
             self.songs = tracks
 
@@ -114,7 +114,7 @@ class Artist:
                     for s in echonest_songs:
                         t = s.get_tracks('spotify-WW')[0]
 
-                        tracks.append(Track(s.title, t['foreign_id']))
+                        tracks.append(Song(s.title, t['foreign_id']))
 
                 self.songs = tracks
 
