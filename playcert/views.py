@@ -115,9 +115,9 @@ def create_playlist(events):
         if artist.songs:
             track = random.choice(artist.songs)
 
-            # log.info('track %s - %s', track.name, track.spotifyId)
+            # log.info('track %s - %s', track.name, track.spotify_id)
 
-            ids.append(track.spotifyId)
+            ids.append(track.spotify_id)
 
     ids = ','.join(ids)
 
