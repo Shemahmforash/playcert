@@ -92,14 +92,11 @@ class Artist:
         log.debug('thisdayinmusic artist', artist_info)
 
         if 'data' in artist_info:
-            tracks = []
-            for song in artist_info['data']['tracks']['data']:
-                tracks.append(Song(song['name'], song['spotifyId']))
-
-            self.songs = tracks
+            self.songs = [Song(song['name'], song['spotifyId'])
+                          for song in artist_info['data']['tracks']['data']]
 
             # set songs on cache
-            redisClient.hset('artist', self.name, dill.dumps(tracks))
+            redisClient.hset('artist', self.name, dill.dumps(self.songs))
         else:
             # couldn't find artist in thisdayinmusic, trying echonest
             try:
@@ -111,18 +108,17 @@ class Artist:
                 log.debug('echonest_songs')
                 log.debug(echonest_songs)
 
-                tracks = []
-
                 if echonest_songs:
+                    tracks = []
                     for s in echonest_songs:
                         t = s.get_tracks('spotify-WW')[0]
 
                         tracks.append(Song(s.title, t['foreign_id']))
 
-                self.songs = tracks
+                    self.songs = tracks
 
-                # set songs on cache
-                redisClient.hset('artist', self.name, dill.dumps(tracks))
+                    # set songs on cache
+                    redisClient.hset('artist', self.name, dill.dumps(tracks))
             except:
                 log.error(
                     'could not find songs in echonest %s',

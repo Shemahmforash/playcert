@@ -37,8 +37,6 @@ def new_events_view(request):
         )
         # log.debug('api response: %s', events)
 
-        # log.debug('api response total_items: %s', events['total_items'])
-
         # could not find events in api, empty response
         if not events or int(events['total_items']) == 0:
             # TODO: support this correctly in the template
@@ -63,7 +61,8 @@ def new_events_view(request):
     if not playlist:
         playlist = create_playlist(events)
 
-        request.redis.set(playlist_redis_key, dill.dumps(playlist))
+        if playlist:
+            request.redis.set(playlist_redis_key, dill.dumps(playlist))
 
     log.debug('events: %s', events)
 
@@ -84,7 +83,7 @@ def simplify_events(events):
     if not isinstance(event_list, list):
         event_list = [event_list]
 
-    # instantiate Event class with the necessary data
+    # create a list with Event objects with the necessary data
     events = [
         event.Event(ev['title'], ev['start_time'], ev['venue_name'])
         for ev in event_list]
