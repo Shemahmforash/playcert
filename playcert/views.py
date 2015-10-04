@@ -1,7 +1,6 @@
 from pyramid.view import view_config
 import os
 import eventful
-import redis
 import datetime
 import logging
 import re
@@ -78,8 +77,6 @@ def new_events_view(request):
 
 def simplify_events(events):
 
-    evs = []
-
     event_list = events['events']['event']
 
     # eventful api does not respond with list when the result is just one item
@@ -87,11 +84,9 @@ def simplify_events(events):
     if not isinstance(event_list, list):
         event_list = [event_list]
 
-    for ev in event_list:
-        log.debug('event %s', ev)
-        eventObj = event.Event(ev['title'], ev['start_time'], ev['venue_name'])
-
-        evs.append(eventObj)
+    evs = [
+        event.Event(ev['title'], ev['start_time'], ev['venue_name'])
+        for ev in event_list]
 
     return evs
 
@@ -120,14 +115,14 @@ def create_playlist(events):
 
             ids.append(track.spotify_id)
 
-    ids = ','.join(ids)
+    playlist = ','.join(ids)
 
     # log.info('ids - %s', ids)
 
     # remove reference to spotify:track
     pattern = re.compile('spotify\:track\:')
-    ids = pattern.sub('', ids)
+    playlist = pattern.sub('', playlist)
 
-    log.info('ids - %s', ids)
+    log.info('playlist - %s', playlist)
 
-    return ids
+    return playlist
