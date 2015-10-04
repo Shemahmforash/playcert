@@ -84,11 +84,12 @@ def simplify_events(events):
     if not isinstance(event_list, list):
         event_list = [event_list]
 
-    evs = [
+    # instantiate Event class with the necessary data
+    events = [
         event.Event(ev['title'], ev['start_time'], ev['venue_name'])
         for ev in event_list]
 
-    return evs
+    return events
 
 
 def create_playlist(events):
@@ -97,23 +98,10 @@ def create_playlist(events):
 
     log.info('create_playlist')
 
-    ids = []
-    for event in events:
-        # log.info('event %s', event.title)
-
-        if not event.artist:
-            continue
-
-        artist = event.artist
-
-        # log.info('artist %s', artist.name)
-
-        if artist.songs:
-            track = random.choice(artist.songs)
-
-            # log.info('track %s - %s', track.name, track.spotify_id)
-
-            ids.append(track.spotify_id)
+    # retrieve the ids from a random song of each event artist
+    ids = [random.choice(
+        event.artist.songs).spotify_id for event in events
+        if event.artist and event.artist.songs]
 
     playlist = ','.join(ids)
 
