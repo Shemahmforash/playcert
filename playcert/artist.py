@@ -117,8 +117,10 @@ class Artist:
 
                     self.songs = tracks
 
-                    # set songs on cache
-                    redisClient.hset('artist', self.name, dill.dumps(tracks))
+                    if self.songs:
+                        # set songs on cache
+                        redisClient.hset(
+                            'artist', self.name, dill.dumps(tracks))
             except:
                 log.error(
                     'could not find songs in echonest %s',
