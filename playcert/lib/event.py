@@ -11,10 +11,10 @@ class Event:
 
         # if cache, try to get text artist from cache
         if redis:
-            a = redis.hget('text.artist', self.title)
-            a = dill.loads(a) if a else ''
-            if a:
-                self.artist = a
+            artist_cache = redis.hget('text.artist', self.title)
+            artist_cache = dill.loads(artist_cache) if artist_cache else ''
+            if artist_cache:
+                self.artist = artist_cache
                 return
 
         # finds and creates artist from event title

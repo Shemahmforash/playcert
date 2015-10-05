@@ -105,7 +105,8 @@ class Artist:
 
             if self.redis:
                 # set songs on cache
-                self.hset('artist.songs', self.name, dill.dumps(self.songs))
+                self.redis.hset(
+                    'artist.songs', self.name, dill.dumps(self.songs))
         else:
             # couldn't find artist in thisdayinmusic, trying echonest
             try:
