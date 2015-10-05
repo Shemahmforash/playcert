@@ -8,7 +8,6 @@ import redis
 import dill
 import collections
 
-redisClient = redis.StrictRedis(host='localhost', port=6379, db=0)
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
 log = logging.getLogger(__name__)
 
@@ -20,14 +19,19 @@ class Artist:
     def __repr__(self):
         return 'Artist(%s, %s)' % (self.name.encode('utf-8'), self.songs)
 
-    def __init__(self, name):
+    def __init__(self, name, redis=None):
         self.songs = []
         self.name = name
+        self.redis = None
+
+        # to use cache in this class (not mandatory)
+        if not redis is None:
+            self.redis = redis
 
         self.find_songs()
 
     @staticmethod
-    def create_artist_from_text(text, venue):
+    def create_artist_from_text(text, venue, redis=None):
         '''
         Static method that aims in extracting artist name from a text
         and creating an instance of this class based on it
@@ -52,7 +56,10 @@ class Artist:
             artist_name = event_artist[0].name
 
         if artist_name:
-            return Artist(artist_name)
+            if redis:
+                return Artist(artist_name, redis)
+            else:
+                return Artist(artist_name)
 
         return
 
@@ -61,13 +68,14 @@ class Artist:
         finds songs for this artist
         '''
 
-        # try to get songs from cache
-        songs = redisClient.hget('artist', self.name)
-        songs = dill.loads(songs) if songs else ''
-        if songs:
-            self.songs = songs
-            log.debug('%s songs obtained from cache', self.name)
-            return
+        if self.redis:
+            # try to get songs from cache
+            songs = self.redis.hget('artist.songs', self.name)
+            songs = dill.loads(songs) if songs else ''
+            if songs:
+                self.songs = songs
+                log.debug('%s songs obtained from cache', self.name)
+                return
 
         try:
             artist_uri = urllib.quote(self.name)
@@ -95,8 +103,10 @@ class Artist:
             self.songs = [Song(song['name'], song['spotifyId'])
                           for song in artist_info['data']['tracks']['data']]
 
-            # set songs on cache
-            redisClient.hset('artist', self.name, dill.dumps(self.songs))
+            if self.redis:
+                # set songs on cache
+                self.redis.hset(
+                    'artist.songs', self.name, dill.dumps(self.songs))
         else:
             # couldn't find artist in thisdayinmusic, trying echonest
             try:
@@ -117,10 +127,10 @@ class Artist:
 
                     self.songs = tracks
 
-                    if self.songs:
+                    if self.songs and self.redis:
                         # set songs on cache
-                        redisClient.hset(
-                            'artist', self.name, dill.dumps(tracks))
+                        self.redis.hset(
+                            'artist.songs', self.name, dill.dumps(tracks))
             except:
                 log.error(
                     'could not find songs in echonest %s',

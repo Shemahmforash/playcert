@@ -1,10 +1,10 @@
 from pyramid.view import view_config
+from lib import event
 import os
 import eventful
 import datetime
 import logging
 import re
-import event
 import random
 import dill
 
@@ -47,7 +47,7 @@ def new_events_view(request):
                 'today': today
             }
 
-        events = simplify_events(events)
+        events = simplify_events(events, request)
 
         # and set them on redis
         request.redis.set(events_redis_key, dill.dumps(events))
@@ -74,7 +74,7 @@ def new_events_view(request):
     }
 
 
-def simplify_events(events):
+def simplify_events(events, request):
 
     event_list = events['events']['event']
 
@@ -85,7 +85,8 @@ def simplify_events(events):
 
     # create a list with Event objects with the necessary data
     events = [
-        event.Event(ev['title'], ev['start_time'], ev['venue_name'])
+        event.Event(
+            ev['title'], ev['start_time'], ev['venue_name'], request.redis)
         for ev in event_list]
 
     return events
