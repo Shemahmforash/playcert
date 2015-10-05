@@ -1,10 +1,10 @@
 from pyramid.view import view_config
+from lib import event
 import os
 import eventful
 import datetime
 import logging
 import re
-import event
 import random
 import dill
 
