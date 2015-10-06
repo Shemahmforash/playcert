@@ -7,6 +7,8 @@ import requests
 import redis
 import dill
 import collections
+from functools import wraps
+
 
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
 log = logging.getLogger(__name__)
@@ -63,19 +65,38 @@ class Artist:
 
         return
 
+    def cache_songs(f):
+        '''
+        Caches the songs on redis
+        '''
+        @wraps(f)
+        def decorated_function(*args):
+            self = args[0]
+
+            if self.redis:
+                # try to get songs from cache and set them
+                songs = self.redis.hget('artist.songs', self.name)
+                songs = dill.loads(songs) if songs else ''
+                if songs:
+                    self.songs = songs
+                    log.debug('%s songs obtained from cache', self.name)
+                    return
+
+            # find the songs
+            f(*args)
+
+            # save them on cache
+            if self.songs and self.redis:
+                # set songs on cache
+                self.redis.hset(
+                    'artist.songs', self.name, dill.dumps(self.songs))
+        return decorated_function
+
+    @cache_songs
     def find_songs(self):
         '''
         finds songs for this artist
         '''
-
-        if self.redis:
-            # try to get songs from cache
-            songs = self.redis.hget('artist.songs', self.name)
-            songs = dill.loads(songs) if songs else ''
-            if songs:
-                self.songs = songs
-                log.debug('%s songs obtained from cache', self.name)
-                return
 
         try:
             artist_uri = urllib.quote(self.name)
@@ -102,11 +123,6 @@ class Artist:
         if 'data' in artist_info:
             self.songs = [Song(song['name'], song['spotifyId'])
                           for song in artist_info['data']['tracks']['data']]
-
-            if self.redis:
-                # set songs on cache
-                self.redis.hset(
-                    'artist.songs', self.name, dill.dumps(self.songs))
         else:
             # couldn't find artist in thisdayinmusic, trying echonest
             try:
@@ -127,10 +143,6 @@ class Artist:
 
                     self.songs = tracks
 
-                    if self.songs and self.redis:
-                        # set songs on cache
-                        self.redis.hset(
-                            'artist.songs', self.name, dill.dumps(tracks))
             except:
                 log.error(
                     'could not find songs in echonest %s',
