@@ -7,6 +7,7 @@ import logging
 import re
 import random
 import dill
+import functools
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ def new_events_view(request):
     data = {'location': location, 'today': today, 'request': request}
 
     events = get_events(**data)
+    log.debug('events: %s', events)
 
     # could not find events in api, empty response
     if not events:
@@ -37,19 +39,8 @@ def new_events_view(request):
             'today': today
         }
 
-    # try to obtain the playlist from redis
-    playlist_redis_key = location + '.playlist.' + today
-    playlist = request.redis.get(playlist_redis_key)
-    playlist = dill.loads(playlist) if playlist else ''
-
-    # if no playlist on redis, create it and set it on redis
-    if not playlist:
-        playlist = create_playlist(events)
-
-        if playlist:
-            request.redis.set(playlist_redis_key, dill.dumps(playlist))
-
-    log.debug('events: %s', events)
+    data['events'] = events
+    playlist = create_playlist(**data)
 
     return {
         'events': events,
@@ -59,36 +50,42 @@ def new_events_view(request):
     }
 
 
-def cache_events(f):
+def cache_data(name):
     '''
-    Caches events on redis
+    Caches data for playlist and for events
     '''
-    def decorated_function(**kwargs):
-        request = kwargs['request']
+    def wrapper(f):
+        '''
+        Caches data on redis
+        '''
+        @functools.wraps(f)
+        def decorated_function(**kwargs):
+            request = kwargs['request']
 
-        events_redis_key = "%s.events.%s" % (
-            kwargs['location'], kwargs['today'])
+            data_redis_key = "%s.%s.%s" % (
+                kwargs['location'], name, kwargs['today'])
 
-        # get events from redis
-        events = request.redis.get(events_redis_key)
-        events = dill.loads(events) if events else ''
+            # get data from redis
+            data = request.redis.get(data_redis_key)
+            data = dill.loads(data) if data else ''
 
-        if events:
-            return events
+            if data:
+                return data
 
-        # find the events
-        events = f(**kwargs)
+            # find the data
+            data = f(**kwargs)
 
-        # save them on cache
-        if events:
-            # and set them on redis
-            request.redis.set(events_redis_key, dill.dumps(events))
+            # save them on cache
+            if data:
+                # and set them on redis
+                request.redis.set(data_redis_key, dill.dumps(data))
 
-            return events
-    return decorated_function
+                return data
+        return decorated_function
+    return wrapper
 
 
-@cache_events
+@cache_data(name='events')
 def get_events(**kwargs):
     # get the events from the eventful api
     events = api.call(
@@ -124,10 +121,12 @@ def simplify_events(events, request):
     return events
 
 
-def create_playlist(events):
+@cache_data(name='playlist')
+def create_playlist(**kwargs):
     """ Creates a playlist string to be rendered
     """
 
+    events = kwargs['events']
     log.info('create_playlist')
 
     # retrieve the ids from a random song of each event artist
