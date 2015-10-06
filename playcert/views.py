@@ -21,39 +21,24 @@ def my_view(request):
 @view_config(route_name='newevents', renderer='templates/newevents.pt')
 def new_events_view(request):
     location = request.matchdict['location']
-    today = datetime.date.today()
-    events_redis_key = location + '.events.' + str(today)
+    today = str(datetime.date.today())
 
-    # log.debug('location %s', location)
+    data = {'location': location, 'today': today, 'request': request}
 
-    # get events from redis
-    events = request.redis.get(events_redis_key)
+    events = get_events(**data)
 
-    events = dill.loads(events) if events else ''
+    # could not find events in api, empty response
     if not events:
-        # or get the events from the eventful api
-        events = api.call(
-            '/events/search', c='music', l=location, date='This week'
-        )
-        # log.debug('api response: %s', events)
-
-        # could not find events in api, empty response
-        if not events or int(events['total_items']) == 0:
-            # TODO: support this correctly in the template
-            return {
-                'events': [],
-                'playlist': [],
-                'location': location,
-                'today': today
-            }
-
-        events = simplify_events(events, request)
-
-        # and set them on redis
-        request.redis.set(events_redis_key, dill.dumps(events))
+        # TODO: support this correctly in the template
+        return {
+            'events': [],
+            'playlist': [],
+            'location': location,
+            'today': today
+        }
 
     # try to obtain the playlist from redis
-    playlist_redis_key = location + '.playlist.' + str(today)
+    playlist_redis_key = location + '.playlist.' + today
     playlist = request.redis.get(playlist_redis_key)
     playlist = dill.loads(playlist) if playlist else ''
 
@@ -74,7 +59,54 @@ def new_events_view(request):
     }
 
 
+def cache_events(f):
+    '''
+    Caches events on redis
+    '''
+    def decorated_function(**kwargs):
+        request = kwargs['request']
+
+        events_redis_key = "%s.events.%s" % (
+            kwargs['location'], kwargs['today'])
+
+        # get events from redis
+        events = request.redis.get(events_redis_key)
+        events = dill.loads(events) if events else ''
+
+        if events:
+            return events
+
+        # find the events
+        events = f(**kwargs)
+
+        # save them on cache
+        if events:
+            # and set them on redis
+            request.redis.set(events_redis_key, dill.dumps(events))
+
+            return events
+    return decorated_function
+
+
+@cache_events
+def get_events(**kwargs):
+    # get the events from the eventful api
+    events = api.call(
+        '/events/search', c='music', l=kwargs['location'], date='This week'
+    )
+
+    if (not events or int(events['total_items']) == 0):
+        return []
+
+    # simplify them
+    return simplify_events(events, kwargs['request'])
+
+
 def simplify_events(events, request):
+    '''
+    Simplify the eventful event list
+    by instantiating a class for each event with specific data
+    '''
 
     event_list = events['events']['event']
 
