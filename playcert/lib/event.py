@@ -8,17 +8,21 @@ log = logging.getLogger(__name__)
 
 class Event:
 
-    def __init__(self, title, when, venue, redis=None):
+    def __init__(self, title, when, venue, artist_name=None, redis=None):
         self.title = title
         self.when = when
         self.venue = venue
 
         # to use cache in this class (not mandatory)
-        if not redis is None:
-            self.redis = redis
+        self.redis = redis
 
-        # finds artist from event title
-        self.find_artist()
+        if artist_name:
+            log.debug(
+                'No need to find artist name, already have it from eventful %s', artist_name)
+            self.artist = artist.Artist(artist_name, self.redis)
+        else:
+            # finds artist from event title
+            self.find_artist()
 
     def cache_artist(f):
         '''
@@ -51,6 +55,7 @@ class Event:
 
     @cache_artist
     def find_artist(self):
+
         # finds and creates artist from event title
         self.artist = artist.Artist.create_artist_from_text(
             self.title, self.venue, self.redis)

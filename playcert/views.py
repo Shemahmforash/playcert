@@ -31,7 +31,7 @@ def new_events_view(request):
 
     # could not find events in api, empty response
     if not events:
-        # TODO: support this correctly in the template
+        # TODO: support empty response correctly in the template
         return {
             'events': [],
             'playlist': [],
@@ -65,14 +65,13 @@ def cache_data(name):
             data_redis_key = "%s.%s.%s" % (
                 kwargs['location'], name, kwargs['today'])
 
-            log.debug(
-                'Trying to obtain data from cache for %s', data_redis_key)
-
             # get data from redis
             data = request.redis.get(data_redis_key)
             data = dill.loads(data) if data else ''
 
             if data:
+                log.debug(
+                    'Obtained data from cache for %s', data_redis_key)
                 return data
 
             # find the data
@@ -116,10 +115,19 @@ def simplify_events(events, request):
         event_list = [event_list]
 
     # create a list with Event objects with the necessary data
-    events = [
-        event.Event(
-            ev['title'], ev['start_time'], ev['venue_name'], request.redis)
-        for ev in event_list]
+    events = []
+    for ev in event_list:
+        artist_name = ''
+        if isinstance(ev['performers'], dict):
+            if isinstance(ev['performers']['performer'], dict):
+                artist_name = ev['performers']['performer']['name']
+            else:
+                artist_name = ev['performers']['performer'][0]['name']
+
+        log.debug('Event: %s -> artist: %s', ev['title'], artist_name)
+
+        events.append(event.Event(
+            ev['title'], ev['start_time'], ev['venue_name'], artist_name, request.redis))
 
     return events
 
