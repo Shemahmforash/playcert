@@ -1,6 +1,9 @@
 import artist
 import dill
+import logging
 from functools import wraps
+
+log = logging.getLogger(__name__)
 
 
 class Event:
@@ -30,6 +33,8 @@ class Event:
                 artist_cache = dill.loads(artist_cache) if artist_cache else ''
                 if artist_cache:
                     self.artist = artist_cache
+                    log.debug(
+                        'Obtained artist for %s from cache', self.title)
                     return
 
             f(*args)
@@ -38,6 +43,9 @@ class Event:
                 # set artist on cache
                 self.redis.hset(
                     'text.artist', self.title, dill.dumps(self.artist))
+                log.debug(
+                    'Setting artist (%s) for %s on cache', self.artist.name, self.title
+                )
 
         return decorated_function
 

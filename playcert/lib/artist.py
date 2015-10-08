@@ -4,7 +4,6 @@ import os
 import logging
 import urllib
 import requests
-import redis
 import dill
 import collections
 from functools import wraps
@@ -77,6 +76,9 @@ class Artist:
                 # try to get songs from cache and set them
                 songs = self.redis.hget('artist.songs', self.name)
                 songs = dill.loads(songs) if songs else ''
+
+                log.debug('Trying to obtain %s songs from cache', self.name)
+
                 if songs:
                     self.songs = songs
                     log.debug('%s songs obtained from cache', self.name)
@@ -90,6 +92,8 @@ class Artist:
                 # set songs on cache
                 self.redis.hset(
                     'artist.songs', self.name, dill.dumps(self.songs))
+
+                log.debug('%s songs setted in cache', self.name)
         return decorated_function
 
     @cache_songs
