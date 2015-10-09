@@ -6,7 +6,7 @@ In order to use this app, you need to clone it and then install its requirements
 
 You'll also need a running instance of redis-server. You can install it in a debian-like linux distribution by running `sudo apt-get install redis-server`.
 
-If your redis configuration is not the default one, you should specify some environment variables. Read more about it in [pyramid_redis pypi documentation](https://pypi.python.org/pypi/pyramid_redis).
+If your redis configuration is not the default one, you should specify some environment variables or add the correct values to development.ini or production.in as specified in [pyramid_redis pypi documentation](https://pypi.python.org/pypi/pyramid_redis).
 
 ## Running
 You'll need a wsgi server to run the app. The package *waitress* is part of the requirements and you can serve this app with it by running the following at the root of the project:
