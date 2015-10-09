@@ -26,8 +26,7 @@ class Artist:
         self.redis = None
 
         # to use cache in this class (not mandatory)
-        if not redis is None:
-            self.redis = redis
+        self.redis = redis
 
         self.find_songs()
 
@@ -57,10 +56,7 @@ class Artist:
             artist_name = event_artist[0].name
 
         if artist_name:
-            if redis:
-                return Artist(artist_name, redis)
-            else:
-                return Artist(artist_name)
+            return Artist(artist_name, redis)
 
         return
 
@@ -102,6 +98,7 @@ class Artist:
         finds songs for this artist
         '''
 
+        # first try in thisdayinmusic.net api
         try:
             artist_uri = urllib.quote(self.name)
         except Exception:
@@ -127,27 +124,29 @@ class Artist:
         if 'data' in artist_info:
             self.songs = [Song(song['name'], song['spotifyId'])
                           for song in artist_info['data']['tracks']['data']]
-        else:
-            # couldn't find artist in thisdayinmusic, trying echonest
-            try:
-                echonest_songs = echonest_song.search(
-                    artist=self.name,
-                    buckets=['id:spotify-WW', 'tracks'],
-                    limit=True, results=1)
 
-                log.debug('echonest_songs')
-                log.debug(echonest_songs)
+            return
 
-                if echonest_songs:
-                    tracks = []
-                    for s in echonest_songs:
-                        t = s.get_tracks('spotify-WW')[0]
+        # couldn't find artist in thisdayinmusic, trying echonest
+        try:
+            echonest_songs = echonest_song.search(
+                artist=self.name,
+                buckets=['id:spotify-WW', 'tracks'],
+                limit=True, results=1)
 
-                        tracks.append(Song(s.title, t['foreign_id']))
+            log.debug('echonest_songs')
+            log.debug(echonest_songs)
 
-                    self.songs = tracks
+            if echonest_songs:
+                tracks = []
+                for s in echonest_songs:
+                    t = s.get_tracks('spotify-WW')[0]
 
-            except:
-                log.error(
-                    'could not find songs in echonest %s',
-                    sys.exc_info()[0])
+                    tracks.append(Song(s.title, t['foreign_id']))
+
+                self.songs = tracks
+
+        except:
+            log.error(
+                'could not find songs in echonest %s',
+                sys.exc_info()[0])
