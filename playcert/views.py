@@ -127,7 +127,8 @@ def simplify_events(events, request):
         log.debug('Event: %s -> artist: %s', ev['title'], artist_name)
 
         events.append(event.Event(
-            ev['title'], ev['start_time'], ev['venue_name'], artist_name, request.redis))
+            ev['title'], ev['start_time'], ev['venue_name'], artist_name,
+            request.redis))
 
     return events
 
