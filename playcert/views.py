@@ -1,13 +1,15 @@
-from pyramid.view import view_config
-from lib import event
-import os
-import eventful
 import datetime
 import logging
-import re
 import random
-import dill
-import functools
+
+from pyramid.view import view_config
+import os
+import eventful
+import re
+
+from playcert.lib.event import Event
+from playcert.lib.cache_utils import cache_data
+
 
 log = logging.getLogger(__name__)
 
@@ -50,51 +52,16 @@ def new_events_view(request):
     }
 
 
-def cache_data(name):
-    '''
-    Caches data for playlist and for events
-    '''
-    def wrapper(f):
-        '''
-        Caches data on redis
-        '''
-        @functools.wraps(f)
-        def decorated_function(**kwargs):
-            request = kwargs['request']
-
-            data_redis_key = "%s.%s.%s" % (
-                kwargs['location'], name, kwargs['today'])
-
-            # get data from redis
-            data = request.redis.get(data_redis_key)
-            data = dill.loads(data) if data else ''
-
-            if data:
-                log.debug(
-                    'Obtained data from cache for %s', data_redis_key)
-                return data
-
-            # find the data
-            data = f(**kwargs)
-
-            if data:
-                log.debug('Setting data on cache for %s', data_redis_key)
-                # and set it on redis
-                request.redis.set(data_redis_key, dill.dumps(data))
-
-                return data
-        return decorated_function
-    return wrapper
-
-
 @cache_data(name='events')
 def get_events(**kwargs):
-    # get the events from the eventful api
+    """
+    Gets the events from the eventful API
+    """
     events = api.call(
         '/events/search', c='music', l=kwargs['location'], date='This week'
     )
 
-    if (not events or int(events['total_items']) == 0):
+    if not events or int(events['total_items']) == 0:
         return []
 
     # simplify them
@@ -102,10 +69,10 @@ def get_events(**kwargs):
 
 
 def simplify_events(events, request):
-    '''
-    Simplify the eventful event list
+    """
+    Simplifies the eventful event list
     by instantiating a class for each event with specific data
-    '''
+    """
 
     event_list = events['events']['event']
 
@@ -126,7 +93,7 @@ def simplify_events(events, request):
 
         log.debug('Event: %s -> artist: %s', ev['title'], artist_name)
 
-        events.append(event.Event(
+        events.append(Event(
             ev['title'], ev['start_time'], ev['venue_name'], artist_name,
             request.redis))
 
@@ -135,7 +102,8 @@ def simplify_events(events, request):
 
 @cache_data(name='playlist')
 def create_playlist(**kwargs):
-    """ Creates a playlist string to be rendered
+    """
+    Creates a playlist string to be rendered
     """
 
     events = kwargs['events']
