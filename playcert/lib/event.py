@@ -1,7 +1,7 @@
 import logging
 
 from playcert.lib.artist import Artist
-from playcert.lib.cache_utils import cache_artist
+from playcert.cache.artists import cache_artist
 
 
 log = logging.getLogger(__name__)

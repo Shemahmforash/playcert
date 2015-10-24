@@ -1,13 +1,15 @@
-import sys
-import logging
-import urllib
 import collections
+import logging
+import os
+import sys
+import urllib
 
 from pyechonest import config, artist as echonest_artist, song as echonest_song
-import os
+from pyechonest.util import EchoNestAPIError, EchoNestIOError
+from requests.packages.urllib3.exceptions import ConnectionError
 import requests
 
-from playcert.lib.cache_utils import cache_songs
+from playcert.cache.events import cache_songs
 
 
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
@@ -46,7 +48,7 @@ class Artist(object):
 
         try:
             event_artist = echonest_artist.extract(text=text, results=1)
-        except:
+        except (EchoNestAPIError, EchoNestIOError):
             log.error('could not find artist %s', sys.exc_info()[0])
             return
 
@@ -70,7 +72,7 @@ class Artist(object):
         # first try in thisdayinmusic.net api
         try:
             artist_uri = urllib.quote(self.name)
-        except Exception:
+        except ValueError:
             log.debug('error quoting artist_name')
             return
 
@@ -79,11 +81,12 @@ class Artist(object):
 
         try:
             request = requests.get(uri)
-            artist_info = request.json()
-        except Exception:
+        except ConnectionError:
             log.error(
                 'could not reach thisdayinmusic api %s', sys.exc_info()[0])
             return
+
+        artist_info = request.json()
 
         log.debug('artist_info')
         log.debug(artist_info)
@@ -101,18 +104,15 @@ class Artist(object):
                 artist=self.name,
                 buckets=['id:spotify-WW', 'tracks'],
                 limit=True, results=1)
-
+        except (EchoNestAPIError, EchoNestIOError):
+            log.error('could not find songs in echonest %s', sys.exc_info()[0])
+        else:
             log.debug('echonest_songs')
             log.debug(echonest_songs)
 
             if echonest_songs:
                 tracks = []
-                for s in echonest_songs:
-                    t = s.get_tracks('spotify-WW')[0]
-
-                    tracks.append(Song(s.title, t['foreign_id']))
-
+                for song in echonest_songs:
+                    track = song.get_tracks('spotify-WW')[0]
+                    tracks.append(Song(song.title, track['foreign_id']))
                 self.songs = tracks
-
-        except:
-            log.error('could not find songs in echonest %s', sys.exc_info()[0])

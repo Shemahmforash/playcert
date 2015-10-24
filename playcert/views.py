@@ -7,8 +7,8 @@ import os
 import eventful
 import re
 
+from playcert.cache import cache_data
 from playcert.lib.event import Event
-from playcert.lib.cache_utils import cache_data
 
 
 log = logging.getLogger(__name__)
