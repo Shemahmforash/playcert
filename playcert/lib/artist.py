@@ -5,7 +5,7 @@ import sys
 import urllib
 
 from pyechonest import config, artist as echonest_artist, song as echonest_song
-from pyechonest.util import EchoNestAPIError
+from pyechonest.util import EchoNestAPIError, EchoNestIOError
 from requests.packages.urllib3.exceptions import ConnectionError
 import requests
 
@@ -48,7 +48,7 @@ class Artist(object):
 
         try:
             event_artist = echonest_artist.extract(text=text, results=1)
-        except EchoNestAPIError:
+        except (EchoNestAPIError, EchoNestIOError):
             log.error('could not find artist %s', sys.exc_info()[0])
             return
 
@@ -104,7 +104,7 @@ class Artist(object):
                 artist=self.name,
                 buckets=['id:spotify-WW', 'tracks'],
                 limit=True, results=1)
-        except EchoNestAPIError:
+        except (EchoNestAPIError, EchoNestIOError):
             log.error('could not find songs in echonest %s', sys.exc_info()[0])
         else:
             log.debug('echonest_songs')
