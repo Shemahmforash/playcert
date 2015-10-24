@@ -1,0 +1,39 @@
+    <!--[if lte IE 9 ]>
+    <div class="ink-alert basic" role="alert">
+        <button class="ink-dismiss">&times;</button>
+        <p>
+            <strong>You are using an outdated Internet Explorer version.</strong>
+            Please <a href="http://browsehappy.com/">upgrade to a modern browser</a> to improve your web experience.
+        </p>
+    </div>
+    -->
+
+    <header class="vertical-space">
+        <h1>Playcert<small>playlist based on concerts near you</small></h1>
+        <nav class="ink-navigation">
+            <ul class="menu horizontal black">
+                <li class="active"><a href="#">Home</a></li>
+                <li><a href="#">About</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="column-group gutters">
+        <div class="all-100">
+            <h2>{{location}}</h2>
+        </div>
+    </div>
+    <div class="column-group gutters">
+        <div class="all-50 small-100 tiny-100">
+            <h3>Events</h3>
+            <ul>
+                <li ng-repeat="event in events">
+                    {{ event.when }} - {{event.title }} at {{event.venue}}
+
+                </li>
+            </ul>
+        </div>
+        <div class="all-50 small-100 tiny-100">
+            <h3>Playlist</h3>
+            <iframe src="https://embed.spotify.com/?uri=spotify:trackset:Playlist:{{ playlist }}" style="width:400px; height:400px;" frameborder="0" allowtransparency="true">    </iframe>
+        </div>
+    </div>
