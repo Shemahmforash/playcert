@@ -7,7 +7,7 @@ from pyechonest import config, artist as echonest_artist, song as echonest_song
 import os
 import requests
 
-from playcert.lib.cache_utils import cache_songs
+from playcert.cache.events import cache_songs
 
 
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
