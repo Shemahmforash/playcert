@@ -3,7 +3,7 @@ var playcertApp = angular.module('playcertApp', [
   'playcertControllers',
 ]);
 
-playcertApp.config(['$routeProvider',
+playcertApp.config(['$routeProvider', '$locationProvider',
   function($routeProvider, $locationProvider) {
     $routeProvider.
       when('/playcert/:location', {
@@ -16,8 +16,8 @@ playcertApp.config(['$routeProvider',
       }).
       otherwise({
         redirectTo: '/playcert/Lisbon'
-      });
-    // $locationProvider
-    //   .html5Mode(true);
+      })
+    $locationProvider
+      .html5Mode(true);
   }]);
 

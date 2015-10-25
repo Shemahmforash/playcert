@@ -70,9 +70,14 @@
 
         <script src="/static/js/app.js"></script>
         <script src="/static/js/controllers.js"></script>
+
+        <base href="/">
+
     </head>
 
     <body>
+
+
 
         <div class="ink-grid" ng-view>
 
