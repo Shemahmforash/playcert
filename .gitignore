@@ -7,3 +7,6 @@ venv
 .env
 src
 build
+
+
+.DS_STORE
