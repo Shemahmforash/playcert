@@ -6,16 +6,16 @@ var playcertApp = angular.module('playcertApp', [
 playcertApp.config(['$routeProvider', '$locationProvider',
   function($routeProvider, $locationProvider) {
     $routeProvider.
-      when('/playcert/:location', {
+      when('/events/:location', {
         templateUrl: 'static/partials/events.html',
         controller: 'EventListCtrl'
       }).
-      when('/playcert', {
-        templateUrl: 'static/partials/events.html',
-        controller: 'EventListCtrl'
+      when('/', {
+        templateUrl: 'static/partials/home.html',
+        controller: 'HomeCtrl'
       }).
       otherwise({
-        redirectTo: '/playcert/Lisbon'
+        redirectTo: '/'
       })
     $locationProvider
       .html5Mode(true);

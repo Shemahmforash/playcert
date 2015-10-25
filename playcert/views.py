@@ -21,8 +21,8 @@ def my_view(request):
     return {'project': 'playcert'}
 
 
-@view_config(route_name='newevents', renderer='json')
-def new_events_view(request):
+@view_config(route_name='events', renderer='json')
+def events_view(request):
     location = request.matchdict['location']
     today = str(datetime.date.today())
 
