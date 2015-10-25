@@ -1,15 +1,14 @@
 var playcertControllers = angular.module('playcertControllers', []);
 
-playcertControllers.controller('EventListCtrl', ['$scope', '$http', '$routeParams',
-  function ($scope, $http, $routeParams) {
+playcertControllers.controller('EventListCtrl', ['$scope', '$http', '$routeParams', "$sce",
+  function ($scope, $http, $routeParams, $sce) {
 
   	var location = $routeParams.location;
 
-    console.log('location', location);
-
-    $http.get('events/' + location + '/events.json').success(function(data) {
+    $http.get('events/' + location + '.json').success(function(data) {
       $scope.events = data.events;
-      /*  //embed.spotify.com/?uri=spotify:trackset:Playlist:{{ playlist }}*/
-      $scope.playlist = data.playlist;
+      $scope.playlist = $sce.trustAsResourceUrl(
+            "//embed.spotify.com/?uri=spotify:trackset:Playlist:" + data.playlist
+        );
     });
   }]);

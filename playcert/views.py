@@ -21,7 +21,7 @@ def my_view(request):
     return {'project': 'playcert'}
 
 
-@view_config(route_name='newevents', renderer='templates/newevents.pt')
+@view_config(route_name='newevents', renderer='json')
 def new_events_view(request):
     location = request.matchdict['location']
     today = str(datetime.date.today())
@@ -45,11 +45,25 @@ def new_events_view(request):
     playlist = create_playlist(**data)
 
     return {
-        'events': events,
+        'events': events_for_json(events),
         'playlist': playlist,
         'location': location,
         'today': today
     }
+
+
+def events_for_json(events):
+
+    simplified_events = [
+        {
+            'title': event.title,
+            'when': event.when,
+            'venue': event.venue
+        } for event in events]
+
+    log.debug('simplified_events %s', simplified_events)
+
+    return simplified_events
 
 
 @cache_data(name='events')
