@@ -14,6 +14,28 @@ playcertControllers.controller('EventListCtrl', ['$scope', '$http', '$routeParam
     });
   }]);
 
+playcertControllers.controller('LocationCtrl', ['$scope', '$location', function ($scope, $location) {
+
+    //on page load, fill place
+    console.log('place: ', $scope.place);
+
+    $scope.autocompleteOptions = {
+        types: ['(cities)'],
+    }
+
+    $scope.change = function() {
+        if (typeof $scope.place !== 'object') {
+            return;
+        }
+
+        console.log('place: ', $scope.place, $scope.place.name);
+
+        //change uri to include the city
+        $location.path('/events/' + $scope.place.name);
+
+    };
+}]);
+
 playcertControllers.controller('HomeCtrl', ['$scope',
   function($scope) {
     console.log('home!!');

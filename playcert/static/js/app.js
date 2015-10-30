@@ -1,5 +1,6 @@
 var playcertApp = angular.module('playcertApp', [
   'ngRoute',
+  'google.places',
   'playcertControllers',
 ]);
 

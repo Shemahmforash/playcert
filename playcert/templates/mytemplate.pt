@@ -27,6 +27,9 @@
         <link rel="stylesheet" type="text/css" href="http://cdn.ink.sapo.pt/3.1.10/css/ink-flex.min.css">
         <link rel="stylesheet" type="text/css" href="http://cdn.ink.sapo.pt/3.1.10/css/font-awesome.min.css">
 
+        <link rel="stylesheet" href="/static/css/autocomplete.css">
+
+
         <!-- load Ink's css for IE8 -->
         <!--[if lt IE 9 ]>
             <link rel="stylesheet" href="http://cdn.ink.sapo.pt/3.1.10/css/ink-ie.min.css" type="text/css" media="screen" title="no title" charset="utf-8">
@@ -68,8 +71,12 @@
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular-route.min.js"></script>
 
+        <script src="https://maps.googleapis.com/maps/api/js?libraries=places"></script>
+
+
         <script src="/static/js/app.js"></script>
         <script src="/static/js/controllers.js"></script>
+        <script src="/static/js/autocomplete.js"></script>
 
         <base href="/">
 
@@ -95,9 +102,23 @@
                 </ul>
             </nav>
         </header>
+
+        <form class="ink-form" ng-controller="LocationCtrl">
+            <div class="control-group">
+                <label for="email">Please choose your location</label>
+                <div class="control">
+                    <input class="form-control" g-places-autocomplete options="autocompleteOptions" ng-model="place" ng-change="change()"/>
+                </div>
+            </div>
+        </form>
+
+        <form class="form" >
+        </form>
+
         <div class="ink-grid" ng-view>
 
         </div>
+
         <footer class="clearfix">
             <div class="ink-grid">
                 <ul class="unstyled inline half-vertical-space">
@@ -114,6 +135,7 @@
                 </p>
             </div>
         </footer>
+
     </body>
 
 </html>
