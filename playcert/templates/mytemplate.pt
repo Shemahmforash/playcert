@@ -1,59 +1,141 @@
 <!DOCTYPE html>
-<html lang="${request.locale_name}">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="pyramid web application">
-    <meta name="author" content="Pylons Project">
+<html lang="${request.locale_name}" ng-app="playcertApp">
 
-    <title>Starter Scaffold for The Pyramid Web Framework</title>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>Playcert</title>
+        <meta name="description" content="Playlist for events">
+        <meta name="author" content="Carlos Rosão">
+        <meta name="HandheldFriendly" content="True">
+        <meta name="MobileOptimized" content="320">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
 
-    <!-- Bootstrap core CSS -->
-    <link href="//oss.maxcdn.com/libs/twitter-bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
+        <!-- Place favicon.ico and apple-touch-icon(s) here  -->
 
-    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
-    <!--[if lt IE 9]>
-      <script src="//oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-      <script src="//oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
-    <![endif]-->
-  </head>
+        <link rel="shortcut icon" href="http://cdn.ink.sapo.pt/3.1.10/img/favicon.ico">
+        <link rel="apple-touch-icon" href="http://cdn.ink.sapo.pt/3.1.10/img/touch-icon-iphone.png">
+        <link rel="apple-touch-icon" sizes="76x76" href="http://cdn.ink.sapo.pt/3.1.10/img/touch-icon-ipad.png">
+        <link rel="apple-touch-icon" sizes="120x120" href="http://cdn.ink.sapo.pt/3.1.10/img/touch-icon-iphone-retina.png">
+        <link rel="apple-touch-icon" sizes="152x152" href="http://cdn.ink.sapo.pt/3.1.10/img/touch-icon-ipad-retina.png">
+        <link rel="apple-touch-startup-image" href="http://cdn.ink.sapo.pt/3.1.10/img/splash.320x460.png" media="screen and (min-device-width: 200px) and (max-device-width: 320px) and (orientation:portrait)">
+        <link rel="apple-touch-startup-image" href="http://cdn.ink.sapo.pt/3.1.10/img/splash.768x1004.png" media="screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:portrait)">
+        <link rel="apple-touch-startup-image" href="http://cdn.ink.sapo.pt/3.1.10/img/splash.1024x748.png" media="screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:landscape)">
 
-  <body>
+        <!-- load Ink's css from the cdn -->
+        <link rel="stylesheet" type="text/css" href="http://cdn.ink.sapo.pt/3.1.10/css/ink-flex.min.css">
+        <link rel="stylesheet" type="text/css" href="http://cdn.ink.sapo.pt/3.1.10/css/font-awesome.min.css">
 
-    <div class="starter-template">
-      <div class="container">
-        <div class="row">
-          <div class="col-md-10">
-            <div class="content">
-              <h1><span class="font-semi-bold">Pyramid</span> <span class="smaller">Starter scaffold</span></h1>
-              <p class="lead">Welcome to <span class="font-normal">${project}</span>, an&nbsp;application generated&nbsp;by<br>the <span class="font-normal">Pyramid Web Framework 1.5.7</span>.</p>
+        <link rel="stylesheet" href="/static/css/autocomplete.css">
+
+
+        <!-- load Ink's css for IE8 -->
+        <!--[if lt IE 9 ]>
+            <link rel="stylesheet" href="http://cdn.ink.sapo.pt/3.1.10/css/ink-ie.min.css" type="text/css" media="screen" title="no title" charset="utf-8">
+        <![endif]-->
+
+        <!-- test browser flexbox support and load legacy grid if unsupported -->
+        <script type="text/javascript" src="http://cdn.ink.sapo.pt/3.1.10/js/modernizr.js"></script>
+        <script type="text/javascript">
+            Modernizr.load({
+              test: Modernizr.flexbox,
+              nope : 'http://cdn.ink.sapo.pt/3.1.10/css/ink-legacy.min.css'
+            });
+        </script>
+
+        <!-- load Ink's javascript files from the cdn -->
+        <script type="text/javascript" src="http://cdn.ink.sapo.pt/3.1.10/js/holder.js"></script>
+        <script type="text/javascript" src="http://cdn.ink.sapo.pt/3.1.10/js/ink-all.min.js"></script>
+        <script type="text/javascript" src="http://cdn.ink.sapo.pt/3.1.10/js/autoload.js"></script>
+
+
+        <style type="text/css">
+
+            body {
+                background: #ededed;
+            }
+
+            header h1 small:before  {
+                content: "|";
+                margin: 0 0.5em;
+                font-size: 1.6em;
+            }
+
+            footer {
+                background: #ccc;
+            }
+
+        </style>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular-route.min.js"></script>
+
+        <script src="https://maps.googleapis.com/maps/api/js?libraries=places"></script>
+
+
+        <script src="/static/js/app.js"></script>
+        <script src="/static/js/controllers.js"></script>
+        <script src="/static/js/autocomplete.js"></script>
+
+        <base href="/">
+
+    </head>
+
+    <body>
+        <!--[if lte IE 9 ]>
+        <div class="ink-alert basic" role="alert">
+            <button class="ink-dismiss">&times;</button>
+            <p>
+                <strong>You are using an outdated Internet Explorer version.</strong>
+                Please <a href="http://browsehappy.com/">upgrade to a modern browser</a> to improve your web experience.
+            </p>
+        </div>
+        -->
+
+        <header class="vertical-space">
+            <h1>Playcert<small>playlist based on concerts near you</small></h1>
+            <nav class="ink-navigation">
+                <ul class="menu horizontal black">
+                    <li class="active"><a href="#">Home</a></li>
+                    <li><a href="#">About</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <form class="ink-form" ng-controller="LocationCtrl">
+            <div class="control-group">
+                <label for="email">Please choose your location</label>
+                <div class="control">
+                    <input class="form-control" g-places-autocomplete options="autocompleteOptions" ng-model="place" ng-change="change()"/>
+                </div>
             </div>
-          </div>
-        </div>
-        <div class="row">
-          <div class="links">
-            <ul>
-              <li class="current-version">Generated by v1.5.7</li>
-              <li><i class="glyphicon glyphicon-bookmark icon-muted"></i><a href="http://docs.pylonsproject.org/projects/pyramid/en/1.5-branch/">Docs</a></li>
-              <li><i class="glyphicon glyphicon-cog icon-muted"></i><a href="https://github.com/Pylons/pyramid">Github Project</a></li>
-              <li><i class="glyphicon glyphicon-globe icon-muted"></i><a href="irc://irc.freenode.net#pyramid">IRC Channel</a></li>
-              <li><i class="glyphicon glyphicon-home icon-muted"></i><a href="http://pylonsproject.org">Pylons Project</a></li>
-          </div>
-        </div>
-        <div class="row">
-          <div class="copyright">
-            Copyright &copy; Pylons Project
-          </div>
-        </div>
-      </div>
-    </div>
+        </form>
 
+        <form class="form" >
+        </form>
 
-    <!-- Bootstrap core JavaScript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="//oss.maxcdn.com/libs/jquery/1.10.2/jquery.min.js"></script>
-    <script src="//oss.maxcdn.com/libs/twitter-bootstrap/3.0.3/js/bootstrap.min.js"></script>
-  </body>
+        <div class="ink-grid" ng-view>
+
+        </div>
+
+        <footer class="clearfix">
+            <div class="ink-grid">
+                <ul class="unstyled inline half-vertical-space">
+                    <li class="active"><a href="#">About</a></li>
+                </ul>
+                <p class="note">
+                    Created by <a href="https://twitter.com/shemahmforash/" target="_blank">Carlos Rosão</a> using
+                    <a href="http://www.pylonsproject.org/" target="_blank">Pyramid</a> framework and <a href="http://the.echonest.com/" target="_blank">the.echonest</a> and <a href="http://eventful.com/" target="_blank">eventful</a> apis.
+                </p>
+                <p class="note">
+
+                    Source code is available at github:
+                    <a href="https://github.com/Shemahmforash/playcert" target="_blank">https://github.com/Shemahmforash/playcert</a>.
+                </p>
+            </div>
+        </footer>
+
+    </body>
+
 </html>
