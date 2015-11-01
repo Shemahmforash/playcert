@@ -27,7 +27,6 @@ class Artist(object):
     def __init__(self, name, redis=None):
         self.songs = []
         self.name = name
-        self.redis = None
 
         # to use cache in this class (not mandatory)
         self.redis = redis
@@ -66,7 +65,7 @@ class Artist(object):
     @cache_songs
     def find_songs(self):
         """
-        Finds songs for this artist
+        Finds songs for this artist in thisdayinmusic api or echonest api
         """
 
         # first try in thisdayinmusic.net api
