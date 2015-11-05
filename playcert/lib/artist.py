@@ -71,31 +71,33 @@ class Artist(object):
         # first try in thisdayinmusic.net api
         try:
             artist_uri = urllib.quote(self.name)
-        except ValueError:
+        except (ValueError, KeyError):
             log.debug('error quoting artist_name')
-            return
 
-        uri = "http://api.thisdayinmusic.net/app/api/artists/%s" % artist_uri
-        log.debug('uri %s', uri)
+        if artist_uri:
+            uri = "http://api.thisdayinmusic.net/app/api/artists/%s" % artist_uri
+            log.debug('uri %s', uri)
 
-        try:
-            request = requests.get(uri)
-        except ConnectionError:
-            log.error(
-                'could not reach thisdayinmusic api %s', sys.exc_info()[0])
-            return
+            try:
+                request = requests.get(uri)
+            except ConnectionError:
+                log.error(
+                    'could not reach thisdayinmusic api %s', sys.exc_info()[0])
+                return
 
-        artist_info = request.json()
+            artist_info = request.json()
 
-        log.debug('artist_info')
-        log.debug(artist_info)
+            log.debug('artist_info')
+            log.debug(artist_info)
 
-        log.debug('thisdayinmusic artist', artist_info)
+            log.debug('thisdayinmusic artist', artist_info)
 
-        if 'data' in artist_info:
-            self.songs = [Song(song['name'], song['spotifyId'])
-                          for song in artist_info['data']['tracks']['data']]
-            return
+            if 'data' in artist_info:
+                self.songs = [
+                    Song(song['name'], song['spotifyId'])
+                    for song in artist_info['data']['tracks']['data']
+                ]
+                return
 
         # couldn't find artist in thisdayinmusic, trying echonest
         try:
@@ -112,6 +114,14 @@ class Artist(object):
             if echonest_songs:
                 tracks = []
                 for song in echonest_songs:
-                    track = song.get_tracks('spotify-WW')[0]
-                    tracks.append(Song(song.title, track['foreign_id']))
+                    try:
+                        track = song.get_tracks('spotify-WW')[0]
+                    except (EchoNestAPIError, EchoNestIOError):
+                        log.error(
+                            'could not find song details in echonest %s',
+                            sys.exc_info()[0]
+                        )
+                    else:
+                        tracks.append(Song(song.title, track['foreign_id']))
+
                 self.songs = tracks
