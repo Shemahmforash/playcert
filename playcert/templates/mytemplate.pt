@@ -73,10 +73,13 @@
 
         <script src="https://maps.googleapis.com/maps/api/js?libraries=places"></script>
 
+        <script src="http://fgnass.github.io/spin.js/spin.min.js"></script>
+        <script src="/static/js/angular-spinner.min.js"></script>
 
         <script src="/static/js/app.js"></script>
         <script src="/static/js/controllers.js"></script>
-        <script src="/static/js/autocomplete.js"></script>
+        <script src="/static/js/autocomplete.min.js"></script>
+
 
         <base href="/">
 
@@ -115,9 +118,11 @@
         <form class="form" >
         </form>
 
-        <div class="ink-grid" ng-view>
+        <div class="ink-grid" ng-view ng-hide="viewHide">
 
         </div>
+
+        <span us-spinner spinner-key="spinner-1" spinner-start-active="true"></span>
 
         <footer class="clearfix">
             <div class="ink-grid">

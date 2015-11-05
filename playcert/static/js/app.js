@@ -1,7 +1,8 @@
 var playcertApp = angular.module('playcertApp', [
   'ngRoute',
   'google.places',
-  'playcertControllers',
+  'angularSpinner',
+  'playcertControllers'
 ]);
 
 playcertApp.config(['$routeProvider', '$locationProvider',
