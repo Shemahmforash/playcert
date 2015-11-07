@@ -70,15 +70,14 @@
 
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular-route.min.js"></script>
-
         <script src="https://maps.googleapis.com/maps/api/js?libraries=places"></script>
 
-        <script src="http://fgnass.github.io/spin.js/spin.min.js"></script>
-        <script src="/static/js/angular-spinner.min.js"></script>
+        <script src="/bower_components/spin.js/spin.min.js"></script>
+        <script src="/bower_components/angular-spinner/angular-spinner.min.js"></script>
+        <script src="/bower_components/angular-google-places-autocomplete/dist/autocomplete.min.js"></script>
 
         <script src="/static/js/app.js"></script>
         <script src="/static/js/controllers.js"></script>
-        <script src="/static/js/autocomplete.min.js"></script>
 
 
         <base href="/">
