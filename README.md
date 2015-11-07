@@ -4,6 +4,12 @@ Playcert is a python app that aims in creating spotify playlists based on the co
 ## Installation
 In order to use this app, you need to clone it and then install its requirements: `pip install -r requirements.txt`. You will also need to get keys from eventful and echonest and set them in environment variables: 'ECHONEST\_KEY' and 'EVENTFUL\_KEY'.
 
+The javascript dependencies can be installed using [Bower](http://bower.io/):
+
+```
+cd playcert; bower update;
+```
+
 You'll also need a running instance of redis-server. You can install it in a debian-like linux distribution by running `sudo apt-get install redis-server`.
 
 If your redis configuration is not the default one, you should specify some environment variables or add the correct values to development.ini or production.in as specified in [pyramid_redis pypi documentation](https://pypi.python.org/pypi/pyramid_redis).
