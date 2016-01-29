@@ -70,6 +70,9 @@ def events_for_json(events):
 def get_events(**kwargs):
     """
     Gets the events from the eventful API
+
+    Args:
+        **kwargs: location, request
     """
     events = api.call(
         '/events/search', c='music', l=kwargs['location'], date='This week'
@@ -118,6 +121,9 @@ def simplify_events(events, request):
 def create_playlist(**kwargs):
     """
     Creates a playlist string to be rendered
+
+    Args:
+        **kwargs:
     """
 
     events = kwargs['events']

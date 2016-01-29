@@ -73,6 +73,7 @@ class Artist(object):
             artist_uri = urllib.quote(self.name)
         except (ValueError, KeyError):
             log.debug('error quoting artist_name')
+            return
 
         if artist_uri:
             uri = "http://api.thisdayinmusic.net/app/api/artists/%s" % artist_uri
