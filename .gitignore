@@ -8,6 +8,7 @@ venv
 src
 build
 playcert/bower_components/
+.idea
 
 
 .DS_STORE
