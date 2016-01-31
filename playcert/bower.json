@@ -19,6 +19,7 @@
   ],
   "dependencies": {
     "angular-google-places-autocomplete": "~0.2.7",
-    "angular-spinner": "~0.8.0"
+    "angular-spinner": "~0.8.0",
+    "angularjs-geolocation": "~0.1.1"
   }
 }

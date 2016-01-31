@@ -2,6 +2,7 @@ var playcertApp = angular.module('playcertApp', [
   'ngRoute',
   'google.places',
   'angularSpinner',
+  'geolocation',
   'playcertControllers'
 ]);
 

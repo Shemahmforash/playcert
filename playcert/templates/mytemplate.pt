@@ -140,11 +140,10 @@
         <script src="/bower_components/spin.js/spin.min.js"></script>
         <script src="/bower_components/angular-spinner/angular-spinner.min.js"></script>
         <script src="/bower_components/angular-google-places-autocomplete/dist/autocomplete.min.js"></script>
+        <script src="/bower_components/angularjs-geolocation/dist/angularjs-geolocation.min.js"></script>
 
         <script src="/static/js/app.js"></script>
         <script src="/static/js/controllers.js"></script>
-
-
 
     </body>
 
