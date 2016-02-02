@@ -25,10 +25,6 @@ playcertControllers.controller('EventListCtrl', ['$scope', '$http', '$routeParam
   }]);
 
 playcertControllers.controller('LocationCtrl', ['$scope', '$location', function ($scope, $location) {
-
-    //TODO: on page load, fill place
-
-
     $scope.autocompleteOptions = {
         types: ['(cities)'],
     }
@@ -44,9 +40,10 @@ playcertControllers.controller('LocationCtrl', ['$scope', '$location', function 
     };
 }]);
 
-playcertControllers.controller('HomeCtrl', ['$scope', 'geolocation', '$http', '$location',
-  function($scope, geolocation, $http, $location) {
+playcertControllers.controller('HomeCtrl', ['$scope', 'geolocation', '$http', '$location', 'usSpinnerService',
+  function($scope, geolocation, $http, $location, usSpinnerService) {
 
+    $scope.viewHide = 1;
     geolocation.getLocation().then(function(data){
 
         //obtain the coordinates from the browser
@@ -74,6 +71,14 @@ playcertControllers.controller('HomeCtrl', ['$scope', 'geolocation', '$http', '$
                     }
                 }
             }
-        });
+        }).then(function successCallback(response) {
+            usSpinnerService.stop('spinner-1');
+            $scope.viewHide = 0;
+          }, function errorCallback(response) {
+            // called asynchronously if an error occurs
+            // or server returns response with an error status.
+            usSpinnerService.stop('spinner-1');
+            $scope.viewHide = 0;
+          });
     });
   }]);

@@ -14,7 +14,7 @@ playcertApp.config(['$routeProvider', '$locationProvider',
         controller: 'EventListCtrl'
       }).
       when('/', {
-        templateUrl: 'static/partials/home.html',
+        templateUrl: 'static/partials/events.html',
         controller: 'HomeCtrl'
       }).
       otherwise({
