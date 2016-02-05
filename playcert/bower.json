@@ -1,0 +1,24 @@
+{
+  "name": "playcert",
+  "homepage": "https://github.com/Shemahmforash/playcert",
+  "authors": [
+    "Carlos Rosão <shemahmforash@hotmail.com>"
+  ],
+  "description": "",
+  "main": "",
+  "moduleType": [
+    "node"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular-google-places-autocomplete": "~0.2.7",
+    "angular-spinner": "~0.8.0"
+  }
+}

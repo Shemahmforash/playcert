@@ -1,0 +1,13 @@
+venv
+*.py[co]
+
+# Packages
+*.egg
+*.egg-info
+.env
+src
+build
+playcert/bower_components/
+
+
+.DS_STORE
