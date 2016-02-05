@@ -1,3 +1,13 @@
+    
+    <form class="ink-form" ng-controller="LocationCtrl">
+        <div class="control-group">
+            <label for="email">Please choose your location</label>
+            <div class="control">
+                <input class="form-control" g-places-autocomplete options="autocompleteOptions" ng-model="place" ng-change="change()"/>
+            </div>
+        </div>
+    </form>
+    
     <div class="column-group gutters">
         <div class="all-100">
             <h2>{{location}}</h2>
@@ -20,3 +30,4 @@
     </div>
 
     <span us-spinner spinner-key="spinner-1"></span>
+    

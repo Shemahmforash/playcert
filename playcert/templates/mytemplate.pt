@@ -97,18 +97,6 @@
             </nav>
         </header>
 
-        <form class="ink-form" ng-controller="LocationCtrl">
-            <div class="control-group">
-                <label for="email">Please choose your location</label>
-                <div class="control">
-                    <input class="form-control" g-places-autocomplete options="autocompleteOptions" ng-model="place" ng-change="change()"/>
-                </div>
-            </div>
-        </form>
-
-        <form class="form" >
-        </form>
-
         <div class="ink-grid" ng-view ng-hide="viewHide">
 
         </div>
