@@ -91,23 +91,11 @@
             <h1>Playcert<small>playlist based on concerts near you</small></h1>
             <nav class="ink-navigation">
                 <ul class="menu horizontal black">
-                    <li class="active"><a href="#">Home</a></li>
-                    <li><a href="#">About</a></li>
+                    <li class="active"><a href="/">Home</a></li>
+                    <li><a href="/about">About</a></li>
                 </ul>
             </nav>
         </header>
-
-        <form class="ink-form" ng-controller="LocationCtrl">
-            <div class="control-group">
-                <label for="email">Please choose your location</label>
-                <div class="control">
-                    <input class="form-control" g-places-autocomplete options="autocompleteOptions" ng-model="place" ng-change="change()"/>
-                </div>
-            </div>
-        </form>
-
-        <form class="form" >
-        </form>
 
         <div class="ink-grid" ng-view ng-hide="viewHide">
 
@@ -118,7 +106,7 @@
         <footer class="clearfix">
             <div class="ink-grid">
                 <ul class="unstyled inline half-vertical-space">
-                    <li class="active"><a href="#">About</a></li>
+                    <li class="active"><a href="/about">About</a></li>
                 </ul>
                 <p class="note">
                     Created by <a href="https://twitter.com/shemahmforash/" target="_blank">Carlos Rosão</a> using
@@ -140,11 +128,10 @@
         <script src="/bower_components/spin.js/spin.min.js"></script>
         <script src="/bower_components/angular-spinner/angular-spinner.min.js"></script>
         <script src="/bower_components/angular-google-places-autocomplete/dist/autocomplete.min.js"></script>
+        <script src="/bower_components/angularjs-geolocation/dist/angularjs-geolocation.min.js"></script>
 
         <script src="/static/js/app.js"></script>
         <script src="/static/js/controllers.js"></script>
-
-
 
     </body>
 

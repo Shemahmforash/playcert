@@ -25,8 +25,6 @@ playcertControllers.controller('EventListCtrl', ['$scope', '$http', '$routeParam
   }]);
 
 playcertControllers.controller('LocationCtrl', ['$scope', '$location', function ($scope, $location) {
-
-    //TODO: on page load, fill place
     $scope.autocompleteOptions = {
         types: ['(cities)'],
     }
@@ -42,7 +40,50 @@ playcertControllers.controller('LocationCtrl', ['$scope', '$location', function 
     };
 }]);
 
-playcertControllers.controller('HomeCtrl', ['$scope',
-  function($scope) {
-    console.log('home!!');
+playcertControllers.controller('AboutCtrl', ['$scope', '$location', 'usSpinnerService', function ($scope, $location, usSpinnerService) {
+    usSpinnerService.stop('spinner-1');
+    $scope.viewHide = 0;
+}]);
+
+playcertControllers.controller('HomeCtrl', ['$scope', 'geolocation', '$http', '$location', 'usSpinnerService',
+  function($scope, geolocation, $http, $location, usSpinnerService) {
+
+    $scope.viewHide = 1;
+    geolocation.getLocation().then(function(data){
+
+        //obtain the coordinates from the browser
+        $scope.coords = {lat:data.coords.latitude, long:data.coords.longitude};
+
+        //try to obtain the city from the coordinates
+        var uri = "http://maps.googleapis.com/maps/api/geocode/json?latlng=" + data.coords.latitude +  "," + data.coords.longitude + "&sensor=true";
+        $http.get(uri).success(function(data) {
+            var results = data.results;
+
+            for (var i = 0 ; i < results.length; i++) {
+                var result = results[i];
+
+                var components = result.address_components;
+                for (var k = 0; k < components.length; k++) {
+                    var component = components[i];
+                    console.log('component', component);
+
+                    if (!component) {
+                        continue;
+                    }
+
+                    if (component.types.indexOf('political') !== -1) {
+                        return $location.path('/events/' + component.long_name);
+                    }
+                }
+            }
+        }).then(function successCallback(response) {
+            usSpinnerService.stop('spinner-1');
+            $scope.viewHide = 0;
+          }, function errorCallback(response) {
+            // called asynchronously if an error occurs
+            // or server returns response with an error status.
+            usSpinnerService.stop('spinner-1');
+            $scope.viewHide = 0;
+          });
+    });
   }]);

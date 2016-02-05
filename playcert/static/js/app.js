@@ -2,6 +2,7 @@ var playcertApp = angular.module('playcertApp', [
   'ngRoute',
   'google.places',
   'angularSpinner',
+  'geolocation',
   'playcertControllers'
 ]);
 
@@ -13,8 +14,12 @@ playcertApp.config(['$routeProvider', '$locationProvider',
         controller: 'EventListCtrl'
       }).
       when('/', {
-        templateUrl: 'static/partials/home.html',
+        templateUrl: 'static/partials/events.html',
         controller: 'HomeCtrl'
+      }).
+      when('/about', {
+        templateUrl: 'static/partials/about.html',
+        controller: 'AboutCtrl'
       }).
       otherwise({
         redirectTo: '/'
