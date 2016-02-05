@@ -91,8 +91,8 @@
             <h1>Playcert<small>playlist based on concerts near you</small></h1>
             <nav class="ink-navigation">
                 <ul class="menu horizontal black">
-                    <li class="active"><a href="#">Home</a></li>
-                    <li><a href="#">About</a></li>
+                    <li class="active"><a href="/">Home</a></li>
+                    <li><a href="/about">About</a></li>
                 </ul>
             </nav>
         </header>
@@ -118,7 +118,7 @@
         <footer class="clearfix">
             <div class="ink-grid">
                 <ul class="unstyled inline half-vertical-space">
-                    <li class="active"><a href="#">About</a></li>
+                    <li class="active"><a href="/about">About</a></li>
                 </ul>
                 <p class="note">
                     Created by <a href="https://twitter.com/shemahmforash/" target="_blank">Carlos Rosão</a> using

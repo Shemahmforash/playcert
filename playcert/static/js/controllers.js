@@ -40,6 +40,11 @@ playcertControllers.controller('LocationCtrl', ['$scope', '$location', function 
     };
 }]);
 
+playcertControllers.controller('AboutCtrl', ['$scope', '$location', 'usSpinnerService', function ($scope, $location, usSpinnerService) {
+    usSpinnerService.stop('spinner-1');
+    $scope.viewHide = 0;
+}]);
+
 playcertControllers.controller('HomeCtrl', ['$scope', 'geolocation', '$http', '$location', 'usSpinnerService',
   function($scope, geolocation, $http, $location, usSpinnerService) {
 

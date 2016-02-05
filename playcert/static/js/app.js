@@ -17,6 +17,10 @@ playcertApp.config(['$routeProvider', '$locationProvider',
         templateUrl: 'static/partials/events.html',
         controller: 'HomeCtrl'
       }).
+      when('/about', {
+        templateUrl: 'static/partials/about.html',
+        controller: 'AboutCtrl'
+      }).
       otherwise({
         redirectTo: '/'
       })
