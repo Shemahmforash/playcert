@@ -1,9 +1,12 @@
 var playcertControllers = angular.module('playcertControllers', []);
 
-playcertControllers.controller('EventListCtrl', ['$scope', '$http', '$routeParams', "$sce", 'usSpinnerService',
-  function ($scope, $http, $routeParams, $sce, usSpinnerService) {
+playcertControllers.controller('EventListCtrl', ['$scope', '$rootScope', '$http', '$routeParams', "$sce", 'usSpinnerService',
+  function ($scope, $rootScope, $http, $routeParams, $sce, usSpinnerService) {
 
   	var location = $routeParams.location;
+
+    $rootScope.home = 1;
+    $rootScope.about = 0;
 
     $scope.place = location;
 
@@ -43,13 +46,18 @@ playcertControllers.controller('LocationCtrl', ['$scope', '$location', function 
     };
 }]);
 
-playcertControllers.controller('AboutCtrl', ['$scope', '$location', 'usSpinnerService', function ($scope, $location, usSpinnerService) {
+playcertControllers.controller('AboutCtrl', ['$scope', '$rootScope', '$location', 'usSpinnerService', function ($scope, $rootScope, $location, usSpinnerService) {
+    $rootScope.about = 1;
+    $rootScope.home = 0;
     usSpinnerService.stop('spinner-1');
     $scope.viewHide = 0;
 }]);
 
-playcertControllers.controller('HomeCtrl', ['$scope', 'geolocation', '$http', '$location', 'usSpinnerService',
-  function($scope, geolocation, $http, $location, usSpinnerService) {
+playcertControllers.controller('HomeCtrl', ['$scope', '$rootScope', 'geolocation', '$http', '$location', 'usSpinnerService',
+  function($scope, $rootScope, geolocation, $http, $location, usSpinnerService) {
+
+    $rootScope.home = 1;
+    $rootScope.about = 0;
 
     $scope.viewHide = 1;
     usSpinnerService.spin('spinner-1');
@@ -69,7 +77,6 @@ playcertControllers.controller('HomeCtrl', ['$scope', 'geolocation', '$http', '$
                 var components = result.address_components;
                 for (var k = 0; k < components.length; k++) {
                     var component = components[i];
-                    console.log('component', component);
 
                     if (!component) {
                         continue;
