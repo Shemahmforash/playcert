@@ -97,7 +97,7 @@
             </nav>
         </header>
 
-        <div class="ink-grid" ng-view ng-hide="viewHide">
+        <div class="ink-grid" ng-view>
 
         </div>
 

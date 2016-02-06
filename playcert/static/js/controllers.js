@@ -5,6 +5,8 @@ playcertControllers.controller('EventListCtrl', ['$scope', '$http', '$routeParam
 
   	var location = $routeParams.location;
 
+    $scope.place = location;
+
     $scope.viewHide = 1;
     usSpinnerService.spin('spinner-1');
     $http.get('events/' + location + '.json').success(function(data) {
