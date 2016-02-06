@@ -12,6 +12,9 @@ def main(global_config, **settings):
     config.add_static_view('bower_components', 'bower_components')
     # config.add_route('home', '/')
     config.add_route('events', '/events/{location}.json')
+    config.add_route('set_city_coordinates', '/coordinates/{location}/set')
+    config.add_route('get_city_from_coordinates',
+                     '/coordinates/city')
 
     config.add_route('home', '/*subpath')
 
