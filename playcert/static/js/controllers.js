@@ -10,6 +10,7 @@ playcertControllers.controller('EventListCtrl', ['$scope', '$http', '$routeParam
     $http.get('events/' + location + '.json').success(function(data) {
       $scope.location = data.location;
       $scope.events = data.events;
+
       $scope.playlist = $sce.trustAsResourceUrl(
             "//embed.spotify.com/?uri=spotify:trackset:Playlist:" + data.playlist
         );
