@@ -74,9 +74,14 @@ def get_events(**kwargs):
     Args:
         **kwargs: location, request
     """
-    events = api.call(
-        '/events/search', c='music', l=kwargs['location'], date='This week'
-    )
+
+    try:
+        events = api.call(
+            '/events/search', c='music', l=kwargs['location'], date='This week'
+        )
+    except (UnicodeEncodeError):
+        log.debug('error finding events')
+        return []
 
     if not events or int(events['total_items']) == 0:
         return []
