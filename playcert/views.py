@@ -24,23 +24,23 @@ def my_view(request):
 def set_city_coordinates(request):
     location = request.matchdict['location']
 
-    latidude = request.params.get('latidude')
+    latitude = request.params.get('latitude')
     longitude = request.params.get('longitude')
 
-    if not latidude or not longitude:
-        log.error('longitude and latidude are mandatory params')
+    log.debug("location %s, latitude %s, longitude %s",
+              location, latitude, longitude)
+
+    if not latitude or not longitude:
+        log.error('longitude and latitude are mandatory params')
         return {}
 
-    log.debug("location %s, latitude %s, longitude %s",
-              location, latidude, longitude)
-
-    cache_key = "latidude.%s.longitude.%s" % (latidude, longitude)
+    cache_key = "latitude.%s.longitude.%s" % (latitude, longitude)
 
     request.redis.hset('location.coordinates', cache_key,
                        location)
 
     return {
-        'latidude': latidude,
+        'latitude': latitude,
         'longitude': longitude,
         'location': location
     }
@@ -48,14 +48,14 @@ def set_city_coordinates(request):
 
 @view_config(route_name='get_city_from_coordinates', renderer='json')
 def get_city_from_coordinates(request):
-    latidude = request.params.get('latidude')
+    latitude = request.params.get('latitude')
     longitude = request.params.get('longitude')
 
-    if not latidude or not longitude:
-        log.error('longitude and latidude are mandatory params')
+    if not latitude or not longitude:
+        log.error('longitude and latitude are mandatory params')
         return {}
 
-    cache_key = "latidude.%s.longitude.%s" % (latidude, longitude)
+    cache_key = "latitude.%s.longitude.%s" % (latitude, longitude)
 
     location = request.redis.hget('location.coordinates', cache_key)
 
