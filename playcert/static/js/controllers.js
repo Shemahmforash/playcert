@@ -50,6 +50,7 @@ playcertControllers.controller('HomeCtrl', ['$scope', 'geolocation', '$http', '$
   function($scope, geolocation, $http, $location, usSpinnerService) {
 
     $scope.viewHide = 1;
+    usSpinnerService.spin('spinner-1');
     geolocation.getLocation().then(function(data){
 
         //obtain the coordinates from the browser
