@@ -34,7 +34,8 @@ def set_city_coordinates(request):
         log.error('longitude and latitude are mandatory params')
         return {}
 
-    cache_key = "latitude.%s.longitude.%s" % (latitude, longitude)
+    cache_key = "latitude.%.4f.longitude.%.4f" % (
+        float(latitude), float(longitude))
 
     request.redis.hset('location.coordinates', cache_key,
                        location)
@@ -55,7 +56,8 @@ def get_city_from_coordinates(request):
         log.error('longitude and latitude are mandatory params')
         return {}
 
-    cache_key = "latitude.%s.longitude.%s" % (latitude, longitude)
+    cache_key = "latitude.%.4f.longitude.%.4f" % (
+        float(latitude), float(longitude))
 
     location = request.redis.hget('location.coordinates', cache_key)
 
