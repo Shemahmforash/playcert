@@ -76,51 +76,20 @@ playcertControllers.controller('HomeCtrl', ['$scope', '$rootScope', 'geolocation
                 // console.log('will now redirect');
                 $scope.place = data.location;
                 return $location.path('/events/' + data.location);
-            } else {
-                //try to obtain the city from the coordinates
-                var uri = "http://maps.googleapis.com/maps/api/geocode/json?latlng=" + $scope.coords.lat +  "," + $scope.coords.long + "&sensor=true";
-                $http.get(uri).success(function(data) {
-                    var results = data.results;
-
-                    for (var i = 0 ; i < results.length; i++) {
-                        var result = results[i];
-
-                        var components = result.address_components;
-                        for (var k = 0; k < components.length; k++) {
-                            var component = components[i];
-
-                            if (!component) {
-                                continue;
-                            }
-
-                            // console.log('component', component);
-
-                            if (component.types.indexOf('political') !== -1) {
-                                //also set location for coordinates on cache
-                                $http.get('/coordinates/' + component.long_name + '/set.json?latitude=' + $scope.coords.lat + '&longitude=' + $scope.coords.long ).success(function(data) {
-                                });
-                                $scope.place = location;
-                                return $location.path('/events/' + component.long_name);
-                            }
-                        }
-                    }
-                }).then(function successCallback(response) {
-                    usSpinnerService.stop('spinner-1');
-                    $scope.viewHide = 0;
-                  }, function errorCallback(response) {
-                    // called asynchronously if an error occurs
-                    // or server returns response with an error status.
-                    usSpinnerService.stop('spinner-1');
-                    $scope.viewHide = 0;
-                  });
             }
+        }).then(function successCallback(response) {
+            usSpinnerService.stop('spinner-1');
+            $scope.viewHide = 0;
+        }, function errorCallback(response) {
+            // called asynchronously if an error occurs
+            // or server returns response with an error status.
+            usSpinnerService.stop('spinner-1');
+            $scope.viewHide = 0;
         });
 
         // console.log('scope place');
         if ($scope.place) {
             return;
         }
-
-
     });
   }]);
