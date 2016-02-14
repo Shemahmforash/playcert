@@ -3,7 +3,7 @@ from requests.packages.urllib3.exceptions import ConnectionError
 import requests
 import sys
 
-from playcert.cache.locations import cache_location
+from playcert.cache import cache_data_in_hash
 
 log = logging.getLogger(__name__)
 
@@ -18,10 +18,10 @@ class Location(object):
         # to use cache in this class (not mandatory)
         self.redis = redis
 
-        self.find_location(redis)
+        self.location = self.find_location(redis)
         return
 
-    def coordinates_redis_key(self):
+    def cache_key(self):
         latitude = self.latitude
         longitude = self.longitude
 
@@ -34,7 +34,10 @@ class Location(object):
 
         return cache_key
 
-    @cache_location
+    def cache_hash_key(self):
+        return 'location.coordinates'
+
+    @cache_data_in_hash
     def find_location(self, redis=None):
         uri = "http://maps.googleapis.com/maps/api/geocode/json?latlng=%s,%s&sensor=true" % (
             self.latitude, self.longitude)
@@ -58,5 +61,4 @@ class Location(object):
         for result in location_data['results']:
             for component in result['address_components']:
                 if 'political' in component['types']:
-                    self.location = component['long_name']
-                    return
+                    return component['long_name']
