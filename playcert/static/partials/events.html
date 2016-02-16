@@ -1,4 +1,4 @@
-    
+
     <form class="ink-form" ng-controller="LocationCtrl">
         <div class="control-group">
             <label for="email">Please choose your location</label>
@@ -7,27 +7,34 @@
             </div>
         </div>
     </form>
-    
-    <div class="column-group gutters">
-        <div class="all-100">
-            <h2>{{location}}</h2>
-        </div>
-    </div>
-    <div class="column-group gutters">
-        <div class="all-50 small-100 tiny-100">
-            <h3>Events</h3>
-            <ul>
-                <li ng-repeat="event in events">
-                    {{ event.when }} - {{ event.title }} at {{event.venue}}
 
-                </li>
-            </ul>
+    <div ng-hide="viewHide">
+        <div class="column-group gutters">
+            <div class="all-100">
+                <h2>{{location}}</h2>
+
+                 <p ng-show="!events.length">
+                    No events found for this location, please try another one.
+                 </p>
+            </div>
         </div>
-        <div class="all-50 small-100 tiny-100">
-            <h3>Playlist</h3>
-            <iframe src="{{ playlist }}" style="width:400px; height:400px;" frameborder="0" allowtransparency="true">    </iframe>
+
+        <div class="column-group gutters" ng-show="events.length">
+            <div class="all-50 small-100 tiny-100">
+                <h3>Events</h3>
+                <ul>
+                    <li ng-repeat="event in events">
+                        {{ event.when }} - {{ event.title }} at {{event.venue}}
+                    </li>
+                </ul>
+            </div>
+            <div class="all-50 small-100 tiny-100">
+                <h3>Playlist</h3>
+                <iframe src="{{ playlist }}" style="width:400px; height:400px;" frameborder="0" allowtransparency="true">    </iframe>
+            </div>
         </div>
+
     </div>
 
     <span us-spinner spinner-key="spinner-1"></span>
-    
+

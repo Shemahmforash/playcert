@@ -91,13 +91,13 @@
             <h1>Playcert<small>playlist based on concerts near you</small></h1>
             <nav class="ink-navigation">
                 <ul class="menu horizontal black">
-                    <li class="active"><a href="/">Home</a></li>
-                    <li><a href="/about">About</a></li>
+                    <li ng-class="{active: home}"><a href="/">Home</a></li>
+                    <li ng-class="{active: about}"><a href="/about">About</a></li>
                 </ul>
             </nav>
         </header>
 
-        <div class="ink-grid" ng-view ng-hide="viewHide">
+        <div class="ink-grid" ng-view>
 
         </div>
 

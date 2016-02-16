@@ -10,7 +10,6 @@ import re
 from playcert.cache import cache_data
 from playcert.lib.event import Event
 
-
 log = logging.getLogger(__name__)
 
 api = eventful.API(os.environ['EVENTFUL_KEY'])
@@ -19,6 +18,53 @@ api = eventful.API(os.environ['EVENTFUL_KEY'])
 @view_config(route_name='home', renderer='templates/mytemplate.pt')
 def my_view(request):
     return {'project': 'playcert'}
+
+
+@view_config(route_name='set_city_coordinates', renderer='json')
+def set_city_coordinates(request):
+    location = request.matchdict['location']
+
+    latitude = request.params.get('latitude')
+    longitude = request.params.get('longitude')
+
+    log.debug("location %s, latitude %s, longitude %s",
+              location, latitude, longitude)
+
+    if not latitude or not longitude:
+        log.error('longitude and latitude are mandatory params')
+        return {}
+
+    cache_key = "latitude.%s.longitude.%s" % (latitude, longitude)
+
+    request.redis.hset('location.coordinates', cache_key,
+                       location)
+
+    return {
+        'latitude': latitude,
+        'longitude': longitude,
+        'location': location
+    }
+
+
+@view_config(route_name='get_city_from_coordinates', renderer='json')
+def get_city_from_coordinates(request):
+    latitude = request.params.get('latitude')
+    longitude = request.params.get('longitude')
+
+    if not latitude or not longitude:
+        log.error('longitude and latitude are mandatory params')
+        return {}
+
+    cache_key = "latitude.%s.longitude.%s" % (latitude, longitude)
+
+    location = request.redis.hget('location.coordinates', cache_key)
+
+    if not longitude:
+        return {}
+
+    return {
+        'location': location
+    }
 
 
 @view_config(route_name='events', renderer='json')
@@ -33,7 +79,6 @@ def events_view(request):
 
     # could not find events in api, empty response
     if not events:
-        # TODO: support empty response correctly in the template
         return {
             'events': [],
             'playlist': [],
@@ -74,9 +119,14 @@ def get_events(**kwargs):
     Args:
         **kwargs: location, request
     """
-    events = api.call(
-        '/events/search', c='music', l=kwargs['location'], date='This week'
-    )
+
+    try:
+        events = api.call(
+            '/events/search', c='music', l=kwargs['location'], date='This week'
+        )
+    except (UnicodeEncodeError):
+        log.debug('error finding events')
+        return []
 
     if not events or int(events['total_items']) == 0:
         return []
