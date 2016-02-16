@@ -1,8 +1,7 @@
 import logging
 
 from playcert.lib.artist import Artist
-from playcert.cache.artists import cache_artist
-
+from playcert.cache import cache_data_in_hash
 
 log = logging.getLogger(__name__)
 
@@ -23,13 +22,19 @@ class Event(object):
             self.artist = Artist(artist_name, self.redis)
         else:
             # finds artist from event title
-            self.find_artist()
+            self.artist = self.find_artist()
 
-    @cache_artist
+    def cache_hash_key(self):
+        return 'text.artist'
+
+    def cache_key(self):
+        return self.title
+
+    @cache_data_in_hash
     def find_artist(self):
 
         # finds and creates artist from event title
-        self.artist = Artist.create_artist_from_text(
+        return Artist.create_artist_from_text(
             self.title, self.venue, self.redis)
 
     def __repr__(self):

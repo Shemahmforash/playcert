@@ -9,7 +9,7 @@ from pyechonest.util import EchoNestAPIError, EchoNestIOError
 from requests.packages.urllib3.exceptions import ConnectionError
 import requests
 
-from playcert.cache.events import cache_songs
+from playcert.cache import cache_data_in_hash
 
 
 config.ECHO_NEST_API_KEY = os.environ['ECHONEST_KEY']
@@ -31,7 +31,7 @@ class Artist(object):
         # to use cache in this class (not mandatory)
         self.redis = redis
 
-        self.find_songs()
+        self.songs = self.find_songs()
 
     @staticmethod
     def create_artist_from_text(text, venue, redis=None):
@@ -62,7 +62,13 @@ class Artist(object):
 
         return
 
-    @cache_songs
+    def cache_hash_key(self):
+        return 'artist.songs'
+
+    def cache_key(self):
+        return self.name
+
+    @cache_data_in_hash
     def find_songs(self):
         """
         Finds songs for this artist in thisdayinmusic api or echonest api
@@ -94,11 +100,10 @@ class Artist(object):
             log.debug('thisdayinmusic artist', artist_info)
 
             if 'data' in artist_info:
-                self.songs = [
+                return [
                     Song(song['name'], song['spotifyId'])
                     for song in artist_info['data']['tracks']['data']
                 ]
-                return
 
         # couldn't find artist in thisdayinmusic, trying echonest
         try:
@@ -125,4 +130,4 @@ class Artist(object):
                     else:
                         tracks.append(Song(song.title, track['foreign_id']))
 
-                self.songs = tracks
+                return tracks

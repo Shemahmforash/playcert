@@ -9,6 +9,7 @@ import re
 
 from playcert.cache import cache_data
 from playcert.lib.event import Event
+from playcert.lib.location import Location
 
 log = logging.getLogger(__name__)
 
@@ -20,50 +21,17 @@ def my_view(request):
     return {'project': 'playcert'}
 
 
-@view_config(route_name='set_city_coordinates', renderer='json')
-def set_city_coordinates(request):
-    location = request.matchdict['location']
-
-    latitude = request.params.get('latitude')
-    longitude = request.params.get('longitude')
-
-    log.debug("location %s, latitude %s, longitude %s",
-              location, latitude, longitude)
-
-    if not latitude or not longitude:
-        log.error('longitude and latitude are mandatory params')
-        return {}
-
-    cache_key = "latitude.%s.longitude.%s" % (latitude, longitude)
-
-    request.redis.hset('location.coordinates', cache_key,
-                       location)
-
-    return {
-        'latitude': latitude,
-        'longitude': longitude,
-        'location': location
-    }
-
-
 @view_config(route_name='get_city_from_coordinates', renderer='json')
 def get_city_from_coordinates(request):
     latitude = request.params.get('latitude')
     longitude = request.params.get('longitude')
 
-    if not latitude or not longitude:
-        log.error('longitude and latitude are mandatory params')
-        return {}
-
-    cache_key = "latitude.%s.longitude.%s" % (latitude, longitude)
-
-    location = request.redis.hget('location.coordinates', cache_key)
-
-    if not longitude:
-        return {}
+    location = Location(latitude, longitude, request.redis)
 
     return {
-        'location': location
+        'location': location.location,
+        'latitude': location.latitude,
+        'longitude': location.longitude
     }
 
 
