@@ -123,7 +123,7 @@
 
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular-route.min.js"></script>
-        <script src="https://maps.googleapis.com/maps/api/js?libraries=places"></script>
+        <script src="https://maps.googleapis.com/maps/api/js?libraries=places&key=AIzaSyBMV-dbgFnm3YJThsYaDApK43GDjRrqxZk"></script>
 
         <script src="/bower_components/spin.js/spin.min.js"></script>
         <script src="/bower_components/angular-spinner/angular-spinner.min.js"></script>

@@ -10,7 +10,6 @@ def main(global_config, **settings):
     config.include('pyramid_redis')
     config.add_static_view('static', 'static')
     config.add_static_view('bower_components', 'bower_components')
-    # config.add_route('home', '/')
     config.add_route('events', '/events/{location}.json')
     config.add_route('get_city_from_coordinates',
                      '/coordinates/city.json')
