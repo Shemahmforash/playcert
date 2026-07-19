@@ -74,7 +74,7 @@ async function PlaylistSection({ params }: { params: Params }) {
         ) : null}
         {b.belowBar ? (
           <p className="text-sm text-foreground opacity-60">
-            Still digging — check back in a couple of minutes.
+            Showing the first few — reload in a minute and we&apos;ll have dug up more.
           </p>
         ) : null}
       </div>

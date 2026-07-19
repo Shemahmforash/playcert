@@ -1,15 +1,15 @@
 import { notFound } from 'next/navigation';
+import { cacheLife } from 'next/cache';
 import { geoForCity } from '../api/geo';
 import type { TimeWindow } from '../types';
 import type { BuildDeps } from './buildBundle';
 import { fetchShowsWithWiden } from './fetchShows';
-import { extractArtists, slugify } from './extractArtists';
+import { extractArtists } from './extractArtists';
 import { resolveTracks } from './resolveTracks';
 import { fetchAllEvents } from '../api/ticketmaster';
 import { searchArtistTracks, type ItunesCandidate } from '../api/itunes';
 import { crossCheckArtist } from '../api/musicbrainz';
 import { itunesQueue } from '../queue';
-import { cacheKeys } from '../cache';
 
 function windowRange(w: TimeWindow) {
   const iso = (d: Date) => d.toISOString().replace(/\.\d+Z$/, 'Z');
@@ -18,17 +18,18 @@ function windowRange(w: TimeWindow) {
   return { startISO: iso(now), endISO: iso(new Date(now.getTime() + days * 864e5)) };
 }
 
-// Request-scoped iTunes de-dupe: one in-flight promise per artist slug so the
-// same act billed on multiple shows only costs one queued search per build.
-const _itunesCache = new Map<string, Promise<ItunesCandidate[]>>();
-function cachedItunesSearch(name: string) {
-  const key = cacheKeys.itunes(slugify(name));
-  let p = _itunesCache.get(key);
-  if (!p) {
-    p = itunesQueue.schedule(() => searchArtistTracks(name));
-    _itunesCache.set(key, p);
-  }
-  return p;
+const DAY = 60 * 60 * 24;
+
+// Durable per-artist iTunes cache in Next's Data Cache, keyed on the (already
+// normalized) artist name. Because it survives across serverless instances and
+// bundle revalidations, a below-bar playlist genuinely FILLS OUT over successive
+// 120s bundle rebuilds — each rebuild's first artists are cache hits (no queue
+// slot), so the 25s budget reaches further down the bill. Only cold misses hit
+// the rate queue, so iTunes' ~20/min limit is still respected.
+async function cachedItunesSearch(name: string): Promise<ItunesCandidate[]> {
+  'use cache';
+  cacheLife({ stale: 3600, revalidate: 30 * DAY, expire: 60 * DAY });
+  return itunesQueue.schedule(() => searchArtistTracks(name));
 }
 
 /** Wires the hardened pipeline to the real TM/iTunes/MB clients for a given city slug. */
