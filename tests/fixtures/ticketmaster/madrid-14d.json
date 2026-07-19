@@ -1,0 +1,810 @@
+{
+  "_embedded": {
+    "events": [
+      {
+        "name": "Eva Ayllon",
+        "type": "event",
+        "id": "Z698xZ2qZ16eZP03AO",
+        "test": false,
+        "url": "https://www.ticketmaster.es/event/eva-ayllon-tickets/2025912160?language=en-us",
+        "locale": "en-us",
+        "images": [
+          {
+            "ratio": "4_3",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_CUSTOM.jpg",
+            "width": 305,
+            "height": 225,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_EVENT_DETAIL_PAGE_16_9.jpg",
+            "width": 205,
+            "height": 115,
+            "fallback": false
+          },
+          {
+            "ratio": "3_2",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_ARTIST_PAGE_3_2.jpg",
+            "width": 305,
+            "height": 203,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_RETINA_PORTRAIT_16_9.jpg",
+            "width": 640,
+            "height": 360,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+            "width": 2048,
+            "height": 1152,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_SOURCE",
+            "width": 2462,
+            "height": 1365,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/66c/222f8a9b-f8f4-48cb-9e3a-17e27e50166c_SOURCE",
+            "width": 2426,
+            "height": 1365,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_RECOMENDATION_16_9.jpg",
+            "width": 100,
+            "height": 56,
+            "fallback": false
+          },
+          {
+            "ratio": "3_2",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_RETINA_PORTRAIT_3_2.jpg",
+            "width": 640,
+            "height": 427,
+            "fallback": false
+          },
+          {
+            "ratio": "3_2",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_TABLET_LANDSCAPE_3_2.jpg",
+            "width": 1024,
+            "height": 683,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_TABLET_LANDSCAPE_16_9.jpg",
+            "width": 1024,
+            "height": 576,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_RETINA_LANDSCAPE_16_9.jpg",
+            "width": 1136,
+            "height": 639,
+            "fallback": false
+          }
+        ],
+        "distance": 4.5,
+        "units": "KILOMETERS",
+        "sales": {
+          "public": {
+            "startDateTime": "2026-02-12T12:45:00Z",
+            "startTBD": false,
+            "startTBA": false,
+            "endDateTime": "2026-07-23T18:00:00Z"
+          }
+        },
+        "dates": {
+          "access": {
+            "startDateTime": "2026-07-23T18:30:00Z",
+            "startApproximate": false,
+            "endApproximate": false
+          },
+          "start": {
+            "localDate": "2026-07-23",
+            "localTime": "20:00:00",
+            "dateTime": "2026-07-23T18:00:00Z",
+            "dateTBD": false,
+            "dateTBA": false,
+            "timeTBA": false,
+            "noSpecificTime": false
+          },
+          "timezone": "Europe/Madrid",
+          "status": {
+            "code": "onsale"
+          },
+          "spanMultipleDays": false
+        },
+        "classifications": [
+          {
+            "primary": true,
+            "segment": {
+              "id": "KZFzniwnSyZfZ7v7nJ",
+              "name": "Music"
+            },
+            "genre": {
+              "id": "KnvZfZ7vAJ6",
+              "name": "Latin"
+            },
+            "subGenre": {
+              "id": "KZazBEonSMnZfZ7va1a",
+              "name": "Latin"
+            },
+            "family": false
+          }
+        ],
+        "promoter": {
+          "id": "6315",
+          "name": "Raw Music Events, S.L."
+        },
+        "promoters": [
+          {
+            "id": "6315",
+            "name": "Raw Music Events, S.L."
+          }
+        ],
+        "ticketing": {
+          "safeTix": {
+            "enabled": false
+          }
+        },
+        "nameOrigin": "custom",
+        "_links": {
+          "self": {
+            "href": "/discovery/v2/events/Z698xZ2qZ16eZP03AO?locale=en-us"
+          },
+          "attractions": [
+            {
+              "href": "/discovery/v2/attractions/K8vZ9171gbV?locale=en-us"
+            }
+          ],
+          "venues": [
+            {
+              "href": "/discovery/v2/venues/Z598xZ2qZe6AF?locale=en-us"
+            }
+          ]
+        },
+        "_embedded": {
+          "venues": [
+            {
+              "name": "Sala Black Box (P. Vistalegre)",
+              "type": "venue",
+              "id": "Z598xZ2qZe6AF",
+              "test": false,
+              "url": "https://www.ticketmaster.es/venue/sala-black-box-p-vistalegre--madrid-entradas/plvistsmad/112",
+              "locale": "en-us",
+              "distance": 4.5,
+              "units": "KILOMETERS",
+              "postalCode": "28025",
+              "timezone": "Europe/Madrid",
+              "city": {
+                "name": "Madrid"
+              },
+              "state": {
+                "name": "Madrid"
+              },
+              "country": {
+                "name": "Spain",
+                "countryCode": "ES"
+              },
+              "address": {
+                "line1": "Acceso Norte. Calle Castrojeriz s/n"
+              },
+              "location": {
+                "longitude": "-3.73952",
+                "latitude": "40.38681"
+              },
+              "upcomingEvents": {
+                "mfx-es": 1,
+                "_total": 1,
+                "_filtered": 0
+              },
+              "_links": {
+                "self": {
+                  "href": "/discovery/v2/venues/Z598xZ2qZe6AF?locale=en-us"
+                }
+              }
+            }
+          ],
+          "attractions": [
+            {
+              "name": "Eva Ayllon",
+              "type": "attraction",
+              "id": "K8vZ9171gbV",
+              "test": false,
+              "url": "https://www.ticketmaster.com/eva-ayllon-tickets/artist/838009",
+              "locale": "en-us",
+              "externalLinks": {
+                "youtube": [
+                  {
+                    "url": "https://www.youtube.com/channel/UCR_-IhNGlupxxKmox4K0BOg"
+                  }
+                ],
+                "twitter": [
+                  {
+                    "url": "https://mobile.twitter.com/evaayllon"
+                  }
+                ],
+                "itunes": [
+                  {
+                    "url": "https://music.apple.com/us/artist/eva-ayll%C3%B3n/1323658513"
+                  }
+                ],
+                "spotify": [
+                  {
+                    "url": "https://open.spotify.com/artist/6AQFORISOneOZkh6r1sGS2?autoplay=true"
+                  }
+                ],
+                "facebook": [
+                  {
+                    "url": "https://www.facebook.com/evaayllonoficial"
+                  }
+                ],
+                "musicbrainz": [
+                  {
+                    "id": "57ed5f18-ac09-4870-ad97-c2a410caad6f",
+                    "url": "https://musicbrainz.org/artist/57ed5f18-ac09-4870-ad97-c2a410caad6f"
+                  }
+                ],
+                "instagram": [
+                  {
+                    "url": "https://www.instagram.com/evaayllonoficial/"
+                  }
+                ]
+              },
+              "images": [
+                {
+                  "ratio": "4_3",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_CUSTOM.jpg",
+                  "width": 305,
+                  "height": 225,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_EVENT_DETAIL_PAGE_16_9.jpg",
+                  "width": 205,
+                  "height": 115,
+                  "fallback": false
+                },
+                {
+                  "ratio": "3_2",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_ARTIST_PAGE_3_2.jpg",
+                  "width": 305,
+                  "height": 203,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_RETINA_PORTRAIT_16_9.jpg",
+                  "width": 640,
+                  "height": 360,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+                  "width": 2048,
+                  "height": 1152,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_SOURCE",
+                  "width": 2462,
+                  "height": 1365,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/66c/222f8a9b-f8f4-48cb-9e3a-17e27e50166c_SOURCE",
+                  "width": 2426,
+                  "height": 1365,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_RECOMENDATION_16_9.jpg",
+                  "width": 100,
+                  "height": 56,
+                  "fallback": false
+                },
+                {
+                  "ratio": "3_2",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_RETINA_PORTRAIT_3_2.jpg",
+                  "width": 640,
+                  "height": 427,
+                  "fallback": false
+                },
+                {
+                  "ratio": "3_2",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_TABLET_LANDSCAPE_3_2.jpg",
+                  "width": 1024,
+                  "height": 683,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_TABLET_LANDSCAPE_16_9.jpg",
+                  "width": 1024,
+                  "height": 576,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/ceb/b8c62fb3-6c4a-4ce1-941c-82a3a4c06ceb_731031_RETINA_LANDSCAPE_16_9.jpg",
+                  "width": 1136,
+                  "height": 639,
+                  "fallback": false
+                }
+              ],
+              "classifications": [
+                {
+                  "primary": true,
+                  "segment": {
+                    "id": "KZFzniwnSyZfZ7v7nJ",
+                    "name": "Music"
+                  },
+                  "genre": {
+                    "id": "KnvZfZ7vAeF",
+                    "name": "World"
+                  },
+                  "subGenre": {
+                    "id": "KZazBEonSMnZfZ7vFdJ",
+                    "name": "Latin"
+                  },
+                  "type": {
+                    "id": "KZAyXgnZfZ7v7nI",
+                    "name": "Undefined"
+                  },
+                  "subType": {
+                    "id": "KZFzBErXgnZfZ7v7lJ",
+                    "name": "Undefined"
+                  },
+                  "family": false
+                }
+              ],
+              "upcomingEvents": {
+                "universe": 1,
+                "mfx-es": 2,
+                "ticketmaster": 3,
+                "ticketweb": 1,
+                "crowder": 1,
+                "_total": 8,
+                "_filtered": 0
+              },
+              "_links": {
+                "self": {
+                  "href": "/discovery/v2/attractions/K8vZ9171gbV?locale=en-us"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "JET",
+        "type": "event",
+        "id": "Z698xZ2qZ1keA16ZF",
+        "test": false,
+        "url": "https://www.ticketmaster.es/event/jet-tickets/85287008?language=en-us",
+        "locale": "en-us",
+        "images": [
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_SOURCE",
+            "width": 2426,
+            "height": 1365,
+            "fallback": false
+          },
+          {
+            "ratio": "3_2",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_ARTIST_PAGE_3_2.jpg",
+            "width": 305,
+            "height": 203,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_TABLET_LANDSCAPE_16_9.jpg",
+            "width": 1024,
+            "height": 576,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_EVENT_DETAIL_PAGE_16_9.jpg",
+            "width": 205,
+            "height": 115,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_RETINA_LANDSCAPE_16_9.jpg",
+            "width": 1136,
+            "height": 639,
+            "fallback": false
+          },
+          {
+            "ratio": "3_2",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_RETINA_PORTRAIT_3_2.jpg",
+            "width": 640,
+            "height": 427,
+            "fallback": false
+          },
+          {
+            "ratio": "4_3",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_CUSTOM.jpg",
+            "width": 305,
+            "height": 225,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+            "width": 2048,
+            "height": 1152,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_RETINA_PORTRAIT_16_9.jpg",
+            "width": 640,
+            "height": 360,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/5db/0f4bcaff-4aba-4354-8232-343f2fb455db_SOURCE",
+            "width": 2462,
+            "height": 1365,
+            "fallback": false
+          },
+          {
+            "ratio": "3_2",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_TABLET_LANDSCAPE_3_2.jpg",
+            "width": 1024,
+            "height": 683,
+            "fallback": false
+          },
+          {
+            "ratio": "16_9",
+            "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_RECOMENDATION_16_9.jpg",
+            "width": 100,
+            "height": 56,
+            "fallback": false
+          },
+          {
+            "ratio": "3_2",
+            "url": "https://s1.ticketm.net/dam/a/3d3/3269a139-ee6e-49e7-9622-b6c7943923d3_SOURCE",
+            "width": 2426,
+            "height": 1617,
+            "fallback": false
+          }
+        ],
+        "distance": 1.61,
+        "units": "KILOMETERS",
+        "sales": {
+          "public": {
+            "startDateTime": "2026-02-06T10:00:00Z",
+            "startTBD": false,
+            "startTBA": false,
+            "endDateTime": "2026-07-23T18:30:00Z"
+          }
+        },
+        "dates": {
+          "start": {
+            "localDate": "2026-07-23",
+            "localTime": "20:30:00",
+            "dateTime": "2026-07-23T18:30:00Z",
+            "dateTBD": false,
+            "dateTBA": false,
+            "timeTBA": false,
+            "noSpecificTime": false
+          },
+          "timezone": "Europe/Madrid",
+          "status": {
+            "code": "onsale"
+          },
+          "spanMultipleDays": false
+        },
+        "classifications": [
+          {
+            "primary": true,
+            "segment": {
+              "id": "KZFzniwnSyZfZ7v7nJ",
+              "name": "Music"
+            },
+            "genre": {
+              "id": "KnvZfZ7vAeA",
+              "name": "Rock"
+            },
+            "subGenre": {
+              "id": "KZazBEonSMnZfZ7v6F1",
+              "name": "Pop"
+            },
+            "family": false
+          }
+        ],
+        "promoter": {
+          "id": "2727",
+          "name": "Live Nation España S.A.U."
+        },
+        "promoters": [
+          {
+            "id": "2727",
+            "name": "Live Nation España S.A.U."
+          }
+        ],
+        "info": "A handling fee of 2€ applies per order. Minors under the age of 16 may only enter the venue if accompanied by their mother, father, or legal guardian. *All attendees must have a ticket, regardless of age. Mobile Tickets This is a mobile ticket only event. A mobile ticket only event means there are no PDF or paper ticket available. Your phone is your ticket; all tickets will be scanned directly from your Ticketmaster app on your phone. Read more about Mobile Ticket here",
+        "ticketing": {
+          "safeTix": {
+            "enabled": false
+          }
+        },
+        "nameOrigin": "custom",
+        "_links": {
+          "self": {
+            "href": "/discovery/v2/events/Z698xZ2qZ1keA16ZF?locale=en-us"
+          },
+          "attractions": [
+            {
+              "href": "/discovery/v2/attractions/K8vZ91759T7?locale=en-us"
+            }
+          ],
+          "venues": [
+            {
+              "href": "/discovery/v2/venues/Z198xZ2qZAde?locale=en-us"
+            }
+          ]
+        },
+        "_embedded": {
+          "venues": [
+            {
+              "name": "La Riviera",
+              "type": "venue",
+              "id": "Z198xZ2qZAde",
+              "test": false,
+              "url": "https://www.ticketmaster.es/venue/la-riviera-madrid-entradas/slriviemad/114",
+              "locale": "en-us",
+              "images": [
+                {
+                  "ratio": "16_9",
+                  "url": "https://media.ticketmaster.eu/spain/d02fed31db779caf571fe3530b2a8782.jpg",
+                  "width": 205,
+                  "height": 115,
+                  "fallback": false
+                }
+              ],
+              "distance": 1.61,
+              "units": "KILOMETERS",
+              "postalCode": "28005",
+              "timezone": "Europe/Madrid",
+              "city": {
+                "name": "Madrid"
+              },
+              "state": {
+                "name": "Madrid"
+              },
+              "country": {
+                "name": "Spain",
+                "countryCode": "ES"
+              },
+              "address": {
+                "line1": "Paseo Bajo de la Virgen del Puerto, s/n"
+              },
+              "location": {
+                "longitude": "-3.72215",
+                "latitude": "40.413"
+              },
+              "upcomingEvents": {
+                "universe": 4,
+                "mfx-es": 17,
+                "_total": 21,
+                "_filtered": 0
+              },
+              "_links": {
+                "self": {
+                  "href": "/discovery/v2/venues/Z198xZ2qZAde?locale=en-us"
+                }
+              }
+            }
+          ],
+          "attractions": [
+            {
+              "name": "JET",
+              "type": "attraction",
+              "id": "K8vZ91759T7",
+              "test": false,
+              "url": "https://www.ticketmaster.com/jet-tickets/artist/866802",
+              "locale": "en-us",
+              "externalLinks": {
+                "facebook": [
+                  {
+                    "url": "https://www.facebook.com/jettheband/"
+                  }
+                ],
+                "spotify": [
+                  {
+                    "url": "https://open.spotify.com/artist/5ypxebeHEIXjMtJb17uJlI"
+                  }
+                ],
+                "musicbrainz": [
+                  {
+                    "id": "4efa55ba-93cf-497f-baf3-2ca9da7e193e",
+                    "url": "https://musicbrainz.org/artist/4efa55ba-93cf-497f-baf3-2ca9da7e193e"
+                  }
+                ],
+                "instagram": [
+                  {
+                    "url": "https://www.instagram.com/jet.theband"
+                  }
+                ],
+                "homepage": [
+                  {
+                    "url": "https://www.jetofficial.com"
+                  }
+                ]
+              },
+              "images": [
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_SOURCE",
+                  "width": 2426,
+                  "height": 1365,
+                  "fallback": false
+                },
+                {
+                  "ratio": "3_2",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_ARTIST_PAGE_3_2.jpg",
+                  "width": 305,
+                  "height": 203,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_TABLET_LANDSCAPE_16_9.jpg",
+                  "width": 1024,
+                  "height": 576,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_EVENT_DETAIL_PAGE_16_9.jpg",
+                  "width": 205,
+                  "height": 115,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_RETINA_LANDSCAPE_16_9.jpg",
+                  "width": 1136,
+                  "height": 639,
+                  "fallback": false
+                },
+                {
+                  "ratio": "3_2",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_RETINA_PORTRAIT_3_2.jpg",
+                  "width": 640,
+                  "height": 427,
+                  "fallback": false
+                },
+                {
+                  "ratio": "4_3",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_CUSTOM.jpg",
+                  "width": 305,
+                  "height": 225,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+                  "width": 2048,
+                  "height": 1152,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_RETINA_PORTRAIT_16_9.jpg",
+                  "width": 640,
+                  "height": 360,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/5db/0f4bcaff-4aba-4354-8232-343f2fb455db_SOURCE",
+                  "width": 2462,
+                  "height": 1365,
+                  "fallback": false
+                },
+                {
+                  "ratio": "3_2",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_TABLET_LANDSCAPE_3_2.jpg",
+                  "width": 1024,
+                  "height": 683,
+                  "fallback": false
+                },
+                {
+                  "ratio": "16_9",
+                  "url": "https://s1.ticketm.net/dam/a/563/c42b6f4d-d93c-4b45-903f-84ff0e457563_RECOMENDATION_16_9.jpg",
+                  "width": 100,
+                  "height": 56,
+                  "fallback": false
+                },
+                {
+                  "ratio": "3_2",
+                  "url": "https://s1.ticketm.net/dam/a/3d3/3269a139-ee6e-49e7-9622-b6c7943923d3_SOURCE",
+                  "width": 2426,
+                  "height": 1617,
+                  "fallback": false
+                }
+              ],
+              "classifications": [
+                {
+                  "primary": true,
+                  "segment": {
+                    "id": "KZFzniwnSyZfZ7v7nJ",
+                    "name": "Music"
+                  },
+                  "genre": {
+                    "id": "KnvZfZ7vAeA",
+                    "name": "Rock"
+                  },
+                  "subGenre": {
+                    "id": "KZazBEonSMnZfZ7v6dt",
+                    "name": "Alternative Rock"
+                  },
+                  "type": {
+                    "id": "KZAyXgnZfZ7v7nI",
+                    "name": "Undefined"
+                  },
+                  "subType": {
+                    "id": "KZFzBErXgnZfZ7v7lJ",
+                    "name": "Undefined"
+                  },
+                  "family": false
+                }
+              ],
+              "upcomingEvents": {
+                "mticket": 1,
+                "tmr": 1,
+                "mfx-es": 1,
+                "ticketmaster": 8,
+                "ticketweb": 1,
+                "moshtix": 5,
+                "_total": 17,
+                "_filtered": 0
+              },
+              "_links": {
+                "self": {
+                  "href": "/discovery/v2/attractions/K8vZ91759T7?locale=en-us"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "_links": {
+    "self": {
+      "href": "/discovery/v2/events.json?unit=km&startDateTime=2026-07-19T11%3A22%3A53Z&size=100&latlong=40.4168%2C-3.7038&classificationName=Music&sort=date%2Casc&radius=30&endDateTime=2026-08-02T11%3A22%3A53Z"
+    }
+  },
+  "page": {
+    "size": 100,
+    "totalElements": 2,
+    "totalPages": 1,
+    "number": 0
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "_links": {
+    "self": {
+      "href": "/discovery/v2/events.json?unit=km&startDateTime=2026-07-19T11%3A21%3A30Z&size=100&latlong=38.7223%2C-9.1393&classificationName=Music&sort=date%2Casc&radius=30&endDateTime=2026-08-02T11%3A21%3A30Z"
+    }
+  },
+  "page": {
+    "size": 100,
+    "totalElements": 0,
+    "totalPages": 0,
+    "number": 0
+  }
+}
