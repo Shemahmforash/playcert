@@ -198,6 +198,64 @@ export function PlaylistScreen({
     dispatch({ type: 'jump', index: i });
   };
 
+  const skip = () => {
+    // Remember the deliberately-skipped artist (taste signal), then advance.
+    if (current) markSkipped(current.track.artistId);
+    dispatch({ type: 'skip' });
+  };
+
+  // ── Global keyboard shortcuts (design doc §4 "Keyboard") ───────────────────
+  // Supported keys on the playlist screen:
+  //   Space         → play/pause (the radio), unless a real control/text field
+  //                   is focused (native activation / typing wins there).
+  //   N  or  →       → skip to the next track.
+  // Row-level actions (play a row, heart, flip the stub) already work via native
+  // <button> semantics — Enter/Space on the focused control. We deliberately
+  // ignore inputs, textareas, selects and contenteditable so typing is never
+  // hijacked, and reserve ↑↓/←→ on a role="slider" for the Phase-3 dial.
+  // Latest-handler refs keep the window listener subscribed exactly once.
+  const toggleRef = useRef<() => void>(() => {});
+  const skipRef = useRef<() => void>(() => {});
+  toggleRef.current = toggle;
+  skipRef.current = skip;
+
+  useEffect(() => {
+    function isTypingTarget(el: EventTarget | null): boolean {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      return (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        el.isContentEditable
+      );
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      if (isTypingTarget(t)) return;
+      const role = t instanceof HTMLElement ? t.getAttribute('role') : null;
+
+      if (e.key === ' ' || e.code === 'Space') {
+        // Let a focused button/link/slider handle its own Space activation.
+        if (t instanceof HTMLElement) {
+          const tag = t.tagName;
+          if (tag === 'BUTTON' || tag === 'A' || role === 'slider') return;
+        }
+        e.preventDefault();
+        toggleRef.current();
+        return;
+      }
+      if (e.key === 'n' || e.key === 'N' || e.key === 'ArrowRight') {
+        if (role === 'slider') return; // reserved for the Phase-3 dial
+        e.preventDefault();
+        skipRef.current();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const onTimeUpdate = () => {
     const el = audioRef.current;
     if (!el) return;
@@ -246,7 +304,10 @@ export function PlaylistScreen({
       {/* Poster count ticks up on arrival — a subtle box-office tally. */}
       <p
         className="font-mono text-xs"
-        style={{ color: 'var(--ash-quiet)' }}
+        // --ash (meta ink, contrast-verified ≥4.5:1 on --canvas at 12px) rather
+        // than the decorative --ash-quiet, which the design system reserves for
+        // never-text-<14px and which misses the 4.5 floor (Task 2.12).
+        style={{ color: 'var(--ash)' }}
         aria-live="polite"
       >
         <span aria-hidden>▓ </span>
@@ -295,11 +356,7 @@ export function PlaylistScreen({
         progress={progress}
         cueing={!ready}
         onToggle={toggle}
-        onSkip={() => {
-          // Remember the deliberately-skipped artist (taste signal), then advance.
-          if (current) markSkipped(current.track.artistId);
-          dispatch({ type: 'skip' });
-        }}
+        onSkip={skip}
       />
     </div>
   );

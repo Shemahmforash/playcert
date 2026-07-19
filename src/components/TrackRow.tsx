@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { StubBack, type SameBillItem, type StubReport } from './StubBack';
 
 /**
@@ -127,6 +127,10 @@ export function TrackRow({
   const isControlled = isOpen !== undefined;
   const open = isControlled ? Boolean(isOpen) : uncontrolledOpen;
   const reducedMotion = usePrefersReducedMotion();
+
+  // Stable id linking the gig-chip disclosure to the back face it reveals, so
+  // `aria-expanded` on the chip is paired with an `aria-controls` target (§4).
+  const backFaceId = useId();
 
   function setOpen(next: boolean) {
     if (!isControlled) setUncontrolledOpen(next);
@@ -273,6 +277,7 @@ export function TrackRow({
         <button
           type="button"
           aria-expanded={open}
+          aria-controls={backFaceId}
           onClick={() => {
             onOpenGig?.();
             setOpen(!open);
@@ -323,6 +328,7 @@ export function TrackRow({
 
   const backFace = (
     <div
+      id={backFaceId}
       // Inert + hidden from a11y while the front is showing, so the Tickets link
       // and ✕ are neither focusable nor exposed until the stub is flipped open.
       inert={!open || undefined}
