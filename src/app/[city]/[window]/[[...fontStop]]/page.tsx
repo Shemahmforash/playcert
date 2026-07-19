@@ -40,9 +40,12 @@ async function PlaylistSection() {
 
 export default function Page() {
   return (
-    <main>
-      <h1>LONDON · NEXT 14 DAYS (skeleton)</h1>
-      <Suspense fallback={<p>digging…</p>}>
+    <main className="mx-auto flex min-h-dvh max-w-xl flex-col gap-6 px-5 py-10">
+      <header>
+        <p className="text-xs uppercase tracking-[0.2em] opacity-50">Small Font</p>
+        <h1 className="text-2xl font-bold tracking-tight">London · Next 14 days</h1>
+      </header>
+      <Suspense fallback={<p className="text-sm opacity-60">digging through the listings…</p>}>
         <PlaylistSection />
       </Suspense>
     </main>

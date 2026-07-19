@@ -14,59 +14,88 @@ export function Player({ tracks }: { tracks: PlayerTrack[] }) {
   const [state, dispatch] = usePlayer(tracks.length);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Drive the single reused <audio> element from reducer state.
-  // No autoplay on mount: playback only starts once state.playing flips true
-  // via the user's Play tap (mobile audio-unlock requirement). On advance
-  // (index change) while already playing, this re-fires play() for the next
-  // track's src, chaining after that single initial user gesture.
+  // AUTO-ADVANCE ONLY. Once the element has been unlocked by a synchronous
+  // play() inside a user gesture (see start()/jumpTo() below), iOS Safari
+  // permits programmatic play() on the same element for subsequent tracks.
+  // This effect must NOT be the thing that starts the FIRST playback — doing
+  // that here (post-render, outside the gesture) is exactly what iOS blocks.
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
-    if (state.playing) {
-      void el.play().catch(() => {
-        /* rejected play (e.g. no gesture yet / broken src) — onError handles skip */
-      });
-    } else {
-      el.pause();
-    }
-  }, [state.playing, state.index]);
+    if (state.playing) void el.play().catch(() => {});
+    else el.pause();
+  }, [state.index, state.playing]);
 
   const current = tracks[state.index];
 
+  // These run INSIDE the click handler, so play() is synchronous within the
+  // user gesture — the iOS Safari audio-unlock requirement.
+  const start = () => {
+    void audioRef.current?.play().catch(() => {});
+    dispatch({ type: 'play' });
+  };
+  const pause = () => {
+    audioRef.current?.pause();
+    dispatch({ type: 'pause' });
+  };
+  const jumpTo = (i: number) => {
+    const el = audioRef.current;
+    if (el) {
+      // Set the new source and play synchronously, before React re-renders —
+      // keeps the whole thing inside the user gesture for iOS.
+      el.src = tracks[i].previewUrl;
+      void el.play().catch(() => {});
+    }
+    dispatch({ type: 'jump', index: i });
+  };
+
   if (tracks.length === 0) {
-    return <p className="text-sm text-neutral-500">nothing playable</p>;
+    return (
+      <p className="rounded border border-dashed border-current/30 p-4 text-sm opacity-70">
+        Nothing playable in this window yet.
+      </p>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <audio
         ref={audioRef}
         src={current?.previewUrl}
         onEnded={() => dispatch({ type: 'ended' })}
         onError={() => dispatch({ type: 'error' })}
-        preload="none"
+        preload="metadata"
       />
 
-      <div className="flex gap-2">
+      {/* Now playing */}
+      <div className="flex items-baseline gap-3">
         <button
           type="button"
-          className="border px-3 py-1 text-sm"
           aria-label={state.playing ? 'Pause' : 'Play'}
-          onClick={() => dispatch({ type: state.playing ? 'pause' : 'play' })}
+          onClick={() => (state.playing ? pause() : start())}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-lg leading-none"
         >
-          {state.playing ? 'Pause' : 'Play'}
+          {state.playing ? '❚❚' : '▶'}
         </button>
+        <div className="min-w-0">
+          <div className="truncate text-base font-semibold">{current.artist}</div>
+          <div className="truncate text-sm opacity-70">
+            {current.title}
+            {current.show?.venue?.name ? ` · ${current.show.venue.name}` : ''}
+          </div>
+        </div>
         <button
           type="button"
-          className="border px-3 py-1 text-sm"
           aria-label="Skip to next track"
           onClick={() => dispatch({ type: 'skip' })}
+          className="ml-auto shrink-0 rounded-full border border-current/40 px-3 py-1.5 text-xs uppercase tracking-wide opacity-80 hover:opacity-100"
         >
-          Skip
+          Skip ⏭
         </button>
       </div>
 
-      <ol className="flex flex-col gap-1">
+      {/* Queue */}
+      <ol className="flex flex-col gap-px overflow-hidden rounded-md border border-current/15">
         {tracks.map((t, i) => {
           const isCurrent = i === state.index;
           const venue = t.show?.venue?.name;
@@ -75,11 +104,21 @@ export function Player({ tracks }: { tracks: PlayerTrack[] }) {
               <button
                 type="button"
                 aria-current={isCurrent ? 'true' : undefined}
-                className={`w-full text-left text-sm px-1 ${isCurrent ? 'font-bold bg-neutral-100' : ''}`}
-                onClick={() => dispatch({ type: 'jump', index: i })}
+                onClick={() => jumpTo(i)}
+                className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm ${
+                  isCurrent
+                    ? 'bg-foreground text-background font-semibold'
+                    : 'hover:bg-current/5'
+                }`}
               >
-                {t.artist} — {t.title}
-                {venue ? ` — ${venue}` : ''}
+                <span className="w-4 shrink-0 text-xs opacity-60">
+                  {isCurrent && state.playing ? '▶' : i + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="font-medium">{t.artist}</span>
+                  <span className="opacity-70"> — {t.title}</span>
+                  {venue ? <span className="opacity-50"> · {venue}</span> : null}
+                </span>
               </button>
             </li>
           );
