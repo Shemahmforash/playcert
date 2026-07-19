@@ -2,6 +2,7 @@ import type { Artist, CityWindowBundle, Show, TimeWindow, Track } from '../types
 import type { Geo } from '../api/geo';
 import type { WidenMeta } from './fetchShows';
 import { memoInFlight, cacheKeys } from '../cache';
+import { scoreArtists, type ProminenceSignals } from './score';
 
 export type { CityWindowBundle } from '../types';
 
@@ -10,6 +11,9 @@ export interface BuildDeps {
   fetchShows: (geo: Geo, window: TimeWindow) => Promise<{ shows: Show[]; widened?: WidenMeta }>;
   extract: (shows: Show[]) => Record<string, Artist>; // mutates shows[].artistIds
   resolveArtist: (artist: Artist) => Promise<Track[]>; // PER-ARTIST so the budget can be checked between artists
+  // Prominence signals (R6), gathered AFTER resolution. Optional: default → {}
+  // so all prominence collapses to 0 and existing behaviour is unaffected.
+  getSignals?: (artists: Artist[]) => Promise<Record<string, ProminenceSignals>>;
   now: () => number; // injectable clock (ms)
   budgetMs?: number; // default 25_000 (R4)
 }
@@ -61,6 +65,12 @@ export async function buildBundle(
     if (deps.now() - start >= budget) break; // over budget → partial bundle, stop resolving
     tracks.push(...(await deps.resolveArtist(artist)));
   }
+
+  // R6 prominence scoring: gather signals (non-fatal, post-resolution) then
+  // mutate each artist's prominence/tier. No getSignals → {} → all prominence 0.
+  const allArtists = Object.values(artists);
+  const signals = deps.getSignals ? await deps.getSignals(allArtists) : {};
+  scoreArtists(allArtists, signals);
 
   const belowBar = tracks.length < 8;
   return {

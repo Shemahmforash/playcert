@@ -119,4 +119,35 @@ describe('buildBundle (R3/R4)', () => {
     // 5 artists in ONE build; a doubled build would be 10.
     expect(resolveArtist).toHaveBeenCalledTimes(5);
   });
+
+  it('scores artist prominence/tier from injected getSignals (R6)', async () => {
+    // One 2-act show: opener (slot 0) + headliner (slot 1, top slot).
+    const shows = [mkShow('tm:1', '2026-07-20T20:00:00Z', ['Opener', 'Headliner'])];
+    const deps = baseDeps({
+      fetchShows: async () => ({ shows }),
+      getSignals: async () => ({
+        // Headliner dominates both signals → mm 1 on both → prominence 1.0.
+        headliner: { listens: 999, releaseCount: 99 },
+        // Opener has the min terms → mm 0 → prominence 0.
+        opener: { listens: 0, releaseCount: 0 },
+      }),
+    });
+    const bundle = await buildBundle('braga', 'tonight', deps);
+    const headliner = bundle.artists['headliner'];
+    const opener = bundle.artists['opener'];
+    expect(headliner.prominence).toBeCloseTo(1.0, 12);
+    expect(headliner.tier).toBe('arena'); // 1.0 + top slot
+    expect(opener.prominence).toBe(0);
+    expect(opener.tier).toBe('small-print'); // 0 and not top slot
+  });
+
+  it('with NO getSignals every artist scores prominence 0 (default behaviour)', async () => {
+    const shows = [mkShow('tm:1', '2026-07-20T20:00:00Z', ['Opener', 'Headliner'])];
+    const bundle = await buildBundle('braga', 'tonight', baseDeps({ fetchShows: async () => ({ shows }) }));
+    for (const a of Object.values(bundle.artists)) {
+      expect(a.prominence).toBe(0);
+      // 0 <= 0.35 → small-print for everyone when there are no signals.
+      expect(a.tier).toBe('small-print');
+    }
+  });
 });

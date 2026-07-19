@@ -22,6 +22,7 @@ const resultSchema = z.object({
   kind: z.string().optional(),
   artistId: z.number().optional(),
   trackId: z.number().optional(),
+  collectionId: z.number().optional(), // album id — R6 catalog-depth proxy (distinct count)
   artistName: z.string().optional(),
   trackName: z.string().optional(),
   previewUrl: z.string().optional(),
@@ -38,6 +39,7 @@ const searchResponseSchema = z.object({
 export interface ItunesCandidate {
   artistId: string;
   itunesTrackId: number;
+  collectionId?: number; // album id, when present — powers the R6 release-count proxy
   artistName: string;
   title: string;
   previewUrl: string;
@@ -60,6 +62,7 @@ export function parseSearch(json: unknown): ItunesCandidate[] {
     out.push({
       artistId: r.artistId != null ? String(r.artistId) : '',
       itunesTrackId: r.trackId,
+      collectionId: r.collectionId,
       artistName: r.artistName,
       title: r.trackName ?? '',
       previewUrl: r.previewUrl,
