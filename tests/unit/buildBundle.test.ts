@@ -83,6 +83,31 @@ describe('buildBundle (R3/R4)', () => {
     expect(bundle.posterCount).toBe(3);
   });
 
+  it('gathers signals ONLY for resolved artists, never the unresolved ones (perf regression guard)', async () => {
+    // Six artists but the budget blows after two resolve. getSignals must be
+    // handed only those two — gathering signals for the 4 unresolved artists
+    // fired cold, rate-limited iTunes/ListenBrainz calls that hung the build.
+    const shows = [
+      mkShow('tm:1', '2026-07-20T10:00:00Z', ['A1', 'A2']),
+      mkShow('tm:2', '2026-07-20T11:00:00Z', ['B1', 'B2']),
+      mkShow('tm:3', '2026-07-20T12:00:00Z', ['C1', 'C2']),
+    ];
+    const start = 1_000;
+    let calls = 0;
+    const now = vi.fn(() => (calls < 2 ? start : start + 25_001));
+    const resolveArtist = vi.fn(async (a: Artist) => {
+      calls++;
+      return [trackFor(a)];
+    });
+    const getSignals = vi.fn(async (_artists: Artist[]) => ({}));
+    const deps = baseDeps({ fetchShows: async () => ({ shows }), resolveArtist, now, getSignals });
+    await buildBundle('braga', 'tonight', deps);
+    expect(getSignals).toHaveBeenCalledTimes(1);
+    const passed = getSignals.mock.calls[0][0].map((a) => a.id).sort();
+    // Exactly the two resolved artists — not the six billed.
+    expect(passed).toEqual(['a1', 'a2']);
+  });
+
   it('bundleCacheProfile matches belowBar: 120s degraded for partial, 3600s for full', async () => {
     // Partial bundle (2 tracks).
     const partial = await buildBundle('braga', 'tonight', baseDeps({

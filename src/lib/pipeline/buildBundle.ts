@@ -69,7 +69,16 @@ export async function buildBundle(
   // R6 prominence scoring: gather signals (non-fatal, post-resolution) then
   // mutate each artist's prominence/tier. No getSignals → {} → all prominence 0.
   const allArtists = Object.values(artists);
-  const signals = deps.getSignals ? await deps.getSignals(allArtists) : {};
+  // Only gather signals for RESOLVED artists (those that produced a track).
+  // Unresolved artists appear in no playlist, so their prominence is irrelevant —
+  // and gathering it was catastrophic: an unresolved artist has NO warm iTunes
+  // cache, so its releaseCount lookup fired a cold ~3.5s iTunes call, and each one
+  // also added a serial ListenBrainz call. Over dozens of unresolved acts that
+  // pushed the build past 90s. Scoping to the (budget-capped) resolved set keeps
+  // releaseCount a warm cache hit and bounds the work.
+  const resolvedIds = new Set(tracks.map((t) => t.artistId));
+  const signalArtists = allArtists.filter((a) => resolvedIds.has(a.id));
+  const signals = deps.getSignals ? await deps.getSignals(signalArtists) : {};
   scoreArtists(allArtists, signals);
 
   const belowBar = tracks.length < 8;

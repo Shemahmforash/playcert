@@ -60,25 +60,52 @@ async function releaseCountFor(artist: Artist): Promise<number | null> {
 }
 
 /**
- * Gather prominence signals AFTER resolution. Strictly NON-FATAL per artist:
- * a listens miss, a releaseCount miss, or a thrown error all collapse to null
- * (→ contributes 0 in scoreArtists). Runs in parallel and leans on the durable
- * iTunes cache, so it does not materially extend the 25s resolution budget:
- * ListenBrainz only fires for MB-confirmed artists (those with an mbid), and
- * releaseCount is a cache hit for every artist that was resolved.
+ * Durable per-artist ListenBrainz listen-count cache (keyed on the MB-confirmed
+ * mbid). ListenBrainz is a keyless ~1-req/s courtesy queue with NO caching of its
+ * own, so without this every bundle rebuild re-ran the queue serially over every
+ * artist — on a busy market that alone was 60-90s. A durable cache turns warm
+ * rebuilds into hits (no queue slot), so prominence FILLS OUT over reloads.
+ */
+async function cachedListenCount(mbid: string): Promise<number | null> {
+  'use cache: remote';
+  cacheLife({ stale: 3600, revalidate: 7 * DAY, expire: 30 * DAY });
+  try {
+    return await getArtistListenCount({ mbid, name: '' });
+  } catch {
+    return null;
+  }
+}
+
+// Hard wall-clock cap on ListenBrainz gathering, mirroring the resolution budget
+// (R4). It can NEVER blow up a build: whatever we reach fills in; the rest stay
+// null (→ prominence contribution 0, strictly non-fatal).
+const SIGNALS_BUDGET_MS = 12_000;
+
+/**
+ * Gather prominence signals AFTER resolution, for the RESOLVED artists only
+ * (buildBundle passes just those — see its note). Strictly NON-FATAL: a listens
+ * miss, a releaseCount miss, or a thrown error all collapse to null.
+ *
+ * releaseCount is a warm iTunes-cache hit for every resolved artist (resolution
+ * just populated it), so it runs in parallel and is cheap. ListenBrainz is the
+ * expensive, rate-limited leg, so we walk it SEQUENTIALLY under a hard budget and
+ * lean on `cachedListenCount` — bounding one build while the durable cache lets
+ * successive rebuilds hit and complete.
  */
 async function getSignals(artists: Artist[]): Promise<Record<string, ProminenceSignals>> {
-  const entries = await Promise.all(
-    artists.map(async (artist): Promise<[string, ProminenceSignals]> => {
-      const [listens, releaseCount] = await Promise.all([
-        // Only mbid-bearing (mb-confirmed) artists get a real count; else null.
-        getArtistListenCount({ mbid: artist.mbid, name: artist.normalizedName }).catch(() => null),
-        releaseCountFor(artist),
-      ]);
-      return [artist.id, { listens, releaseCount }];
+  const out: Record<string, ProminenceSignals> = {};
+  await Promise.all(
+    artists.map(async (artist) => {
+      out[artist.id] = { listens: null, releaseCount: await releaseCountFor(artist) };
     }),
   );
-  return Object.fromEntries(entries);
+  const deadline = Date.now() + SIGNALS_BUDGET_MS;
+  for (const artist of artists) {
+    if (Date.now() >= deadline) break; // budget spent → the rest stay null
+    if (!artist.mbid) continue; // need an mbid to query LB at all
+    out[artist.id].listens = await cachedListenCount(artist.mbid);
+  }
+  return out;
 }
 
 /** Wires the hardened pipeline to the real TM/iTunes/MB clients for a given city slug. */
