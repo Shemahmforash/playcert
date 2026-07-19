@@ -166,7 +166,14 @@ export function TrackRow({
                 ? { position: 'absolute', inset: 0, pointerEvents: 'none' }
                 : null),
             }
-          : { backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }
+          : {
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              // When flipped open the BACK face is in flow and defines the row
+              // height; the front is lifted out of flow so it can't force the
+              // box to the (shorter) front height and clip the taller back.
+              ...(open ? { position: 'absolute', inset: 0 } : null),
+            }
       }
     >
       {/* ── Top half: the playable, fame-sized name line ─────────────────── */}
@@ -341,11 +348,13 @@ export function TrackRow({
               ...(open ? null : { position: 'absolute', inset: 0, pointerEvents: 'none' }),
             }
           : {
-              position: 'absolute',
-              inset: 0,
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
+              // Closed: absolute so the compact front defines the row height.
+              // Open: in flow so the (taller) back defines it — the Tickets stamp
+              // and wrong-artist line stay inside the box instead of overflowing.
+              ...(open ? null : { position: 'absolute' as const, inset: 0 }),
             }
       }
     >

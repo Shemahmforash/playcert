@@ -344,6 +344,18 @@ export function PlaylistScreen({
     dispatch({ type: 'jump', index: i });
   };
 
+  // A row / same-bill play button. If it targets the track that is ALREADY
+  // current, it must toggle pause/resume — NOT re-jump: `jumpTo` resets `el.src`,
+  // which reloads the element and restarts the preview from 0 (the "pause that
+  // replays" bug). Only a DIFFERENT row loads + plays a new track.
+  const playIndex = (i: number) => {
+    if (i === state.index) {
+      toggle();
+      return;
+    }
+    jumpTo(i);
+  };
+
   const skip = () => {
     // Remember the deliberately-skipped artist (taste signal), then advance.
     if (current) markSkipped(current.track.artistId);
@@ -515,7 +527,7 @@ export function PlaylistScreen({
           playing={state.playing}
           city={city}
           window={timeWindow}
-          onPlayIndex={(i) => jumpTo(i)}
+          onPlayIndex={playIndex}
           onHeart={toggleHeart}
           heartedIds={heartedIds}
           activeItemRef={itemRef}
