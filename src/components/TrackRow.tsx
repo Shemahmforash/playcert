@@ -97,6 +97,7 @@ function nameVariation(prominence: number): CSSProperties {
 
 export function TrackRow({
   artist,
+  title,
   venue,
   dateLabel,
   doors,
@@ -198,20 +199,30 @@ export function TrackRow({
           <span aria-hidden>{isPlaying ? '❚❚' : '▶'}</span>
         </button>
 
-        {/* The fame-sized display name — Roboto Flex, uppercase, condensed. */}
-        <span
-          className="min-w-0 flex-1 truncate font-display uppercase"
-          style={{
-            fontSize: `${nameSizePx(prominence)}px`,
-            lineHeight: 1,
-            letterSpacing: '-0.02em',
-            opacity: isPlayed ? 0.6 : undefined, // used-stub: exact 60%
-            color: 'var(--ink)',
-            ...nameVariation(prominence),
-          }}
-        >
-          {artist}
-        </span>
+        {/* The fame-sized display name + the song title beneath it. The title is
+            essential: a headliner shows a SECOND track at Marquee, so the same act
+            can occupy two rows — the song line is what tells them apart. */}
+        <div className="min-w-0 flex-1 flex flex-col justify-center">
+          <span
+            className="truncate font-display uppercase"
+            style={{
+              fontSize: `${nameSizePx(prominence)}px`,
+              lineHeight: 1.05,
+              letterSpacing: '-0.02em',
+              opacity: isPlayed ? 0.6 : undefined, // used-stub: exact 60%
+              color: 'var(--ink)',
+              ...nameVariation(prominence),
+            }}
+          >
+            {artist}
+          </span>
+          <span
+            className="truncate font-mono text-xs"
+            style={{ color: 'var(--ash)', opacity: isPlayed ? 0.6 : undefined }}
+          >
+            {title}
+          </span>
+        </div>
 
         {/* Heart — outline → filled riso-pink on tap (localStorage in 2.4). */}
         <button
