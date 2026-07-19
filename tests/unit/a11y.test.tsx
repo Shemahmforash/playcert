@@ -3,8 +3,8 @@ import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { RadioPlayer, type RadioPlayerProps } from '../../src/components/RadioPlayer';
 import { TrackRow } from '../../src/components/TrackRow';
 import { PlaylistScreen } from '../../src/components/PlaylistScreen';
-import type { PlaylistEntry } from '../../src/lib/pipeline/order';
-import type { Artist, Show, Track } from '../../src/lib/types';
+import type { Artist, CityWindowBundle, Show, Track } from '../../src/lib/types';
+import type { Geo } from '../../src/lib/api/geo';
 
 /**
  * Task 2.12 — accessibility lock (design doc §4 "ACCESSIBILITY FLOOR").
@@ -89,14 +89,30 @@ const artists: Record<string, Artist> = {
 };
 const s1 = mkShow('s1', '2026-08-01T20:00:00', ['a1']);
 const s2 = mkShow('s2', '2026-08-02T21:00:00', ['a2']);
-const entries: PlaylistEntry[] = [
-  { track: mkTrack('a1', 1), show: s1, isEncore: false }, // index 0
-  { track: mkTrack('a2', 2), show: s2, isEncore: false }, // index 1
-];
+// applyFontStop('everything') orders these chronologically → ALPHA (index 0)
+// then BETA (index 1), matching the keyboard-shortcut expectations below.
+const tracks: Track[] = [mkTrack('a1', 1), mkTrack('a2', 2)];
+const geo: Geo = {
+  lat: 38.72,
+  lng: -9.14,
+  displayName: 'Lisboa',
+  countryCode: 'PT',
+  tz: 'Europe/Lisbon',
+};
+const bundle: CityWindowBundle = {
+  key: { city: 'lisbon', window: 'tonight' },
+  builtAt: '2026-08-01T00:00:00.000Z',
+  geo,
+  shows: [s1, s2],
+  artists,
+  tracks,
+  posterCount: 2,
+  belowBar: tracks.length < 8,
+};
 
 function renderScreen() {
   return render(
-    <PlaylistScreen entries={entries} artists={artists} city="lisbon" window="tonight" />,
+    <PlaylistScreen bundle={bundle} fontStop="everything" city="lisbon" window="tonight" />,
   );
 }
 

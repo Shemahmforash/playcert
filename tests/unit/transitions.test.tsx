@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { PlaylistScreen } from '../../src/components/PlaylistScreen';
-import type { PlaylistEntry } from '../../src/lib/pipeline/order';
-import type { Artist, Show, Track } from '../../src/lib/types';
+import type { Artist, CityWindowBundle, Show, Track } from '../../src/lib/types';
+import type { Geo } from '../../src/lib/api/geo';
 
 /**
  * Task 2.11 — window-change transitions + collapsing window chips.
@@ -62,13 +62,31 @@ const mkShow = (id: string, startsAt: string, artistIds: string[]): Show => ({
   artistIds,
 });
 
+const geo: Geo = {
+  lat: 38.72,
+  lng: -9.14,
+  displayName: 'Lisboa',
+  countryCode: 'PT',
+  tz: 'Europe/Lisbon',
+};
+
 const artists: Record<string, Artist> = { a1: mkArtist('a1', 'ALPHA') };
 const s1 = mkShow('s1', '2026-08-01T20:00:00', ['a1']);
-const entries: PlaylistEntry[] = [{ track: mkTrack('a1', 1), show: s1, isEncore: false }];
+const tracks: Track[] = [mkTrack('a1', 1)];
+const bundle: CityWindowBundle = {
+  key: { city: 'lisbon', window: 'tonight' },
+  builtAt: '2026-08-01T00:00:00.000Z',
+  geo,
+  shows: [s1],
+  artists,
+  tracks,
+  posterCount: 1,
+  belowBar: tracks.length < 8,
+};
 
 function renderScreen(window: React.ComponentProps<typeof PlaylistScreen>['window'] = 'tonight') {
   return render(
-    <PlaylistScreen entries={entries} artists={artists} city="lisbon" window={window} />,
+    <PlaylistScreen bundle={bundle} fontStop="everything" city="lisbon" window={window} />,
   );
 }
 

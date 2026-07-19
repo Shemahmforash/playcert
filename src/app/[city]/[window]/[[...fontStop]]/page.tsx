@@ -7,7 +7,6 @@ import type { TimeWindow } from '../../../../lib/types';
 import { geoForCity } from '../../../../lib/api/geo';
 import { buildBundleCached } from '../../../../lib/pipeline/buildBundle';
 import { realDeps } from '../../../../lib/pipeline/realDeps';
-import { orderPlaylist } from '../../../../lib/pipeline/order';
 import { bundleCacheProfile } from '../../../../lib/cache';
 import { TicketmasterError } from '../../../../lib/api/ticketmaster';
 import { PlaylistScreen } from '../../../../components/PlaylistScreen';
@@ -81,14 +80,17 @@ async function PlaylistSection({ params }: { params: Params }) {
         />
       );
     }
+    // Ship the WHOLE bundle to the client and let `applyFontStop` produce what's
+    // rendered. The SSR render shows `applyFontStop(b, key.fontStop)` for the
+    // URL's stop (e.g. /london/next-14-days/small-print server-renders the
+    // small-print view), and the Phase-3.5 dial can re-filter locally with ZERO
+    // fetches because every track is already on the client.
     return (
       <PlaylistScreen
-        entries={orderPlaylist(b.shows, b.artists, b.tracks)}
-        artists={b.artists}
+        bundle={b}
+        fontStop={key.fontStop}
         city={key.city}
         window={key.window}
-        widened={b.widened}
-        belowBar={b.belowBar}
       />
     );
   } catch (err) {

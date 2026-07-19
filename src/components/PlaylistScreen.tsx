@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Artist, TimeWindow } from '../lib/types';
+import type { CityWindowBundle, FontStop, TimeWindow } from '../lib/types';
 import type { PlaylistEntry } from '../lib/pipeline/order';
+import { applyFontStop } from '../lib/pipeline/applyFontStop';
 import { usePlayer } from '../hooks/usePlayer';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useTasteMemory } from '../hooks/useTasteMemory';
@@ -12,7 +13,6 @@ import { RadioPlayer } from './RadioPlayer';
 import { SparseNotice } from './SparseNotice';
 import { WindowChips } from './WindowChips';
 import { formatCanonicalPath } from '../lib/urlState';
-import type { WidenMeta } from '../lib/pipeline/fetchShows';
 
 /**
  * PlaylistScreen — the client container that owns the audio + player state and
@@ -56,23 +56,32 @@ function prefersReducedMotion(): boolean {
 }
 
 export interface PlaylistScreenProps {
-  entries: PlaylistEntry[];
-  artists: Record<string, Artist>;
+  bundle: CityWindowBundle;
+  fontStop: FontStop;
   city: string;
   window: TimeWindow;
-  widened?: WidenMeta;
-  belowBar?: boolean;
 }
 
 export function PlaylistScreen({
-  entries,
-  artists,
+  bundle,
+  fontStop: initialFontStop,
   city,
   window: timeWindow,
-  widened,
-  belowBar,
 }: PlaylistScreenProps) {
   const router = useRouter();
+
+  // The dial's data source (Task 3.4). The whole bundle is on the client, so a
+  // font-stop change is a PURE, ZERO-FETCH re-derivation: `applyFontStop` filters
+  // the full track set for the stop and re-orders. Task 3.5's dial will call
+  // `setFontStop` (+ pushState); for now this simply mirrors the URL's stop, so
+  // the SSR render already shows `applyFontStop(bundle, key.fontStop)`.
+  const [fontStop, setFontStop] = useState<FontStop>(initialFontStop);
+  const { artists, widened, belowBar } = bundle;
+  const entries = useMemo(
+    () => applyFontStop(bundle, fontStop),
+    [bundle, fontStop],
+  );
+
   const [state, dispatch] = usePlayer(entries.length);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [progress, setProgress] = useState(0);
