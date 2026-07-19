@@ -18,6 +18,28 @@ const MARKETS: Record<string, { latlong: string; file: string; days: number; rad
 };
 
 async function main() {
+  // iTunes Search API mode (Task 0.3 spike). NO KEY required.
+  //   pnpm exec node --import tsx scripts/record-fixtures.ts itunes "Joe Bonamassa"
+  // Writes tests/fixtures/itunes/exact-hit.json.
+  if (what === 'itunes') {
+    const name = process.argv.slice(3).join(' ');
+    if (!name) {
+      console.error('usage: record-fixtures.ts itunes "<artist name>"');
+      process.exit(1);
+    }
+    const url =
+      `https://itunes.apple.com/search?term=${encodeURIComponent(name)}` +
+      `&entity=musicTrack&limit=25`;
+    const res = await fetch(url);
+    mkdirSync('tests/fixtures/itunes', { recursive: true });
+    writeFileSync(
+      'tests/fixtures/itunes/exact-hit.json',
+      JSON.stringify(await res.json(), null, 2),
+    );
+    console.log('recorded', res.status, 'itunes exact-hit.json for', name);
+    return;
+  }
+
   const market = MARKETS[what];
   if (market) {
     const start = new Date().toISOString().replace(/\.\d+Z$/, 'Z');

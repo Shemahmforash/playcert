@@ -10,3 +10,14 @@ export interface Show {
   attractions: Array<{ id: string; name: string }>; // billed order preserved
   artistIds: string[]; // filled by extractArtists in Phase 1
 }
+
+export interface Track {
+  artistId: string;
+  itunesTrackId: number;
+  title: string;
+  previewUrl: string;   // Apple-hosted 30s stream — NEVER proxied
+  artworkUrl: string;
+  itunesUrl: string;    // Apple linkback (ToS requirement)
+  confidence: 'exact' | 'mb-confirmed';
+  isSecondHeadlinerTrack?: boolean; // R7: always present in bundle, stop-filtered
+}
