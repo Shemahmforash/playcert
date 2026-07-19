@@ -103,6 +103,8 @@ Test-driven throughout: every module has a failing test written before its imple
 
 **Geocoding note:** city→coordinates currently uses a small hardcoded table of Ticketmaster-covered cities (London, Madrid, Paris, Berlin, New York, …); real geocoding for arbitrary typed cities is a later task.
 
-**Next:** Phase 2 is the real UI (ticket-stub rows, the Small Font dial, share/poster) — the current rendering is the intentionally-plain engine output.
+**Phase 2 (the UI — "The Bill" design): complete** — the plain engine output is replaced by the real listening screen: a warm bitumen/newsprint palette (Roboto Flex), day-grouped **ticket-stub rows** (name over a perforated divider, gig chip that flips to venue/billing/tickets + a "wrong artist?" report), a sticky **radio player** (30s progress ring, now-playing ticker, iOS-safe playback), the crate-digging **loading theater**, the **landing page** (`Play {City}`), and the designed **empty/sparse/error/404** states — with taste memory (hearts persist), window-change transitions, keyboard shortcuts, and contrast-verified tokens. The signature **Small Font dial** (prominence-based re-typesetting) is Phase 3.
+
+**Next:** Phase 3 — prominence scoring + the Small Font dial (the signature). Phase 4 — share loop + lineup poster. Phase 5 — compliance + launch.
 
 Deployment is intentionally deferred. See `docs/plans/2026-07-19-small-font.md` for the full roadmap and `docs/plans/2026-07-19-small-font-personalization-future-paths.md` for the personalization backlog.
