@@ -1,3 +1,6 @@
+import type { Geo } from './api/geo';
+import type { WidenMeta } from './pipeline/fetchShows';
+
 export type TimeWindow = 'tonight' | 'this-weekend' | 'next-14-days';
 export type FontStop = 'everything' | 'no-arenas' | 'small-print';
 
@@ -21,6 +24,18 @@ export interface Artist {
   prominence: number;        // 0..1 (Phase 3 fills; 0 until then)
   tier: ProminenceTier;      // 'mid' until Phase 3 scores
   billingSlots: Array<{ showId: string; slot: number; ofSlots: number }>;
+}
+
+export interface CityWindowBundle {
+  key: { city: string; window: TimeWindow };
+  builtAt: string; // new Date(deps.now()).toISOString() — deterministic under the fake clock
+  geo: Geo;
+  widened?: WidenMeta;
+  shows: Show[];
+  artists: Record<string, Artist>;
+  tracks: Track[];
+  posterCount: number; // = shows.length ("Reading the small print on N gig posters…")
+  belowBar: boolean; // tracks.length < 8 → degraded cache TTL + honest partial copy
 }
 
 export interface Track {
