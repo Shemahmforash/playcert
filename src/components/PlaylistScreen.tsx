@@ -12,7 +12,8 @@ import { PlaylistList } from './PlaylistList';
 import { RadioPlayer } from './RadioPlayer';
 import { SparseNotice } from './SparseNotice';
 import { WindowChips } from './WindowChips';
-import { formatCanonicalPath } from '../lib/urlState';
+import { EarshotDial } from './EarshotDial';
+import { formatCanonicalPath, FONT_STOPS } from '../lib/urlState';
 
 /**
  * PlaylistScreen — the client container that owns the audio + player state and
@@ -70,11 +71,12 @@ export function PlaylistScreen({
 }: PlaylistScreenProps) {
   const router = useRouter();
 
-  // The dial's data source (Task 3.4). The whole bundle is on the client, so a
-  // font-stop change is a PURE, ZERO-FETCH re-derivation: `applyFontStop` filters
-  // the full track set for the stop and re-orders. Task 3.5's dial will call
-  // `setFontStop` (+ pushState); for now this simply mirrors the URL's stop, so
-  // the SSR render already shows `applyFontStop(bundle, key.fontStop)`.
+  // The dial's data source (Task 3.4/3.5). The whole bundle is on the client, so
+  // a font-stop change is a PURE, ZERO-FETCH re-derivation: `applyFontStop`
+  // filters the full track set for the stop and re-orders. The EarshotDial calls
+  // `handleDialChange` (setFontStop + pushState); a popstate mirrors Back/Forward
+  // back onto the dial. The initial value mirrors the URL's stop so SSR already
+  // renders `applyFontStop(bundle, key.fontStop)`.
   const [fontStop, setFontStop] = useState<FontStop>(initialFontStop);
   const { artists, widened, belowBar } = bundle;
   const entries = useMemo(
@@ -103,6 +105,40 @@ export function PlaylistScreen({
       formatCanonicalPath({ city, window: nextWindow, fontStop: 'everything' }),
     );
   };
+
+  // ── The Earshot dial (Task 3.5) — a PURE, ZERO-FETCH re-filter ────────────
+  // Changing the font-stop is NOT a navigation: it only re-derives `entries`
+  // (the useMemo above re-runs against the already-client-side bundle) and
+  // updates the URL via history.pushState — no `router.push`, no server
+  // round-trip, no fetch. `formatCanonicalPath` omits `everything` (R11).
+  const handleDialChange = (next: FontStop) => {
+    if (next === fontStop) return;
+    setFontStop(next);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(
+        null,
+        '',
+        formatCanonicalPath({ city, window: timeWindow, fontStop: next }),
+      );
+    }
+  };
+
+  // Browser Back/Forward "walk the dial history" (design §4): a popstate reads
+  // the last path segment and mirrors it back onto the dial. Because the stop
+  // change is a pushState (not a route change), the URL history is ours to read.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onPopState = () => {
+      const seg = window.location.pathname.split('/').filter(Boolean).pop();
+      setFontStop(
+        seg && (FONT_STOPS as readonly string[]).includes(seg)
+          ? (seg as FontStop)
+          : 'everything',
+      );
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // ── Entrance choreography (§2.5) — client-side, AFTER the payload lands ─────
   // The rows drop staggered (CSS, see `entering` below); here we tick a visible
@@ -309,6 +345,12 @@ export function PlaylistScreen({
           label="Change window"
         />
       </div>
+
+      {/* The signature control — the printed point-size gauge (Task 3.5). Given
+          masthead prominence above the poster count. Dragging/stepping it
+          re-filters the playlist with ZERO fetches and updates the URL via
+          history (no navigation). */}
+      <EarshotDial value={fontStop} onChange={handleDialChange} />
 
       {/* Poster count ticks up on arrival — a subtle box-office tally. */}
       <p
