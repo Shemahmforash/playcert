@@ -262,9 +262,18 @@ export function PlaylistList({
     const lastId = show.artistIds[show.artistIds.length - 1];
     const roleOf = artistId === lastId ? 'headliner' : 'opener';
 
-    // Co-billed acts on the same show → tappable same-bill mini-rows.
+    // Co-billed acts on the same show → tappable same-bill mini-rows. Exclude the
+    // act ITSELF (a headliner carries a 2nd track at Marquee, so one show can hold
+    // two rows for the same artist — never list an act as its own "same bill") and
+    // dedupe so each co-act appears at most once.
+    const seenSameBill = new Set<string>([artistId]);
     const sameBill: SameBillItem[] = (byShow.get(show.id) ?? [])
-      .filter((sb) => sb.index !== index)
+      .filter((sb) => {
+        const aid = sb.entry.track.artistId;
+        if (seenSameBill.has(aid)) return false;
+        seenSameBill.add(aid);
+        return true;
+      })
       .map((sb) => ({
         artist: nameOf(sb.entry.track.artistId),
         onPlay: () => onPlayIndex(sb.index),

@@ -183,4 +183,30 @@ describe('PlaylistList — billing + same-bill derivation', () => {
     fireEvent.click(sameBill);
     expect(onPlayIndex).toHaveBeenLastCalledWith(1);
   });
+
+  it('never lists an act as its own same-bill row (headliner 2nd track at Marquee)', () => {
+    // One show, one artist, TWO tracks — exactly the Marquee 2nd-headliner-track
+    // case. The same-bill list must be EMPTY, not a self-referential play row
+    // (that stray full-width button sat right above Tickets and played the song).
+    const soloShow = mkShow('solo', '2026-08-05T20:00:00', ['aHead']);
+    const soloEntries: PlaylistEntry[] = [
+      { track: mkTrack('aHead', 20), show: soloShow, isEncore: false },
+      { track: mkTrack('aHead', 21), show: soloShow, isEncore: false },
+    ];
+    render(
+      <PlaylistList
+        entries={soloEntries}
+        artists={artists}
+        currentIndex={-1}
+        playing={false}
+        city="lisbon"
+        window="next-14-days"
+        onPlayIndex={vi.fn()}
+      />,
+    );
+    // Flip the first row open, then assert there's no self same-bill button.
+    fireEvent.click(screen.getAllByRole('button', { name: /V-SOLO/ })[0]);
+    expect(screen.getAllByText(/headlining/i).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: '▸ HEADLINER' })).toBeNull();
+  });
 });
