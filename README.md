@@ -99,6 +99,10 @@ Test-driven throughout: every module has a failing test written before its imple
 
 **Phase 0 (walking skeleton): complete** — a real London route renders playable previews end-to-end; verified playing and auto-chaining in desktop and mobile Safari.
 
-**Phase 1 (core pipeline): in progress** — the URL parser, rate queue, cache profiles, hardened Ticketmaster client, sparse-market widen ladder, artist extraction, MusicBrainz cross-check, track resolution, and playlist ordering are all built and tested. Remaining: the `buildBundle` orchestrator, real geocoding, wiring the hardened pipeline into the page, and the wrong-artist report endpoint. Until that wiring lands, the live route is still the Phase 0 skeleton.
+**Phase 1 (core pipeline): complete** — the full URL→bundle engine is built, tested, and wired into the page. Any covered `/{city}/{window}` URL now runs the real hardened pipeline (validated params, rate-limited API queues, sparse-market widen ladder, artist extraction, iTunes + MusicBrainz resolution with silent-drop, chronological/bill-mirrored ordering, and an edge-cached bundle with degraded TTL). Invalid cities/windows return a real 404 (via middleware, required for correct status under Cache Components streaming). A cold city first renders a *partial* playlist within the 25s resolution budget and fills out over subsequent revalidations — the intended degraded-fill behaviour. The `/api/report-artist` sink logs wrong-match reports (no database). ~74 unit tests, all network-free; CI runs `typecheck → test → build`.
+
+**Geocoding note:** city→coordinates currently uses a small hardcoded table of Ticketmaster-covered cities (London, Madrid, Paris, Berlin, New York, …); real geocoding for arbitrary typed cities is a later task.
+
+**Next:** Phase 2 is the real UI (ticket-stub rows, the Small Font dial, share/poster) — the current rendering is the intentionally-plain engine output.
 
 Deployment is intentionally deferred. See `docs/plans/2026-07-19-small-font.md` for the full roadmap and `docs/plans/2026-07-19-small-font-personalization-future-paths.md` for the personalization backlog.
