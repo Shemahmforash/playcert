@@ -1,0 +1,1563 @@
+# Small Font Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** Ship smallfont.fm v1 — a no-account, no-database, no-cookie website where `/{city}/{window}[/{font-stop}]` is a pure function returning an edge-cached, instantly playable 30s-preview mixtape of that city's upcoming concerts, with the Small Font dial that fades famous headliners out and rebuilds the mix around openers.
+
+**Architecture:** A single Next.js 16 (Cache Components) app on Vercel. All state lives in the URL; the server builds a fontStop-agnostic `CityWindowBundle` per (city, window) via a rate-limit-queued pipeline (Ticketmaster → normalize artists → iTunes/MusicBrainz track resolution → ListenBrainz/iTunes prominence scoring → chronological bill-mirrored ordering), cached 1 hour with `"use cache"` + `cacheLife`; the dial is a pure client-side filter (`applyFontStop`) over the full serialized bundle — it never touches the network.
+
+**Tech Stack:** Next.js 16 (App Router, Cache Components), TypeScript 5.9 strict, React 19, Tailwind CSS 4, Zod 4, Vitest 3 (fixture-driven unit tests), Playwright (one smoke spec), pnpm 10, Node 22, Vercel. External APIs: Ticketmaster Discovery, iTunes Search (keyless), MusicBrainz, ListenBrainz, Google Geocoding, YouTube Data API (share-time only). **Explicitly absent:** Spotify Web API, OAuth, any database/KV, cookies, analytics SDKs.
+
+---
+
+## How to read this plan
+
+- **TDD is mandatory.** Every task's test is written and failing before the implementation file exists. Phase 0 and Phase 1 are broken into numbered 2–5 minute steps with the actual code. Phases 2–5 are task-level (files, acceptance criteria, test names, key sketches).
+- **Fixtures are recorded once** by the spike tasks (0.2, 0.3, 1.7) via `scripts/record-fixtures.ts` and committed under `tests/fixtures/`. CI never touches the network.
+- **Greenfield.** Repo root is `smallfont/`. Nothing from the playcert repo carries over. All paths below are relative to the repo root.
+- **Scope authority** is `blueprint.json` mvpScope. Appendix A (product spec) and Appendix B (UX spec) are the binding behavioral specs, with all review MUST FIX items already applied.
+- Commit after every green test. Small commits, imperative messages.
+
+## Binding resolutions (R1–R12) — non-negotiable, referenced throughout
+
+- **R1 — Exact numbers.** Minimum-viable bar = **8 shows**. Track cap = **30**. Radius ladder = **30 km → 50 km**. Queues: Ticketmaster **4 req/s** (250 ms spacing), iTunes **1 req / 3.5 s** (~17/min), MusicBrainz **1 req/s + jitter**, ListenBrainz **1 req/s**. No "~" anywhere in code or tests.
+- **R2 — Caching mechanism.** No `export const revalidate`. The playlist section uses `"use cache"` + `cacheLife({ revalidate: 3600 })` behind a `<Suspense>` boundary (stream-fallback-on-miss IS the loading theater). All cache key builders and profiles live in `src/lib/cache.ts`.
+- **R3 — Degraded-first-build.** A bundle whose resolved playable tracks < 8 gets `cacheLife({ revalidate: 120 })` instead of 3600, so successive requests keep filling from warm per-artist caches. Honest partial copy renders meanwhile.
+- **R4 — Progressive resolution.** `buildBundle` resolves artists ordered by (show date, billing slot) under a **25 s soft budget** so the earliest gigs fill first. Client hard timeout **45 s** → Error state.
+- **R5 — Widening never changes the URL.** The radius→window widen ladder is internal to the pipeline; canonical URL and cache key are untouched. Window ladder: `tonight → this-weekend → next-14-days`; **next-14-days is terminal**. **There is no `next-30-days` route anywhere.** `bundle.widened` records what fired.
+- **R6 — Deterministic tiers.** `prominence = 0.6·mm(log1p(lbListens)) + 0.4·mm(log1p(itunesReleaseCount))` where `mm` = min-max normalization within the bundle; a missing signal contributes 0 pre-normalization. `tier = 'arena'` iff `prominence ≥ 0.75` AND the artist holds the top billing slot on ≥ 1 show; `'small-print'` iff `prominence ≤ 0.35` OR the artist never holds top billing; else `'mid'`. Same bundle in ⇒ same tiers out.
+- **R7 — Dial purity.** `resolveTracks` ALWAYS fetches the headliner's 2nd track into the bundle; `applyFontStop` (pure, shipped to the client with the **full serialized bundle** on every stop's page) decides visibility. fontStop never touches the network.
+- **R8 — Encore rule.** The encore is **one track from the window's final show, from its least-prominent billed act**, flagged `isEncore`. No "mellow" — no tempo/energy API exists in this stack.
+- **R9 — Wrong-artist sink.** `POST /api/report-artist` writes one structured `console.log` line (Vercel log drains compute the < 2% metric). Client: link flips to "Thanks — noted", row unchanged. No storage.
+- **R10 — City slug safety.** Slug grammar `^[a-z0-9-]{2,40}$` enforced before anything else. Google Geocoding fires only from the typeahead server action, or when a bare-URL slug passes grammar AND the geocode's canonical slug round-trips to the requested slug. Failures negative-cached 24 h. Unknown city → designed 404 with CityField open.
+- **R11 — Canonical URL.** `/{city}/{window}` is the canonical form of the `everything` stop; `/{city}/{window}/everything` renders with `rel=canonical` pointing at the short form. OG/share always emit the canonical form.
+- **R12 — Reproduction guarantee scope.** "Track-for-track identical" is guaranteed **per cache entry** (same entry within TTL). Cross-region/variant drift across independent revalidations is a documented accepted inconsistency (checked, not promised, in Phase 5).
+
+---
+
+# Phase 0 — Walking Skeleton (deploy first, learn the APIs)
+
+**Goal:** `smallfont.vercel.app/lisbon/next-14-days` exists: real Ticketmaster events for Lisbon → real iTunes 30 s previews → an ugly `<ol>` that plays sequentially. No design, no dial, no widen. Proves the two risky integrations and the deploy pipeline before anything is built on them.
+
+**Done looks like:** anyone opens the production URL on a phone, taps Play, hears real previews of real Lisbon shows back-to-back. Spike findings (billing-order reliability, preview-URL stability, exact-match hit rate, mobile-Safari chaining) written to `NOTES.md`.
+
+## Task 0.1 — Scaffold + CI + hello deploy
+
+**Create:** `package.json`, `next.config.ts`, `tsconfig.json`, `vitest.config.ts`, `.env.example`, `.github/workflows/ci.yml`, `src/app/layout.tsx`, `src/app/page.tsx`, `tests/unit/smoke.test.ts`
+
+1. Scaffold the app:
+   ```bash
+   pnpm create next-app@latest smallfont --typescript --tailwind --app --src-dir --no-eslint --use-pnpm
+   cd smallfont
+   pnpm add zod
+   pnpm add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/user-event
+   ```
+   Expected: `Success! Created smallfont`, then dependency install output ending in `Done`.
+2. Enable Cache Components in `next.config.ts`:
+   ```ts
+   import type { NextConfig } from 'next';
+   const nextConfig: NextConfig = {
+     cacheComponents: true,
+   };
+   export default nextConfig;
+   ```
+3. Create `vitest.config.ts`:
+   ```ts
+   import { defineConfig } from 'vitest/config';
+   import react from '@vitejs/plugin-react';
+   export default defineConfig({
+     plugins: [react()],
+     test: { environment: 'jsdom', include: ['tests/**/*.test.{ts,tsx}'] },
+   });
+   ```
+   Add scripts to `package.json`: `"test": "vitest run"`, `"test:watch": "vitest"`.
+4. **Write the failing test** — `tests/unit/smoke.test.ts`:
+   ```ts
+   import { describe, it, expect } from 'vitest';
+   describe('toolchain', () => {
+     it('runs TypeScript tests', () => {
+       const x: number = 1 + 1;
+       expect(x).toBe(2);
+     });
+   });
+   ```
+5. Run `pnpm test`. Expect **PASS** (this one starts green — it proves the toolchain, not behavior).
+6. Create `.env.example`:
+   ```
+   TICKETMASTER_KEY=
+   GOOGLE_GEOCODING_KEY=
+   YOUTUBE_KEY=
+   ```
+7. Create `.github/workflows/ci.yml` running `pnpm install --frozen-lockfile && pnpm test && pnpm build` on Node 22.
+8. Replace `src/app/page.tsx` with a one-line hello (`<main>SMALL FONT</main>`), commit, and deploy:
+   ```bash
+   git init && git add -A && git commit -m "Scaffold Next 16 + Cache Components + Vitest + CI"
+   vercel --prod
+   ```
+   Expected: a production URL serving the hello page. Add `TICKETMASTER_KEY` etc. in Vercel project env settings now.
+
+## Task 0.2 — SPIKE-FIRST ⚠ Ticketmaster Discovery client (minimal)
+
+**Create:** `src/lib/types.ts` (Show), `src/lib/api/ticketmaster.ts`, `scripts/record-fixtures.ts`, `tests/fixtures/ticketmaster/lisbon-14d.json`, `tests/unit/ticketmaster.test.ts`
+
+**Spike questions to answer in `NOTES.md`:** real pagination shape; is `_embedded.attractions` order reliable billing order (opener…headliner or headliner-first)?; how sparse are `priceRanges`/`dates.start.dateTime`?; what does a 429 actually return?
+
+1. **Record the fixture live (one-time, not CI).** Write `scripts/record-fixtures.ts`:
+   ```ts
+   // Run: TICKETMASTER_KEY=... pnpm tsx scripts/record-fixtures.ts tm-lisbon
+   import { writeFileSync } from 'node:fs';
+   const key = process.env.TICKETMASTER_KEY!;
+   const [what] = process.argv.slice(2);
+   async function main() {
+     if (what === 'tm-lisbon') {
+       const start = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+       const end = new Date(Date.now() + 14 * 864e5).toISOString().replace(/\.\d+Z$/, 'Z');
+       const url =
+         `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${key}` +
+         `&latlong=38.7223,-9.1393&radius=30&unit=km&classificationName=Music` +
+         `&startDateTime=${start}&endDateTime=${end}&size=100&sort=date,asc`;
+       const res = await fetch(url);
+       writeFileSync('tests/fixtures/ticketmaster/lisbon-14d.json', JSON.stringify(await res.json(), null, 2));
+       console.log('recorded', res.status);
+     }
+   }
+   main();
+   ```
+   Run it (`pnpm add -D tsx`), eyeball the JSON, note spike answers in `NOTES.md`, commit the fixture.
+2. **Write the failing test** — `tests/unit/ticketmaster.test.ts`:
+   ```ts
+   import { describe, it, expect } from 'vitest';
+   import { parseEventsPage } from '../../src/lib/api/ticketmaster';
+   import fixture from '../fixtures/ticketmaster/lisbon-14d.json';
+
+   describe('parseEventsPage', () => {
+     it('parses the recorded Lisbon fixture into Show[]', () => {
+       const shows = parseEventsPage(fixture);
+       expect(shows.length).toBeGreaterThan(0);
+       const s = shows[0];
+       expect(s.id).toMatch(/^tm:/);            // source-prefixed per architecture review
+       expect(s.venue.name).toBeTruthy();
+       expect(typeof s.startsAt).toBe('string');
+       expect(s.ticketUrl).toContain('http');
+     });
+     it('preserves attraction (billing) order', () => {
+       const shows = parseEventsPage(fixture);
+       const multi = shows.find((s) => s.attractions.length > 1);
+       if (multi) {
+         // order in Show must equal order in raw _embedded.attractions
+         const raw = (fixture as any)._embedded.events.find((e: any) => `tm:${e.id}` === multi.id);
+         expect(multi.attractions.map((a) => a.name)).toEqual(
+           raw._embedded.attractions.map((a: any) => a.name),
+         );
+       }
+     });
+   });
+   ```
+3. Run `pnpm test ticketmaster`. Expect **FAIL**: `Cannot find module '../../src/lib/api/ticketmaster'`.
+4. **Write minimal implementation.** `src/lib/types.ts` (start of the shared contracts — grows in later tasks):
+   ```ts
+   export type TimeWindow = 'tonight' | 'this-weekend' | 'next-14-days';
+   export type FontStop = 'everything' | 'no-arenas' | 'small-print';
+
+   export interface Show {
+     id: string;                 // "tm:{eventId}" — source-prefixed for the v1.1 SeatGeek merge
+     name: string;
+     startsAt: string;           // ISO 8601, venue-local when TM provides it
+     venue: { name: string; city: string; address?: string };
+     priceFrom?: { amount: number; currency: string };
+     ticketUrl: string;          // TM deep link — attribution is a ToS requirement
+     attractions: Array<{ id: string; name: string }>; // billed order preserved (opener…headliner per spike)
+     artistIds: string[];        // filled by extractArtists (Phase 1), billed order
+   }
+   ```
+   `src/lib/api/ticketmaster.ts`:
+   ```ts
+   import { z } from 'zod';
+   import type { Show } from '../types';
+
+   const TmPage = z.object({
+     _embedded: z.object({
+       events: z.array(
+         z.object({
+           id: z.string(),
+           name: z.string(),
+           url: z.string(),
+           dates: z.object({
+             start: z.object({ dateTime: z.string().optional(), localDate: z.string() }),
+           }),
+           priceRanges: z.array(z.object({ min: z.number(), currency: z.string() })).optional(),
+           _embedded: z.object({
+             venues: z.array(z.object({
+               name: z.string(),
+               city: z.object({ name: z.string() }).optional(),
+               address: z.object({ line1: z.string() }).optional(),
+             })).min(1),
+             attractions: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+           }),
+         }),
+       ),
+     }).optional(),
+     page: z.object({ totalPages: z.number(), number: z.number() }),
+   });
+
+   export function parseEventsPage(json: unknown): Show[] {
+     const page = TmPage.parse(json);
+     return (page._embedded?.events ?? []).map((e) => ({
+       id: `tm:${e.id}`,
+       name: e.name,
+       startsAt: e.dates.start.dateTime ?? `${e.dates.start.localDate}T20:00:00`,
+       venue: {
+         name: e._embedded.venues[0].name,
+         city: e._embedded.venues[0].city?.name ?? '',
+         address: e._embedded.venues[0].address?.line1,
+       },
+       priceFrom: e.priceRanges?.[0]
+         ? { amount: e.priceRanges[0].min, currency: e.priceRanges[0].currency }
+         : undefined,
+       ticketUrl: e.url,
+       attractions: e._embedded.attractions ?? [],
+       artistIds: [],
+     }));
+   }
+
+   export async function fetchEventsPage(params: {
+     lat: number; lng: number; radiusKm: number;
+     startISO: string; endISO: string; page?: number;
+   }): Promise<{ shows: Show[]; totalPages: number }> {
+     const url =
+       `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${process.env.TICKETMASTER_KEY}` +
+       `&latlong=${params.lat},${params.lng}&radius=${params.radiusKm}&unit=km` +
+       `&classificationName=Music&startDateTime=${params.startISO}&endDateTime=${params.endISO}` +
+       `&size=100&sort=date,asc&page=${params.page ?? 0}`;
+     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+     if (!res.ok) throw new Error(`tm:${res.status}`);
+     const json = await res.json();
+     return { shows: parseEventsPage(json), totalPages: (json as any).page?.totalPages ?? 1 };
+   }
+   ```
+5. Run `pnpm test ticketmaster`. Expect **PASS** (adjust the Zod schema to whatever the real fixture contains — that is the point of the spike; loosen fields the fixture proves optional).
+6. Commit: `git add -A && git commit -m "Ticketmaster client: fixture-parsed Show[], billing order preserved"`
+
+## Task 0.3 — SPIKE-FIRST ⚠ iTunes Search client (minimal)
+
+**Create:** `src/lib/api/itunes.ts`, `tests/fixtures/itunes/exact-hit.json`, `tests/unit/itunes.test.ts`. **Modify:** `src/lib/types.ts` (Track), `scripts/record-fixtures.ts`
+
+**Spike questions for `NOTES.md`:** do `previewUrl`s remain valid for > 1 h (open one hours later)?; exact-match hit rate over the real Lisbon bill (run every attraction name once, count exact hits); **manual device check** — deploy a scratch page, confirm a preview plays in mobile Safari after a tap and a second track chains from the `ended` event.
+
+1. Extend `scripts/record-fixtures.ts` with an `itunes <name>` mode hitting `https://itunes.apple.com/search?term={name}&entity=musicTrack&limit=25`. Record `exact-hit.json` for a distinctive Lisbon-bill artist. Commit fixture + `NOTES.md` findings.
+2. **Write the failing test** — `tests/unit/itunes.test.ts`:
+   ```ts
+   import { describe, it, expect } from 'vitest';
+   import { parseSearch, pickExact } from '../../src/lib/api/itunes';
+   import exactHit from '../fixtures/itunes/exact-hit.json';
+
+   describe('itunes', () => {
+     it('Zod-parses the fixture into candidates', () => {
+       const c = parseSearch(exactHit);
+       expect(c.length).toBeGreaterThan(0);
+       expect(c[0].previewUrl).toContain('http');
+     });
+     it('pickExact selects the case-insensitive exact artist-name match', () => {
+       const c = parseSearch(exactHit);
+       const artistName = c[0].artistName; // fixture recorded FOR this artist
+       const track = pickExact(c, artistName.toUpperCase());
+       expect(track?.artistName.toLowerCase()).toBe(artistName.toLowerCase());
+     });
+     it('pickExact returns null when no exact match exists', () => {
+       const c = parseSearch(exactHit);
+       expect(pickExact(c, 'zzz nonexistent artist')).toBeNull();
+     });
+   });
+   ```
+3. Run. Expect **FAIL**: `Cannot find module '../../src/lib/api/itunes'`.
+4. **Write minimal implementation.** Add to `src/lib/types.ts`:
+   ```ts
+   export interface Track {
+     artistId: string;
+     itunesTrackId: number;
+     title: string;
+     previewUrl: string;   // Apple-hosted 30s stream — NEVER proxied
+     artworkUrl: string;
+     itunesUrl: string;    // Apple linkback (ToS requirement)
+     confidence: 'exact' | 'mb-confirmed';
+     isSecondHeadlinerTrack?: boolean; // R7: always present in bundle, stop-filtered
+   }
+   ```
+   `src/lib/api/itunes.ts`:
+   ```ts
+   import { z } from 'zod';
+
+   const Result = z.object({
+     trackId: z.number(),
+     artistName: z.string(),
+     trackName: z.string(),
+     previewUrl: z.string().optional(),
+     artworkUrl100: z.string().optional(),
+     trackViewUrl: z.string(),
+   });
+   const SearchResponse = z.object({ results: z.array(z.unknown()) });
+
+   export type ItunesCandidate = z.infer<typeof Result>;
+
+   export function parseSearch(json: unknown): ItunesCandidate[] {
+     return SearchResponse.parse(json)
+       .results.map((r) => Result.safeParse(r))
+       .filter((r) => r.success && r.data.previewUrl)
+       .map((r) => (r as { data: ItunesCandidate }).data);
+   }
+
+   export function pickExact(candidates: ItunesCandidate[], normalizedName: string): ItunesCandidate | null {
+     const target = normalizedName.trim().toLowerCase();
+     return candidates.find((c) => c.artistName.trim().toLowerCase() === target) ?? null;
+   }
+
+   export async function searchArtistTracks(name: string): Promise<ItunesCandidate[]> {
+     const url = `https://itunes.apple.com/search?term=${encodeURIComponent(name)}&entity=musicTrack&limit=25`;
+     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+     if (!res.ok) throw new Error(`itunes:${res.status}`);
+     return parseSearch(await res.json());
+   }
+   ```
+5. Run `pnpm test itunes`. Expect **PASS**.
+6. Commit: `"iTunes client: Zod parse + exact-name candidate picker"`
+
+## Task 0.4 — Hardcoded `/lisbon/next-14-days` route with R2 caching from day one
+
+**Create:** `src/app/[city]/[window]/[[...fontStop]]/page.tsx`, `src/lib/cache.ts`, `tests/unit/cache.test.ts`
+
+1. **Write the failing test** — `tests/unit/cache.test.ts` (tests the in-flight promise memo, the piece of cache.ts that is plain TS):
+   ```ts
+   import { describe, it, expect, vi } from 'vitest';
+   import { memoInFlight } from '../../src/lib/cache';
+
+   describe('memoInFlight', () => {
+     it('coalesces concurrent calls for the same key into one execution', async () => {
+       const fn = vi.fn(async () => 'bundle');
+       const memo = memoInFlight<string>();
+       const [a, b] = await Promise.all([memo('lisbon:next-14-days', fn), memo('lisbon:next-14-days', fn)]);
+       expect(a).toBe('bundle');
+       expect(b).toBe('bundle');
+       expect(fn).toHaveBeenCalledTimes(1);
+     });
+     it('re-executes after settlement (memo is in-flight only, not a store)', async () => {
+       const fn = vi.fn(async () => 'x');
+       const memo = memoInFlight<string>();
+       await memo('k', fn);
+       await memo('k', fn);
+       expect(fn).toHaveBeenCalledTimes(2);
+     });
+   });
+   ```
+2. Run. Expect **FAIL**: `Cannot find module '../../src/lib/cache'`.
+3. **Write minimal implementation** — `src/lib/cache.ts` (first slice; profiles and key builders arrive in 1.3):
+   ```ts
+   export function memoInFlight<T>() {
+     const inFlight = new Map<string, Promise<T>>();
+     return (key: string, fn: () => Promise<T>): Promise<T> => {
+       const existing = inFlight.get(key);
+       if (existing) return existing;
+       const p = fn().finally(() => inFlight.delete(key));
+       inFlight.set(key, p);
+       return p;
+     };
+   }
+   ```
+4. Run `pnpm test cache`. Expect **PASS**. Commit: `"cache: in-flight promise memo"`
+5. Create the page — `src/app/[city]/[window]/[[...fontStop]]/page.tsx` (city/window IGNORED for now, hardcoded Lisbon; the R2 shape is what matters):
+   ```tsx
+   import { Suspense } from 'react';
+   import { cacheLife } from 'next/cache';
+   import { fetchEventsPage } from '@/lib/api/ticketmaster';
+   import { searchArtistTracks, pickExact } from '@/lib/api/itunes';
+   import { Player } from '@/components/Player';
+
+   async function getLisbonSkeleton() {
+     'use cache';
+     cacheLife({ revalidate: 3600 });
+     const start = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+     const end = new Date(Date.now() + 14 * 864e5).toISOString().replace(/\.\d+Z$/, 'Z');
+     const { shows } = await fetchEventsPage({ lat: 38.7223, lng: -9.1393, radiusKm: 30, startISO: start, endISO: end });
+     const names = [...new Set(shows.flatMap((s) => s.attractions.map((a) => a.name)))].slice(0, 15);
+     const tracks = [];
+     for (const name of names) {
+       // NOTE: crude sequential pacing for the skeleton only; real RateQueue lands in 1.2
+       const hit = pickExact(await searchArtistTracks(name), name);
+       if (hit) tracks.push({ artist: hit.artistName, title: hit.trackName, previewUrl: hit.previewUrl!, show: shows.find((s) => s.attractions.some((a) => a.name === name))! });
+       await new Promise((r) => setTimeout(r, 3500));
+     }
+     return { shows, tracks };
+   }
+
+   async function PlaylistSection() {
+     const { tracks } = await getLisbonSkeleton();
+     return <Player tracks={tracks} />;
+   }
+
+   export default function Page() {
+     return (
+       <main>
+         <h1>LISBON · NEXT 14 DAYS (skeleton)</h1>
+         <Suspense fallback={<p>digging…</p>}>
+           <PlaylistSection />
+         </Suspense>
+       </main>
+     );
+   }
+   ```
+   Set `maxDuration = 60` via route segment config export.
+6. `pnpm build` must pass (Player arrives next task — stub it as `export function Player(){return null}` temporarily if building now). Commit.
+
+## Task 0.5 — Ugly sequential player
+
+**Create:** `src/components/Player.tsx`, `src/hooks/usePlayer.ts`, `tests/unit/usePlayer.test.ts`
+
+1. **Write the failing test** — `tests/unit/usePlayer.test.ts`. The hook's queue logic is extracted as a pure reducer so jsdom's lack of real audio doesn't matter:
+   ```ts
+   import { describe, it, expect } from 'vitest';
+   import { playerReducer, initialPlayerState } from '../../src/hooks/usePlayer';
+
+   const state3 = { ...initialPlayerState, queueLength: 3 };
+
+   describe('playerReducer', () => {
+     it('advances on ended', () => {
+       const s = playerReducer({ ...state3, index: 0, playing: true }, { type: 'ended' });
+       expect(s.index).toBe(1);
+       expect(s.playing).toBe(true);
+     });
+     it('advances on error (auto-skip broken previews)', () => {
+       const s = playerReducer({ ...state3, index: 1, playing: true }, { type: 'error' });
+       expect(s.index).toBe(2);
+     });
+     it('stops (not crash) past the last track', () => {
+       const s = playerReducer({ ...state3, index: 2, playing: true }, { type: 'ended' });
+       expect(s.playing).toBe(false);
+       expect(s.index).toBe(2); // clamped
+     });
+     it('skip is user-advance with same clamping', () => {
+       const s = playerReducer({ ...state3, index: 2, playing: true }, { type: 'skip' });
+       expect(s.index).toBe(2);
+     });
+   });
+   ```
+2. Run. Expect **FAIL**: module not found.
+3. **Write minimal implementation** — `src/hooks/usePlayer.ts`:
+   ```ts
+   'use client';
+   import { useReducer } from 'react';
+
+   export interface PlayerState { index: number; playing: boolean; queueLength: number }
+   export type PlayerAction =
+     | { type: 'play' } | { type: 'pause' }
+     | { type: 'skip' } | { type: 'ended' } | { type: 'error' }
+     | { type: 'jump'; index: number };
+
+   export const initialPlayerState: PlayerState = { index: 0, playing: false, queueLength: 0 };
+
+   export function playerReducer(s: PlayerState, a: PlayerAction): PlayerState {
+     const last = s.queueLength - 1;
+     switch (a.type) {
+       case 'play': return { ...s, playing: true };
+       case 'pause': return { ...s, playing: false };
+       case 'skip':
+       case 'ended':
+       case 'error':
+         return s.index >= last ? { ...s, playing: false } : { ...s, index: s.index + 1 };
+       case 'jump': return { ...s, index: Math.max(0, Math.min(last, a.index)), playing: true };
+     }
+   }
+
+   export function usePlayer(queueLength: number) {
+     return useReducer(playerReducer, { ...initialPlayerState, queueLength });
+   }
+   ```
+   `src/components/Player.tsx` — client component: one `<audio>` element whose `src` is `tracks[index].previewUrl`, `onEnded={() => dispatch({type:'ended'})}`, `onError={() => dispatch({type:'error'})}`, Play/Pause and Skip `<button>`s, and an `<ol>` of `artist — title — venue` rows with a `jump` on click. Playback starts only from the Play tap (mobile audio-unlock).
+4. Run `pnpm test usePlayer`. Expect **PASS**. Commit: `"Skeleton sequential player: advance on ended/error, clamped"`
+
+## Task 0.6 — Deploy + verify cache behavior
+
+**Create:** `scripts/verify-deploy.sh`, `NOTES.md` (finalize spike findings)
+
+1. Write `scripts/verify-deploy.sh`:
+   ```bash
+   #!/usr/bin/env bash
+   set -euo pipefail
+   URL="${1:?usage: verify-deploy.sh https://smallfont.vercel.app/lisbon/next-14-days}"
+   echo "--- first hit (may be cold)"; time curl -s -o /dev/null -D - "$URL" | grep -i -E 'x-vercel-cache|age'
+   echo "--- second hit (must be cached)"
+   H=$(curl -s -o /dev/null -D - "$URL" | grep -i x-vercel-cache || true)
+   echo "$H"
+   echo "$H" | grep -qiE 'HIT|STALE' || { echo "FAIL: second hit not served from cache"; exit 1; }
+   echo "OK"
+   ```
+2. `vercel --prod`, run the script against the production URL. Expected output: second hit shows `x-vercel-cache: HIT` and returns `OK`.
+3. Record in `NOTES.md`: observed cold-build wall time, iTunes exact-match hit rate on the real bill, billing-order observation, preview-URL stability, mobile-Safari chaining result. **These calibrate Phases 1–3.**
+4. Commit: `"Walking skeleton deployed: real Lisbon previews, cache-hit verified"`
+
+**Phase 0 ACs closed:** none fully (skeleton) — but S9's auto-skip-on-failure and S2's cache-hit behavior are proven in miniature, and all three architecture bets are de-risked or flagged.
+
+---
+
+# Phase 1 — Core Pipeline Hardening (the pure-function engine)
+
+**Goal:** the full URL-to-bundle pipeline is correct, rate-limit-safe, sparse-market-resilient, and fixture-tested. Near-zero styling — engine, not paint. Demo: any real `/{city}/{window}` URL — including a sparse town and a garbage slug — ends in a playlist, an honest partial, or a designed-ish text state; never a blank page or a burned API budget.
+
+**Done looks like:** fixture suite green in CI with zero network; deployed app survives a sparse town (honest widen), a misspelled city (designed 404), a homonym-heavy bill (silent drops), a cold big city (partial fills within 25 s, refills on 120 s revalidate). Ticketmaster daily usage flat across repeat hits.
+
+## Task 1.1 — `urlState`: parse/format the URL triple
+
+**Create:** `src/lib/urlState.ts`, `tests/unit/urlState.test.ts`
+
+1. **Write the failing test:**
+   ```ts
+   import { describe, it, expect } from 'vitest';
+   import { parseUrlState, formatCanonicalPath } from '../../src/lib/urlState';
+
+   describe('parseUrlState', () => {
+     it('parses a full triple', () => {
+       expect(parseUrlState('lisbon', 'next-14-days', ['small-print'])).toEqual({
+         ok: true, key: { city: 'lisbon', window: 'next-14-days', fontStop: 'small-print' },
+       });
+     });
+     it('defaults omitted fontStop to everything', () => {
+       expect(parseUrlState('lisbon', 'tonight', undefined)).toEqual({
+         ok: true, key: { city: 'lisbon', window: 'tonight', fontStop: 'everything' },
+       });
+     });
+     it('rejects unknown window', () => {
+       expect(parseUrlState('lisbon', 'next-30-days', undefined)).toEqual({ ok: false, reason: 'window' });
+     });
+     it('rejects unknown fontStop', () => {
+       expect(parseUrlState('lisbon', 'tonight', ['huge-print'])).toEqual({ ok: false, reason: 'fontStop' });
+     });
+     it('rejects slugs violating the grammar ^[a-z0-9-]{2,40}$ (R10)', () => {
+       for (const bad of ['L', 'Lisbon', 'a', 'lisbon!', 'x'.repeat(41), '../etc']) {
+         expect(parseUrlState(bad, 'tonight', undefined).ok).toBe(false);
+       }
+     });
+     it('rejects extra path segments', () => {
+       expect(parseUrlState('lisbon', 'tonight', ['everything', 'extra']).ok).toBe(false);
+     });
+   });
+
+   describe('formatCanonicalPath (R11)', () => {
+     it('omits everything from the path', () => {
+       expect(formatCanonicalPath({ city: 'lisbon', window: 'tonight', fontStop: 'everything' })).toBe('/lisbon/tonight');
+     });
+     it('includes non-default stops', () => {
+       expect(formatCanonicalPath({ city: 'lisbon', window: 'tonight', fontStop: 'small-print' })).toBe('/lisbon/tonight/small-print');
+     });
+   });
+   ```
+2. Run. Expect **FAIL**: module not found.
+3. **Implementation** — `src/lib/urlState.ts`:
+   ```ts
+   import type { TimeWindow, FontStop } from './types';
+
+   export const WINDOWS = ['tonight', 'this-weekend', 'next-14-days'] as const;
+   export const FONT_STOPS = ['everything', 'no-arenas', 'small-print'] as const;
+   export const SLUG_RE = /^[a-z0-9-]{2,40}$/;
+
+   export interface RequestKey { city: string; window: TimeWindow; fontStop: FontStop }
+   export type ParseResult =
+     | { ok: true; key: RequestKey }
+     | { ok: false; reason: 'city' | 'window' | 'fontStop' };
+
+   export function parseUrlState(city: string, window: string, fontStop: string[] | undefined): ParseResult {
+     if (!SLUG_RE.test(city)) return { ok: false, reason: 'city' };
+     if (!(WINDOWS as readonly string[]).includes(window)) return { ok: false, reason: 'window' };
+     if (fontStop && fontStop.length > 1) return { ok: false, reason: 'fontStop' };
+     const stop = fontStop?.[0] ?? 'everything';
+     if (!(FONT_STOPS as readonly string[]).includes(stop)) return { ok: false, reason: 'fontStop' };
+     return { ok: true, key: { city, window: window as TimeWindow, fontStop: stop as FontStop } };
+   }
+
+   export function formatCanonicalPath(key: RequestKey): string {
+     const base = `/${key.city}/${key.window}`;
+     return key.fontStop === 'everything' ? base : `${base}/${key.fontStop}`;
+   }
+   ```
+4. Run. Expect **PASS**. Commit: `"urlState: triple parse/format, slug grammar, everything-default, canonical form"`
+
+## Task 1.2 — `RateQueue` token bucket + per-API instances (R1 rates)
+
+**Create:** `src/lib/queue.ts`, `tests/unit/queue.test.ts`
+
+1. **Write the failing test:**
+   ```ts
+   import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+   import { RateQueue } from '../../src/lib/queue';
+
+   beforeEach(() => vi.useFakeTimers());
+   afterEach(() => vi.useRealTimers());
+
+   describe('RateQueue', () => {
+     it('paces calls at the configured spacing (250ms = 4/s)', async () => {
+       const q = new RateQueue({ minSpacingMs: 250 });
+       const stamps: number[] = [];
+       const jobs = [1, 2, 3].map(() => q.schedule(async () => stamps.push(Date.now())));
+       await vi.runAllTimersAsync();
+       await Promise.all(jobs);
+       expect(stamps[1] - stamps[0]).toBeGreaterThanOrEqual(250);
+       expect(stamps[2] - stamps[1]).toBeGreaterThanOrEqual(250);
+     });
+     it('paces at 3500ms for the iTunes rate', async () => {
+       const q = new RateQueue({ minSpacingMs: 3500 });
+       const stamps: number[] = [];
+       const jobs = [1, 2].map(() => q.schedule(async () => stamps.push(Date.now())));
+       await vi.runAllTimersAsync();
+       await Promise.all(jobs);
+       expect(stamps[1] - stamps[0]).toBeGreaterThanOrEqual(3500);
+     });
+     it('a rejected job does not wedge the queue', async () => {
+       const q = new RateQueue({ minSpacingMs: 10 });
+       const bad = q.schedule(async () => { throw new Error('boom'); });
+       const good = q.schedule(async () => 'ok');
+       await vi.runAllTimersAsync();
+       await expect(bad).rejects.toThrow('boom');
+       await expect(good).resolves.toBe('ok');
+     });
+     it('cache-before-queue contract: a cache hit never touches the bucket', async () => {
+       const q = new RateQueue({ minSpacingMs: 1000 });
+       const spy = vi.spyOn(q, 'schedule');
+       const cached = new Map([['k', 'hit']]);
+       const get = (k: string) => cached.get(k) ?? q.schedule(async () => 'miss');
+       expect(get('k')).toBe('hit');
+       expect(spy).not.toHaveBeenCalled();
+     });
+   });
+   ```
+2. Run. Expect **FAIL**.
+3. **Implementation** — `src/lib/queue.ts`:
+   ```ts
+   /**
+    * Serialized min-spacing rate queue. CONTRACT (cache-before-queue):
+    * callers MUST consult their cache before scheduling — a hit never consumes a slot.
+    * Buckets are per-instance best-effort on serverless; 429 backoff in each client is the net.
+    */
+   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+   export class RateQueue {
+     private nextFreeAt = 0;
+     private tail: Promise<unknown> = Promise.resolve();
+     constructor(private opts: { minSpacingMs: number; jitterMs?: number }) {}
+
+     schedule<T>(fn: () => Promise<T>): Promise<T> {
+       const run = async (): Promise<T> => {
+         const now = Date.now();
+         const wait = Math.max(0, this.nextFreeAt - now);
+         this.nextFreeAt = Math.max(now, this.nextFreeAt)
+           + this.opts.minSpacingMs
+           + Math.floor(Math.random() * (this.opts.jitterMs ?? 0));
+         if (wait > 0) await sleep(wait);
+         return fn();
+       };
+       const p = this.tail.then(run, run);
+       this.tail = p.catch(() => {});
+       return p;
+     }
+   }
+
+   // R1 rates — module-scope singletons, one per API
+   export const tmQueue = new RateQueue({ minSpacingMs: 250 });          // 4 req/s
+   export const itunesQueue = new RateQueue({ minSpacingMs: 3500 });     // ~17/min
+   export const mbQueue = new RateQueue({ minSpacingMs: 1000, jitterMs: 300 }); // 1/s + jitter
+   export const lbQueue = new RateQueue({ minSpacingMs: 1000 });         // 1/s courtesy
+   ```
+4. Run. Expect **PASS**. Commit: `"RateQueue: serialized min-spacing bucket + per-API singletons at R1 rates"`
+
+## Task 1.3 — `cache.ts` complete: keys + profiles incl. degraded 120 s (R3)
+
+**Modify:** `src/lib/cache.ts`. **Create/extend:** `tests/unit/cache.test.ts`
+
+1. **Write the failing test** (append):
+   ```ts
+   import { cacheKeys, bundleCacheProfile } from '../../src/lib/cache';
+
+   describe('cacheKeys', () => {
+     it('builders are pure and stable', () => {
+       expect(cacheKeys.bundle('lisbon', 'next-14-days')).toBe('bundle:lisbon:next-14-days');
+       expect(cacheKeys.itunes('khruangbin')).toBe('itunes:khruangbin');
+       expect(cacheKeys.mb('khruangbin')).toBe('mb:khruangbin');
+       expect(cacheKeys.lb('mbid-123')).toBe('lb:mbid-123');
+       expect(cacheKeys.yt('khruangbin')).toBe('yt:khruangbin');
+       expect(cacheKeys.geo('lisbon')).toBe('geo:lisbon');
+     });
+   });
+
+   describe('bundleCacheProfile (R3)', () => {
+     it('returns 120s below the 8-playable-track bar', () => {
+       expect(bundleCacheProfile(7)).toEqual({ revalidate: 120 });
+       expect(bundleCacheProfile(0)).toEqual({ revalidate: 120 });
+     });
+     it('returns 3600s at/above the bar', () => {
+       expect(bundleCacheProfile(8)).toEqual({ revalidate: 3600 });
+       expect(bundleCacheProfile(30)).toEqual({ revalidate: 3600 });
+     });
+   });
+   ```
+2. Run. Expect **FAIL**: `cacheKeys` not exported.
+3. **Implementation** (append to `src/lib/cache.ts`):
+   ```ts
+   export const cacheKeys = {
+     bundle: (city: string, window: string) => `bundle:${city}:${window}`,
+     itunes: (normalizedName: string) => `itunes:${normalizedName}`,
+     mb: (normalizedName: string) => `mb:${normalizedName}`,
+     lb: (idOrName: string) => `lb:${idOrName}`,
+     yt: (normalizedName: string) => `yt:${normalizedName}`,
+     geo: (citySlug: string) => `geo:${citySlug}`,
+   } as const;
+
+   /** TTL table (enforced via "use cache" + cacheLife at call sites):
+    *  bundle 3600s (or 120s degraded, R3) · per-artist itunes/mb/lb/yt 30d · geo 30d · geo-negative 24h */
+   export const TTL = { BUNDLE: 3600, BUNDLE_DEGRADED: 120, ARTIST_30D: 2_592_000, GEO_NEG: 86_400 } as const;
+
+   export function bundleCacheProfile(playableTracks: number): { revalidate: number } {
+     return { revalidate: playableTracks < 8 ? TTL.BUNDLE_DEGRADED : TTL.BUNDLE };
+   }
+   ```
+4. Run. Expect **PASS**. Commit: `"cache: key builders + TTL profiles incl. degraded 120s (R3)"`
+
+## Task 1.4 — Harden `ticketmaster.ts`: queue, pagination, 429 retry
+
+**Modify:** `src/lib/api/ticketmaster.ts`, `tests/unit/ticketmaster.test.ts`
+
+1. **Write the failing tests** (append):
+   ```ts
+   import { vi } from 'vitest';
+   import { fetchAllEvents } from '../../src/lib/api/ticketmaster';
+
+   describe('fetchAllEvents', () => {
+     it('stitches multi-page results and stops at totalPages', async () => {
+       const pages = [page0Fixture, page1Fixture]; // derive: split lisbon-14d.json events in two, set totalPages=2
+       const fetcher = vi.fn(async ({ page = 0 }) => pages[page]);
+       const shows = await fetchAllEvents(baseParams, { rawFetch: fetcher });
+       expect(fetcher).toHaveBeenCalledTimes(2);
+       expect(shows.length).toBe(countOf(page0Fixture) + countOf(page1Fixture));
+     });
+     it('retries once on 429 with backoff, then succeeds', async () => {
+       const fetcher = vi.fn()
+         .mockRejectedValueOnce(Object.assign(new Error('tm:429'), { status: 429 }))
+         .mockResolvedValueOnce(page0Fixture);
+       const shows = await fetchAllEvents(baseParams, { rawFetch: fetcher, backoffMs: 1 });
+       expect(shows.length).toBeGreaterThan(0);
+       expect(fetcher).toHaveBeenCalledTimes(2);
+     });
+     it('throws a typed error when the retry also fails', async () => {
+       const fetcher = vi.fn().mockRejectedValue(Object.assign(new Error('tm:429'), { status: 429 }));
+       await expect(fetchAllEvents(baseParams, { rawFetch: fetcher, backoffMs: 1 }))
+         .rejects.toMatchObject({ name: 'TicketmasterError' });
+     });
+   });
+   ```
+   (Build `page0Fixture`/`page1Fixture` as a small helper in the test file that clones the recorded fixture and slices `_embedded.events`, setting `page.totalPages = 2`.)
+2. Run. Expect **FAIL**: `fetchAllEvents` not exported.
+3. **Implementation:** add to `ticketmaster.ts` a `fetchAllEvents(params, deps?)` that: loops pages until `totalPages` or the 1,000-result cap (`page * 100 >= 1000` stop), schedules every raw fetch through `tmQueue.schedule(...)` (injected `deps.rawFetch` bypasses the network in tests, not the logic), wraps a single jittered retry on `status === 429` (`backoffMs` default `1000 + Math.random()*1000`), and throws `class TicketmasterError extends Error { name = 'TicketmasterError' }` on exhaustion. Zod-parse every page via the existing `parseEventsPage`.
+4. Run. Expect **PASS**. Commit: `"ticketmaster: queued pagination to 1000-cap, single 429 retry, typed error"`
+
+## Task 1.5 — `fetchShows`: the widen ladder (R5)
+
+**Create:** `src/lib/pipeline/fetchShows.ts`, `tests/fixtures/ticketmaster/sparse-town.json` (record via script for a small market, or hand-trim the Lisbon fixture to 3 events), `tests/unit/fetchShows.test.ts`
+
+1. **Write the failing test:**
+   ```ts
+   import { describe, it, expect, vi } from 'vitest';
+   import { fetchShowsWithWiden } from '../../src/lib/pipeline/fetchShows';
+
+   const geo = { lat: 41.55, lng: -8.42, displayName: 'Braga', countryCode: 'PT', tz: 'Europe/Lisbon' };
+   const mkShows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `tm:${i}` } as any));
+
+   describe('fetchShowsWithWiden (R5)', () => {
+     it('rich market: no widening, no metadata', async () => {
+       const q = vi.fn(async () => mkShows(20));
+       const r = await fetchShowsWithWiden(geo, 'next-14-days', { query: q });
+       expect(r.widened).toBeUndefined();
+       expect(q).toHaveBeenCalledTimes(1);
+       expect(q).toHaveBeenCalledWith(geo, 30, 'next-14-days');
+     });
+     it('sparse: widens radius 30→50 first', async () => {
+       const q = vi.fn()
+         .mockResolvedValueOnce(mkShows(3))   // 30km
+         .mockResolvedValueOnce(mkShows(12)); // 50km
+       const r = await fetchShowsWithWiden(geo, 'next-14-days', { query: q });
+       expect(r.widened).toEqual({ radiusKm: 50 });
+       expect(r.shows.length).toBe(12);
+     });
+     it('still sparse: widens window next (tonight → this-weekend → next-14-days)', async () => {
+       const q = vi.fn()
+         .mockResolvedValueOnce(mkShows(2))  // tonight @30
+         .mockResolvedValueOnce(mkShows(3))  // tonight @50
+         .mockResolvedValueOnce(mkShows(4))  // this-weekend @50
+         .mockResolvedValueOnce(mkShows(9)); // next-14-days @50
+       const r = await fetchShowsWithWiden(geo, 'tonight', { query: q });
+       expect(r.widened).toEqual({ radiusKm: 50, window: 'next-14-days' });
+     });
+     it('next-14-days is terminal: below-bar result returned honestly, never widened further', async () => {
+       const q = vi.fn().mockResolvedValue(mkShows(4));
+       const r = await fetchShowsWithWiden(geo, 'next-14-days', { query: q });
+       expect(q).toHaveBeenCalledTimes(2); // 30km, 50km — nothing after
+       expect(r.shows.length).toBe(4);
+       expect(r.widened).toEqual({ radiusKm: 50 });
+     });
+   });
+   ```
+2. Run. Expect **FAIL**.
+3. **Implementation** — `src/lib/pipeline/fetchShows.ts`:
+   ```ts
+   import type { Show, TimeWindow } from '../types';
+   import type { Geo } from '../api/geo';
+
+   export const MIN_VIABLE_SHOWS = 8;         // R1
+   const RADIUS_LADDER = [30, 50] as const;   // R1
+   const NEXT_WINDOW: Record<TimeWindow, TimeWindow | null> = {
+     tonight: 'this-weekend',
+     'this-weekend': 'next-14-days',
+     'next-14-days': null,                    // terminal (R5)
+   };
+
+   export interface WidenMeta { radiusKm?: number; window?: TimeWindow }
+   type Query = (geo: Geo, radiusKm: number, window: TimeWindow) => Promise<Show[]>;
+
+   export async function fetchShowsWithWiden(
+     geo: Geo, window: TimeWindow, deps: { query: Query },
+   ): Promise<{ shows: Show[]; widened?: WidenMeta }> {
+     let shows = await deps.query(geo, 30, window);
+     if (shows.length >= MIN_VIABLE_SHOWS) return { shows };
+
+     shows = await deps.query(geo, 50, window);
+     if (shows.length >= MIN_VIABLE_SHOWS) return { shows, widened: { radiusKm: 50 } };
+
+     let w: TimeWindow | null = window;
+     while ((w = NEXT_WINDOW[w])) {
+       shows = await deps.query(geo, 50, w);
+       if (shows.length >= MIN_VIABLE_SHOWS) return { shows, widened: { radiusKm: 50, window: w } };
+     }
+     const widened: WidenMeta = { radiusKm: 50 };
+     if (window !== 'next-14-days') widened.window = 'next-14-days';
+     return { shows, widened };
+   }
+   ```
+   (Adjust the final-fallback test expectation for `tonight` inputs: exhausted ladder returns the *last* query's shows with `{ radiusKm: 50, window: 'next-14-days' }`.)
+4. Run. Expect **PASS**. Commit: `"fetchShows: 30→50km then window ladder, terminal at next-14-days, widened metadata (R5)"`
+
+## Task 1.6 — `extractArtists`: keep every attraction, normalize, dedupe, tribute detection
+
+**Create:** `src/lib/pipeline/extractArtists.ts`, `tests/unit/extractArtists.test.ts`. **Modify:** `src/lib/types.ts` (Artist)
+
+1. **Write the failing test:**
+   ```ts
+   import { describe, it, expect } from 'vitest';
+   import { normalizeName, detectTribute, extractArtists } from '../../src/lib/pipeline/extractArtists';
+
+   describe('normalizeName', () => {
+     it.each([
+       ['Live Nation presents Khruangbin', 'Khruangbin'],
+       ['Khruangbin — A La Sala Tour', 'Khruangbin'],
+       ['Fontaines D.C. - Romance Tour 2026', 'Fontaines D.C.'],
+       ['BALTHVS', 'BALTHVS'],
+     ])('%s → %s', (raw, expected) => expect(normalizeName(raw)).toBe(expected));
+   });
+
+   describe('detectTribute', () => {
+     it('flags strong patterns unconditionally', () => {
+       expect(detectTribute('Letz Zep — Led Zeppelin Tribute')).toBe(true);
+       expect(detectTribute('A Tribute to ABBA')).toBe(true);
+       expect(detectTribute('One Night of Queen plays Queen')).toBe(true);
+     });
+     it('flags "The X Show" ONLY with the famous-artist secondary signal', () => {
+       expect(detectTribute('The Doors Show')).toBe(true);        // Doors ∈ FAMOUS seed list
+       expect(detectTribute('The Late Night Show')).toBe(false);  // legit band survives
+     });
+   });
+
+   describe('extractArtists', () => {
+     const shows = [
+       { id: 'tm:1', startsAt: '2026-07-20T20:00:00', attractions: [{ id: 'a', name: 'BALTHVS' }, { id: 'b', name: 'Khruangbin — A La Sala Tour' }], artistIds: [] },
+       { id: 'tm:2', startsAt: '2026-07-22T21:00:00', attractions: [{ id: 'c', name: 'Khruangbin' }], artistIds: [] },
+     ] as any[];
+     it('keeps every attraction — openers never dropped — and dedupes across events', () => {
+       const artists = extractArtists(shows);
+       expect(Object.keys(artists).sort()).toEqual(['balthvs', 'khruangbin']);
+       expect(artists['khruangbin'].billingSlots).toHaveLength(2);
+     });
+     it('fills shows[].artistIds in billed order and records slots', () => {
+       extractArtists(shows);
+       expect(shows[0].artistIds).toEqual(['balthvs', 'khruangbin']);
+       expect(shows[0].artistIds.length).toBe(shows[0].attractions.length);
+     });
+   });
+   ```
+2. Run. Expect **FAIL**.
+3. **Implementation** — add `Artist` to `types.ts`:
+   ```ts
+   export type ProminenceTier = 'arena' | 'mid' | 'small-print';
+   export interface Artist {
+     id: string;                // slug of normalizedName
+     rawNames: string[];
+     normalizedName: string;
+     isTribute: boolean;
+     mbid?: string;
+     prominence: number;        // 0..1 (Phase 3 fills; 0 until then)
+     tier: ProminenceTier;      // 'mid' until Phase 3 scores
+     billingSlots: Array<{ showId: string; slot: number; ofSlots: number }>;
+   }
+   ```
+   `src/lib/pipeline/extractArtists.ts`:
+   ```ts
+   import type { Artist, Show } from '../types';
+
+   const PRESENTS_RE = /^.*?\bpresents:?\s+/i;
+   const TOUR_RE = /\s*[-–—:]\s*[^-–—:]*\btour\b.*$/i;
+   const STRONG_TRIBUTE_RE = /\btribute\b|\bplays\s+[a-z]/i;
+   const SHOW_PATTERN_RE = /^the\s+(.+?)\s+show$/i;
+   // Seed list for the "The X Show" secondary signal (review MUST-FIX: pattern alone over-flags).
+   // Extend from real TM dumps as they accumulate — additions are one-line, deterministic.
+   const FAMOUS = new Set(['doors', 'beatles', 'queen', 'abba', 'pink floyd', 'elvis', 'eagles', 'bee gees', 'led zeppelin', 'rolling stones']);
+
+   export const slugify = (s: string) =>
+     s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+   export function normalizeName(raw: string): string {
+     return raw.replace(PRESENTS_RE, '').replace(TOUR_RE, '').trim();
+   }
+
+   export function detectTribute(raw: string): boolean {
+     if (STRONG_TRIBUTE_RE.test(raw)) return true;
+     const m = SHOW_PATTERN_RE.exec(raw.trim());
+     return !!m && FAMOUS.has(m[1].toLowerCase());
+   }
+
+   /** Mutates shows[].artistIds (billed order) and returns the deduped artist map. */
+   export function extractArtists(shows: Show[]): Record<string, Artist> {
+     const artists: Record<string, Artist> = {};
+     for (const show of shows) {
+       show.artistIds = show.attractions.map((att, slot) => {
+         const normalized = normalizeName(att.name);
+         const id = slugify(normalized);
+         const a = (artists[id] ??= {
+           id, rawNames: [], normalizedName: normalized,
+           isTribute: detectTribute(att.name),
+           prominence: 0, tier: 'mid', billingSlots: [],
+         });
+         if (!a.rawNames.includes(att.name)) a.rawNames.push(att.name);
+         a.billingSlots.push({ showId: show.id, slot, ofSlots: show.attractions.length });
+         return id;
+       });
+     }
+     return artists;
+   }
+   ```
+4. Run. Expect **PASS** (tune `TOUR_RE` against the normalization table until all rows pass). Commit: `"extractArtists: normalize, dedupe, billing slots, tribute detection with secondary signal"`
+
+## Task 1.7 — SPIKE-FIRST ⚠ `musicbrainz.ts`: serialized, jittered, strictly non-fatal
+
+**Create:** `src/lib/api/musicbrainz.ts`, `tests/fixtures/musicbrainz/{match,mismatch}.json`, `tests/unit/musicbrainz.test.ts`
+
+**Spike (before hardening):** deploy a scratch route running a 50-lookup serialized burst at 1 req/s + jitter from a Vercel function; record whether MB 503s/blocks on shared egress IPs. Record `match.json` (artist search hit with genres + area) and `mismatch.json` (homonym resolving to the wrong genre/area) via `record-fixtures.ts`. Findings → `NOTES.md`.
+
+1. **Write the failing test:**
+   ```ts
+   import { describe, it, expect, vi } from 'vitest';
+   import { crossCheckArtist } from '../../src/lib/api/musicbrainz';
+   import match from '../fixtures/musicbrainz/match.json';
+   import mismatch from '../fixtures/musicbrainz/mismatch.json';
+
+   describe('crossCheckArtist', () => {
+     const ctx = { countryCode: 'PT', genreHints: ['psychedelic', 'funk'] };
+     it('confirms when genre/area align with event context', async () => {
+       const r = await crossCheckArtist('balthvs', ctx, { rawFetch: async () => match });
+       expect(r.status).toBe('confirmed');
+       expect(r.mbid).toBeTruthy();
+     });
+     it('returns unconfident on genre/area mismatch', async () => {
+       const r = await crossCheckArtist('boston', ctx, { rawFetch: async () => mismatch });
+       expect(r.status).toBe('unconfident');
+     });
+     it('NEVER throws: network error → unconfident (strictly non-fatal)', async () => {
+       const r = await crossCheckArtist('x', ctx, { rawFetch: async () => { throw new Error('503'); } });
+       expect(r.status).toBe('unconfident');
+     });
+     it('timeout → unconfident, no retry', async () => {
+       const raw = vi.fn(async () => { throw Object.assign(new Error('timeout'), { name: 'TimeoutError' }); });
+       const r = await crossCheckArtist('x', ctx, { rawFetch: raw });
+       expect(r.status).toBe('unconfident');
+       expect(raw).toHaveBeenCalledTimes(1); // never retried
+     });
+   });
+   ```
+2. Run. Expect **FAIL**.
+3. **Implementation** — `src/lib/api/musicbrainz.ts`:
+   ```ts
+   import { z } from 'zod';
+   import { mbQueue } from '../queue';
+
+   const USER_AGENT = 'SmallFont/1.0 (https://smallfont.fm; contact@smallfont.fm)'; // MANDATORY per MB ToS
+
+   const MbSearch = z.object({
+     artists: z.array(z.object({
+       id: z.string(), name: z.string(), score: z.number().optional(),
+       area: z.object({ name: z.string() }).optional(),
+       country: z.string().optional(),
+       tags: z.array(z.object({ name: z.string() })).optional(),
+     })),
+   });
+
+   export type CrossCheck = { status: 'confirmed'; mbid: string } | { status: 'unconfident' };
+   export interface EventContext { countryCode: string; genreHints: string[] }
+
+   export async function crossCheckArtist(
+     name: string, ctx: EventContext,
+     deps?: { rawFetch?: () => Promise<unknown> },
+   ): Promise<CrossCheck> {
+     try {
+       const json = deps?.rawFetch
+         ? await deps.rawFetch()
+         : await mbQueue.schedule(async () => {
+             const res = await fetch(
+               `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(name)}&fmt=json&limit=5`,
+               { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(8000) },
+             );
+             if (!res.ok) throw new Error(`mb:${res.status}`);
+             return res.json();
+           });
+       const { artists } = MbSearch.parse(json);
+       const top = artists.find((a) => a.name.toLowerCase() === name.toLowerCase()) ?? artists[0];
+       if (!top) return { status: 'unconfident' };
+       const areaOk = top.country?.toUpperCase() === ctx.countryCode.toUpperCase();
+       const tagNames = (top.tags ?? []).map((t) => t.name.toLowerCase());
+       const genreOk = ctx.genreHints.some((g) => tagNames.some((t) => t.includes(g.toLowerCase())));
+       return areaOk || genreOk ? { status: 'confirmed', mbid: top.id } : { status: 'unconfident' };
+     } catch {
+       return { status: 'unconfident' }; // any failure widens silent-drops, never breaks a page
+     }
+   }
+   ```
+4. Run. Expect **PASS** (align confirm logic with fixture contents). Commit: `"musicbrainz: serialized 1/s+jitter, mandatory UA, strictly non-fatal cross-check"`
+
+## Task 1.8 — `resolveTracks`: exact → MB cross-check → silent drop; headliner 2nd track (R7)
+
+**Create:** `src/lib/pipeline/resolveTracks.ts`, `tests/fixtures/itunes/{homonym,empty}.json`, `tests/unit/resolveTracks.test.ts`
+
+1. Record `homonym.json` (a name with multiple distinct artists, e.g. "Boston") and `empty.json` (`{"resultCount":0,"results":[]}`) fixtures.
+2. **Write the failing test:**
+   ```ts
+   import { describe, it, expect, vi } from 'vitest';
+   import { resolveTracks } from '../../src/lib/pipeline/resolveTracks';
+
+   const mkArtist = (id: string, o: Partial<any> = {}) => ({
+     id, normalizedName: id, rawNames: [id], isTribute: false,
+     prominence: 0, tier: 'mid', billingSlots: [{ showId: 'tm:1', slot: 0, ofSlots: 1 }], ...o,
+   });
+   const exactCandidates = (name: string) => [
+     { trackId: 1, artistName: name, trackName: 'Hit', previewUrl: 'https://p/1', artworkUrl100: 'https://a/1', trackViewUrl: 'https://itunes/1' },
+     { trackId: 2, artistName: name, trackName: 'Second', previewUrl: 'https://p/2', artworkUrl100: 'https://a/2', trackViewUrl: 'https://itunes/2' },
+   ];
+
+   describe('resolveTracks', () => {
+     it('exact hit → confidence exact', async () => {
+       const tracks = await resolveTracks([mkArtist('balthvs')], {
+         searchTracks: async () => exactCandidates('balthvs'),
+         crossCheck: vi.fn(),
+       });
+       expect(tracks).toHaveLength(1);
+       expect(tracks[0].confidence).toBe('exact');
+     });
+     it('homonym (no exact) → MB confirm → mb-confirmed', async () => {
+       const tracks = await resolveTracks([mkArtist('boston')], {
+         searchTracks: async () => exactCandidates('Boston (PT)'),
+         crossCheck: async () => ({ status: 'confirmed', mbid: 'm1' }),
+       });
+       expect(tracks[0]?.confidence).toBe('mb-confirmed');
+     });
+     it('homonym → MB mismatch → SILENT DROP (absence beats wrong)', async () => {
+       const tracks = await resolveTracks([mkArtist('boston')], {
+         searchTracks: async () => exactCandidates('Boston (PT)'),
+         crossCheck: async () => ({ status: 'unconfident' }),
+       });
+       expect(tracks).toHaveLength(0);
+     });
+     it('empty iTunes result → drop, no throw', async () => {
+       const tracks = await resolveTracks([mkArtist('ghost-act')], {
+         searchTracks: async () => [], crossCheck: vi.fn(),
+       });
+       expect(tracks).toHaveLength(0);
+     });
+     it('tribute flag forces the ambiguous path even on exact name hit', async () => {
+       const cc = vi.fn(async () => ({ status: 'unconfident' as const }));
+       const tracks = await resolveTracks([mkArtist('the doors show', { isTribute: true })], {
+         searchTracks: async () => exactCandidates('the doors show'), crossCheck: cc,
+       });
+       expect(cc).toHaveBeenCalled();
+       expect(tracks).toHaveLength(0);
+     });
+     it('R7: headliner ALWAYS gets a 2nd track in the bundle, flagged', async () => {
+       const headliner = mkArtist('khruangbin', { billingSlots: [{ showId: 'tm:1', slot: 2, ofSlots: 3 }] }); // top slot
+       const tracks = await resolveTracks([headliner], {
+         searchTracks: async () => exactCandidates('khruangbin'), crossCheck: vi.fn(),
+         isHeadliner: () => true,
+       });
+       expect(tracks).toHaveLength(2);
+       expect(tracks[1].isSecondHeadlinerTrack).toBe(true);
+     });
+   });
+   ```
+3. Run. Expect **FAIL**.
+4. **Implementation** — `src/lib/pipeline/resolveTracks.ts`:
+   ```ts
+   import type { Artist, Track } from '../types';
+   import { pickExact, type ItunesCandidate } from '../api/itunes';
+   import type { CrossCheck, EventContext } from '../api/musicbrainz';
+
+   interface Deps {
+     searchTracks: (name: string) => Promise<ItunesCandidate[]>;   // cache-fronted + itunesQueue in prod
+     crossCheck: (name: string, ctx?: EventContext) => Promise<CrossCheck>;
+     isHeadliner?: (a: Artist) => boolean;
+     ctx?: EventContext;
+   }
+
+   const defaultIsHeadliner = (a: Artist) =>
+     a.billingSlots.some((b) => b.slot === b.ofSlots - 1 && b.ofSlots > 1) ||
+     a.billingSlots.some((b) => b.ofSlots === 1);
+
+   const toTrack = (a: Artist, c: ItunesCandidate, confidence: Track['confidence']): Track => ({
+     artistId: a.id, itunesTrackId: c.trackId, title: c.trackName,
+     previewUrl: c.previewUrl!, artworkUrl: c.artworkUrl100 ?? '', itunesUrl: c.trackViewUrl, confidence,
+   });
+
+   export async function resolveTracks(artists: Artist[], deps: Deps): Promise<Track[]> {
+     const out: Track[] = [];
+     for (const artist of artists) {
+       const candidates = await deps.searchTracks(artist.normalizedName);
+       if (candidates.length === 0) continue;                       // drop: nothing to play
+       const exact = pickExact(candidates, artist.normalizedName);
+
+       let accepted: ItunesCandidate | null = null;
+       let confidence: Track['confidence'] = 'exact';
+       if (exact && !artist.isTribute) {
+         accepted = exact;
+       } else {
+         const check = await deps.crossCheck(artist.normalizedName, deps.ctx);
+         if (check.status === 'confirmed') {
+           artist.mbid = check.mbid;
+           accepted = exact ?? candidates[0];
+           confidence = 'mb-confirmed';
+         }
+       }
+       if (!accepted) continue;                                     // SILENT DROP
+
+       out.push(toTrack(artist, accepted, confidence));
+       if ((deps.isHeadliner ?? defaultIsHeadliner)(artist)) {      // R7: unconditional
+         const second = candidates.find((c) => c.artistName === accepted!.artistName && c.trackId !== accepted!.trackId);
+         if (second) out.push({ ...toTrack(artist, second, confidence), isSecondHeadlinerTrack: true });
+       }
+     }
+     return out;
+   }
+   ```
+5. Run. Expect **PASS**. Commit: `"resolveTracks: exact→MB→silent-drop, tribute forces ambiguity, headliner 2nd track unconditional (R7)"`
+
+## Task 1.9 — `order.ts`: chronology, bill mirroring, cap 30, encore (R8)
+
+**Create:** `src/lib/pipeline/order.ts`, `tests/unit/order.test.ts`
+
+1. **Write the failing test** — build one fixture bundle in-file: 12 shows across 5 days, one with 3 billed acts, 31 resolvable tracks total. Assert:
+   - `entries` sorted by show `startsAt`;
+   - within the 3-act show, opener tracks precede headliner tracks (billing slot order);
+   - a 31-track input caps at exactly **30** with the encore preserved as the final slot;
+   - encore = a track from the **last** show, by its **least-prominent** billed act, `isEncore === true`;
+   - determinism: two runs deep-equal.
+2. Run. Expect **FAIL**.
+3. **Implementation** — `orderPlaylist(shows, artists, tracks): PlaylistEntry[]`:
+   ```ts
+   import type { Artist, Show, Track } from '../types';
+   export interface PlaylistEntry { track: Track; show: Show; isEncore: boolean }
+   export const TRACK_CAP = 30; // R1
+
+   export function orderPlaylist(shows: Show[], artists: Record<string, Artist>, tracks: Track[]): PlaylistEntry[] {
+     const byArtist = new Map<string, Track[]>();
+     for (const t of tracks) byArtist.set(t.artistId, [...(byArtist.get(t.artistId) ?? []), t]);
+
+     const sortedShows = [...shows].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+     const entries: PlaylistEntry[] = [];
+     const used = new Set<Track>();
+     for (const show of sortedShows) {
+       for (const artistId of show.artistIds) { // billed order = opener…headliner (bill mirroring)
+         for (const t of byArtist.get(artistId) ?? []) {
+           if (!used.has(t)) { used.add(t); entries.push({ track: t, show, isEncore: false }); }
+         }
+       }
+     }
+     // Encore (R8): one track from the final show, from its least-prominent billed act.
+     const lastShow = sortedShows.at(-1);
+     if (lastShow) {
+       const candidates = lastShow.artistIds
+         .filter((id) => byArtist.has(id))
+         .sort((a, b) => (artists[a]?.prominence ?? 0) - (artists[b]?.prominence ?? 0));
+       const encoreArtist = candidates[0];
+       const encoreEntry = entries.findLast((e) => e.track.artistId === encoreArtist && e.show.id === lastShow.id);
+       if (encoreEntry) {
+         encoreEntry.isEncore = true;
+         const rest = entries.filter((e) => e !== encoreEntry).slice(0, TRACK_CAP - 1);
+         return [...rest, encoreEntry];
+       }
+     }
+     return entries.slice(0, TRACK_CAP);
+   }
+   ```
+4. Run. Expect **PASS**. Commit: `"order: chronology + bill mirroring + 30-cap with encore as final slot (R8)"`
+
+## Task 1.10 — `buildBundle` orchestrator: priority, 25 s budget (R4), degraded TTL (R3)
+
+**Create:** `src/lib/pipeline/buildBundle.ts`, `tests/unit/buildBundle.test.ts`. **Modify:** `src/lib/types.ts` (CityWindowBundle)
+
+1. **Write the failing test:** with injected fake deps (fetchShows/extract/resolve/clock):
+   - resolution requests arrive ordered by `(show.startsAt, billing slot)` — assert the sequence of artist ids handed to the resolver;
+   - a fake clock exceeding the 25 s soft budget mid-resolution yields a **partial** bundle with `belowBar: true` when < 8 playable tracks, and resolution stops (no further resolver calls);
+   - `bundleCacheProfile(bundle.tracks.length)` selects `120` for the partial and `3600` for a full bundle;
+   - concurrent `buildBundle` calls for one key coalesce via `memoInFlight` (resolver called once).
+2. Run. Expect **FAIL**.
+3. **Implementation** — key shape:
+   ```ts
+   export interface CityWindowBundle {
+     key: { city: string; window: TimeWindow };
+     builtAt: string;
+     geo: Geo;
+     widened?: WidenMeta;
+     shows: Show[];
+     artists: Record<string, Artist>;
+     tracks: Track[];
+     posterCount: number;   // shows fetched — feeds "Reading the small print on N gig posters…"
+     belowBar: boolean;     // < 8 playable → R3 degraded TTL + honest partial copy
+   }
+   ```
+   `buildBundle(city, window, deps)`: geocode → `fetchShowsWithWiden` → `extractArtists` → order artist list by earliest `(show date, slot)` → resolve sequentially with `deadline = start + 25_000` checked between artists → assemble bundle, `belowBar = tracks.length < 8`. Export a module-scope `memoInFlight` wrapper keyed `cacheKeys.bundle(city, window)`. The `"use cache"` + `cacheLife(bundleCacheProfile(...))` wrapper lives in the page/server layer (1.12), since profiles must be chosen after the build.
+4. Run. Expect **PASS**. Commit: `"buildBundle: date+billing priority, 25s soft budget, belowBar flag, in-flight memo (R3/R4)"`
+
+## Task 1.11 — `geo.ts`: Vercel headers + Google Geocoding with round-trip + negative cache (R10)
+
+**Create:** `src/lib/api/geo.ts`, `tests/unit/geo.test.ts`
+
+1. **Write the failing test:**
+   - `cityFromHeaders(new Headers({'x-vercel-ip-city':'Lisbon','x-vercel-ip-country':'PT'}))` → `{ displayName:'Lisbon', slug:'lisbon', countryCode:'PT' }`; percent-encoded values (`S%C3%A3o%20Paulo`) decoded; absent/garbage headers → `null` (Phase 2 landing consumes the null branch);
+   - `geocodeSlug('lisbon', deps)` with a mocked Google response whose canonical locality slugifies to `lisbon` → `Geo`; response slugifying to something else (e.g. request `lisbona` → locality "Lisbon") → `{ ok:false, reason:'no-roundtrip' }` **unless** called with `{ source:'typeahead' }` (typeahead commits accept the canonical result and the page redirects to the canonical slug);
+   - a failed lookup is negative-cached: second call within TTL performs **zero** fetches (count mocked fetch calls).
+2. Run. Expect **FAIL**.
+3. **Implementation:** `Geo = { lat, lng, displayName, countryCode, tz, slug }`. `cityFromHeaders` reads/decodes the two Vercel headers. `geocodeSlug(slug, deps, opts)` — in-memory `Map<string, {failedAt:number}>` negative cache (24 h TTL; the durable copy rides Next Data Cache via a `"use cache"` wrapper in prod), calls Google Geocoding (`components=locality:{slug}` style query), slugifies the returned locality with `slugify` from 1.6, enforces round-trip unless `source === 'typeahead'`. **Never called from bare 404 paths that fail the slug grammar** — grammar rejection in `urlState` happens first (R10 ordering).
+4. Run. Expect **PASS**. Commit: `"geo: Vercel header prefill with null fallback; geocode with canonical round-trip + 24h negative cache (R10)"`
+
+## Task 1.12 — Wire the real product page
+
+**Modify:** `src/app/[city]/[window]/[[...fontStop]]/page.tsx`. **Create:** `src/lib/pageState.ts`, `src/app/not-found.tsx`, `tests/unit/pageParams.test.ts`
+
+1. **Write the failing test** against a pure `resolvePageState(params)` extracted from the page:
+   ```ts
+   import { describe, it, expect } from 'vitest';
+   import { resolvePageState } from '../../src/lib/pageState';
+
+   describe('resolvePageState', () => {
+     it('valid triple → render state with parsed key', () => {
+       const s = resolvePageState({ city: 'lisbon', window: 'tonight', fontStop: ['no-arenas'] });
+       expect(s).toEqual({ kind: 'render', key: { city: 'lisbon', window: 'tonight', fontStop: 'no-arenas' } });
+     });
+     it('bad window → notFound with link target to city default', () => {
+       const s = resolvePageState({ city: 'lisbon', window: 'next-30-days', fontStop: undefined });
+       expect(s).toEqual({ kind: 'not-found', reason: 'window', cityDefault: '/lisbon/next-14-days' });
+     });
+     it('bad fontStop → notFound', () => {
+       expect(resolvePageState({ city: 'lisbon', window: 'tonight', fontStop: ['x'] }).kind).toBe('not-found');
+     });
+     it('slug grammar violation → notFound with reason city and NO cityDefault link', () => {
+       const s = resolvePageState({ city: 'LISBON!', window: 'tonight', fontStop: undefined });
+       expect(s).toEqual({ kind: 'not-found', reason: 'city', cityDefault: null });
+     });
+   });
+   ```
+2. Run. Expect **FAIL**. Implement `resolvePageState` as a thin adapter over `parseUrlState`. **PASS**, commit.
+3. Rewrite the page:
+   - `resolvePageState` → `not-found` branches render the designed-text 404 (headline + link to `/{city}/next-14-days` when the city slug is valid, CityField placeholder otherwise).
+   - Valid key: a server component `<PlaylistSection city window/>` wrapped in `<Suspense fallback={<p>Reading the small print…</p>}>`. Inside, the cached builder:
+     ```tsx
+     async function getBundle(city: string, window: TimeWindow) {
+       'use cache';
+       const bundle = await buildBundleMemoized(city, window);
+       cacheLife(bundleCacheProfile(bundle.tracks.length)); // 3600s, or 120s below bar (R3)
+       return bundle;
+     }
+     ```
+   - Geocode failure inside the build (unknown-but-grammatical city) → `notFound()`. Ticketmaster typed error with no cache → text error state ("we couldn't read the posters right now — try again in a few minutes") — the designed version lands in Phase 2.
+   - Render: `orderPlaylist` output as the ugly `<ol>` + Player from Phase 0, plus `widened` honesty line and `belowBar` partial copy ("still digging — check back in two minutes").
+4. Deploy; manually verify: `/lisbon/next-14-days` plays; `/lisbona/next-14-days` → 404 (round-trip reject); `/lisbon/next-30-days` → 404 with default link; sparse town shows the widen line. Commit: `"Product page: validated params, cached bundle w/ degraded TTL, honest partial + widen copy"`
+
+## Task 1.13 — `POST /api/report-artist` (R9)
+
+**Create:** `src/app/api/report-artist/route.ts`, `tests/unit/reportArtist.test.ts`
+
+1. **Write the failing test:**
+   ```ts
+   import { describe, it, expect, vi, afterEach } from 'vitest';
+   import { POST } from '../../src/app/api/report-artist/route';
+
+   afterEach(() => vi.restoreAllMocks());
+   const req = (body: unknown) =>
+     new Request('http://x/api/report-artist', { method: 'POST', body: JSON.stringify(body) });
+
+   describe('POST /api/report-artist', () => {
+     it('valid body → 204 and one structured log line', async () => {
+       const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+       const res = await POST(req({ city: 'lisbon', window: 'next-14-days', artistId: 'balthvs', showId: 'tm:1' }));
+       expect(res.status).toBe(204);
+       expect(log).toHaveBeenCalledTimes(1);
+       const line = JSON.parse(log.mock.calls[0][0] as string);
+       expect(line).toMatchObject({ evt: 'wrong-artist', city: 'lisbon', artistId: 'balthvs' });
+     });
+     it('junk body → 400, nothing logged', async () => {
+       const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+       const res = await POST(req({ nope: true }));
+       expect(res.status).toBe(400);
+       expect(log).not.toHaveBeenCalled();
+     });
+   });
+   ```
+2. Run. Expect **FAIL**.
+3. **Implementation:**
+   ```ts
+   import { z } from 'zod';
+   const Body = z.object({
+     city: z.string().regex(/^[a-z0-9-]{2,40}$/),
+     window: z.enum(['tonight', 'this-weekend', 'next-14-days']),
+     artistId: z.string().max(80),
+     showId: z.string().max(80),
+   });
+   export async function POST(req: Request): Promise<Response> {
+     let body: unknown;
+     try { body = await req.json(); } catch { return new Response(null, { status: 400 }); }
+     const parsed = Body.safeParse(body);
+     if (!parsed.success) return new Response(null, { status: 400 });
+     console.log(JSON.stringify({ evt: 'wrong-artist', at: new Date().toISOString(), ...parsed.data }));
+     return new Response(null, { status: 204 });
+   }
+   ```
+4. Run. Expect **PASS**. Commit: `"report-artist: Zod-validated fire-and-forget → structured log, no storage (R9)"`
+
+**Phase 1 ACs closed:** S1 (all, R10/R11 variants), S2 (all), S4 (all), S5 (widen ladder + metadata; designed copy in Phase 2), S6 (all), S7 (resolution + silent drop + report sink), S9's ordering/cap/encore criteria.
+
+---
+
+# Phase 2 — The Player & Ticket-Stub UI (the product becomes itself)
+
+**Goal:** the full listening experience per Appendix B: landing, crate-digging theater, itinerary of flippable ticket stubs, sticky radio player, sparse/empty/error states — dark, typographic, mobile-first. Demo: complete first-visit journey on a phone, landing tap to third preview.
+
+**Done looks like:** land → tap "Play Lisbon" → stubs drop → first preview inside the theater → flip a stub → Tickets link works → heart survives reload → sparse town shows the honest banner → dead city shows the torn poster. No blank page reachable from any input.
+
+| # | Task | Create/Modify | Test first (Vitest/RTL) | Acceptance criteria |
+|---|---|---|---|---|
+| 2.1 | Design tokens + shell | `src/app/globals.css`, `layout.tsx`, `src/components/AppShell.tsx`, `src/lib/dayAccent.ts` | `dayAccent.test.ts` — weekday→hue mapping stable across cities/TZs (fixed 7-hue cycle: Mon `#5AA9E6` Tue `#7FC8A9` Wed `#E6C15A` Thu `#E68A5A` Fri `#E65A7F` Sat `#B75AE6` Sun `#5AE6D0`) | `--ink:#0E0E11`, surfaces `#17171C`, text `#F2EFE9`/`#9B9890`/`#5C5A54`; condensed-caps display face + system utility sans; 720px centered desktop column; single dark theme only |
+| 2.2 | `TicketStubRow` front | `src/components/TrackRow.tsx` | `TrackRow.test.tsx` — chip text assembly (`SAT 20 · MUSICBOX · FROM €15`), states `idle/playing/played/unavailable` (**played = artist name at 60% opacity** — review fix), `ENCORE` + `+38 KM` tags, heart affordance | Song above perforated divider (dashed line + punched notches via radial-gradient masks), gig chip below; min-height 72px; tap targets ≥ 44px |
+| 2.3 | Stub flip back face | `TrackRow.tsx`, `src/components/StubBack.tsx` | extend `TrackRow.test.tsx` — flip exclusivity (one at a time), back-face inert while hidden, **wrong-artist beacon fires once → link becomes "Thanks — noted" and disables (R9)** | rotateY 400ms cubic-bezier(0.4,0.2,0.2,1), reduced-motion = crossfade; back: venue/doors, billing framing, same-bill mini-rows (tap plays), full-width `Tickets →` TM deep link, `wrong artist?` bottom-right |
+| 2.4 | Itinerary list | `src/components/DateDivider.tsx`, `PlaylistList.tsx`, `src/hooks/useAutoScroll.ts` | `playlistGrouping.test.ts` — entries→day-group derivation; auto-scroll suppression timer (5s after manual scroll; keyboard row-focus counts as manual — review suggestion) | `<ol>` semantics; day dividers with accent rule + tint; openers above headliner; active row highlighted with accent left-rule + perforation glow |
+| 2.5 | `RadioPlayer` hardening | `src/components/Player.tsx`, `NowPlayingTicker.tsx`, `src/hooks/usePlayer.ts` | extend `usePlayer.test.ts` — 300ms inter-track gap, prebuffer-next target selection, failure auto-skip < 500ms, gesture-gated start (no autoplay ever) | Single `<audio>`; 30s progress ring; ticker `Artist — "Track" · plays FRI 18 · Musicbox`; Skip = next row; the radio chain begins on the Play tap (mobile audio-unlock) |
+| 2.6 | `LoadingTheater` + worst case | `src/components/LoadingTheater.tsx` | `loadingTheater.test.tsx` (fake timers) — min-duration 1.2s clamp; ≤400ms added latency; **45s hard timeout → onError callback (R4)**; `firstTrackReady` flips `Cueing…`→`▶ Play` while rows still dropping | Indeterminate "Reading the small print…" until the payload lands (single-blob response — count/rows are **client-side choreography**, not server events); then posterCount ticks and rows drop staggered 60–90ms; reduced-motion = fades |
+| 2.7 | Landing `/` | `src/app/page.tsx`, `src/components/CityPicker.tsx`, `WindowChips.tsx` | `landing.test.tsx` — IP-prefill branch vs **null-geo fallback ("Play your city" + CityField open — review fix)**; commit → router.push; geocode miss → inline "Can't find that one — try the nearest big city." (field stays open) | Headline "Hear your city before it happens."; one oversized `▶ Play {City}` button; `not {City}?` opens typeahead (commit-only geocode via server action — **no live suggestions in v1**); chips default Next 14 Days; dial live pre-play; no submit button; no geolocation prompt ever |
+| 2.8 | `SparseNotice` | `src/components/SparseNotice.tsx` | `sparseNotice.test.tsx` — `bundle.widened` → copy for kinds `radius`/`window`/`both` (`Quiet week in Braga — widened to 50 km.` / `…widened to next 14 days.`) | Ochre-tinted banner under sticky header, dismissible; widened rows carry `+38 KM`/out-of-window chip annotations |
+| 2.9 | `EmptyState` + `ErrorState` | `src/components/EmptyState.tsx`, `ErrorState.tsx` | `emptyState.test.tsx` — `RecoveryAction[] = { label, action: { route } \| { dialStop } \| { openCityField } }` derivation; **widen action omitted at terminal window (R5 — no next-30-days route exists)**; stop-was-filtering branch offers Everything | Empty: torn-poster CSS/SVG, "Nothing on the poster."; Error: "The poster wall is down." + retry; stale-tag variant ("showing listings from earlier today"); per-row preview 404 = auto-skip + muted tag, never a page error |
+| 2.10 | `useTasteMemory` | `src/hooks/useTasteMemory.ts` | `useTasteMemory.test.ts` — persist/restore hearts+skips, SSR-safe no-op, key shape `smallfont:taste:v1` | localStorage only; never serialized into any request |
+| 2.11 | City/window-change transitions | `AppShell.tsx`, `WindowChips.tsx` | `transitions.test.ts` — window/city change **stops audio + full navigation + Loading theater replays** (review fix); dial-change path asserts NO stop (stubbed until Phase 3) | Chips collapse to active chip in Playing; expand on tap, collapse on selection or tap-away |
+| 2.12 | Accessibility pass | touched components | `a11y.test.tsx` — roles/labels (`role="region"` player, `role="slider"` dial stub), aria-live politeness + throttling to track boundaries, keyboard map (Space/→/N/↑↓/Enter/F/H), focus trap stubs, contrast assertions (bump `#9B9890`→`#A8A59D` on `#17171C` if 4.5:1 misses at 12px) | Full Appendix B §6 compliance; ticker marquee `aria-hidden`, static sentence in live region |
+
+**Phase 2 ACs closed:** S3 (all incl. IP-fallback), S5 (honest copy + terminal behavior), S7 (row report UX), S9 (player + theater + localStorage), S10 (rows/flip/deep links; attribution completed Phase 5), S13 (all three designed states).
+
+---
+
+# Phase 3 — Prominence Scoring & the Small Font Dial (the signature)
+
+**Goal:** the dial works end-to-end as a pure client-side filter over the full bundle: instant, URL-writing, choreographed. Demo: drag to Small Print on cached Lisbon — headliners' type shrinks away, mix rebuilds around openers, URL updates, back-button walks dial history, zero network requests on drag.
+
+| # | Task | Create/Modify | Test first | Acceptance criteria |
+|---|---|---|---|---|
+| 3.1 | `listenbrainz.ts` | `src/lib/api/listenbrainz.ts`, fixture `listenbrainz/counts.json` | `listenbrainz.test.ts` — Zod parse of counts; not-found → `null` (never throw) | 1 req/s via `lbQueue`; keyed `lb:{mbid ?? normalizedName}`; 30d cache; missing data tolerated |
+| 3.2 | `score.ts` (R6 exactly) | `src/lib/pipeline/score.ts`, integrate into `buildBundle` | `score.test.ts` — hand-computed fixture → **exact** prominence values + tiers; missing-LB stability (contributes 0 pre-normalization); determinism (two runs deep-equal); single-artist bundle edge (mm degenerate → define mm(x)=0 when max==min) | `prominence = 0.6·mm(log1p(lb)) + 0.4·mm(log1p(itunesReleaseCount))`; `arena` iff ≥0.75 AND top slot on ≥1 show; `small-print` iff ≤0.35 OR never top slot; else `mid`. iTunes release count reuses the already-cached artist lookup (`entity=album` count piggybacked at resolve time) — no extra queue pressure |
+| 3.3 | `applyFontStop` (pure) | `src/lib/pipeline/applyFontStop.ts` | `applyFontStop.test.ts` — all three stops on one rich fixture bundle; 2nd-headliner-track visibility per stop (R7: visible only at `everything`); `no-arenas` caps arena tier at one token track; `small-print` drops arena tier; "small-print empties the list" edge returns `[]` cleanly; re-runs order/cap/encore on the filtered set | Pure synchronous `(bundle, fontStop) → Playlist`; runs identically on server (SSR of any stop URL) and client (dial drag) |
+| 3.4 | Ship the full bundle | `page.tsx`, `AppShell.tsx` | `bundleSerialization.test.ts` — the `/small-print` page payload still contains arena-tier tracks + 2nd headliner tracks; payload sanity ≤ ~60 tracks | Complete `CityWindowBundle` serialized to the client on every stop's page — the dial re-filters with zero fetches |
+| 3.5 | `SmallFontDial` | `src/components/Dial.tsx` | `dial.test.tsx` — 3 detent snapping; `role="slider"` with `aria-valuemin/max/now` + `aria-valuetext` ("Everything — all acts" / "No Arenas — headliners get one token track" / "Small Print — openers and small rooms only"); ←/→/Home/End; URL emitted per stop with `everything` omitted (R11) | On detent land: haptic tick where supported → `history.pushState` → rebuild. 44px thumb; visible text labels, active = bold + underline (never color-only) |
+| 3.6 | Rebuild choreography | `AppShell.tsx`, `PlaylistList.tsx`, `usePlayer.ts` | `dialRebuild.test.ts` — diff engine kept/removed/added sets; playback continuity: surviving current track → uninterrupted at new index; filtered-out → 400ms crossfade to nearest FOLLOWING survivor | Survivors stay put; removed rows shrink type to 40% over 250ms and collapse; new rows drop in; total ≤800ms (all data is local — no uncached dial path exists, per R7); polite announcement "Rebuilding: Small Print." then final "28 tracks, 11 shows."; reduced-motion variant |
+| 3.7 | "Small Print runs dry" notice | `SparseNotice.tsx`, `EmptyState.tsx` | extend `sparseNotice.test.tsx` — filtered result < 8 shows at small-print appends "Small Print runs dry here — try No Arenas" one-tap dial link (moves dial + URL) | Suggestion only when the STOP caused the dryness (unfiltered bundle ≥ 8 shows) |
+
+**Phase 3 ACs closed:** S8 (all five, R6 verifiable), S1's no-redirect default-stop behavior under pushState history.
+
+---
+
+# Phase 4 — Share Loop, OG Cards & the Lineup Poster (growth surfaces)
+
+**Goal:** the product spreads as a URL: canonical titles, rich OG cards, earned share sheet, zero-auth YouTube export, poster-peel delight. Demo: share a Lisbon link to a group chat — card unfurls, friend hears the identical mix (same cache entry), taps "Build this for YOUR city"; long-press masthead, download the poster.
+
+| # | Task | Create/Modify | Test first | Acceptance criteria |
+|---|---|---|---|---|
+| 4.1 | Canonical metadata | `src/lib/title.ts`, `opengraph-image.tsx`, `page.tsx` metadata | `title.test.ts` — `LISBON · JUL 18–31` derivation incl. month-crossing windows (`JUL 28–AUG 10`); OG fields (city, dates, top 3 small-font finds); canonical URL emission (R11: `/…/everything` → `rel=canonical` short form) | OG card via `opengraph-image.tsx`; share/OG always emit the canonical short form |
+| 4.2 | Share threshold + `ShareSheet` | `src/components/ShareSheet.tsx`, `src/hooks/useShareThreshold.ts` | `shareThreshold.test.ts` — two previews played ≥15s each (2s skip doesn't count) OR 20s active interaction; gated to Playing phase only; once-per-pageview, in-memory | Grabber "Take it with you" 24px above player, never auto-opens; sheet order: Copy link ("Copied — same mix for everyone") → `navigator.share` with "ok which of these are we going to 👀" + URL (copy-with-text fallback) → YouTube playlist link → Spotify/Apple **search deep links only** (no OAuth, no API) |
+| 4.3 | `youtube.ts` + `/api/yt-export/...` | `src/lib/api/youtube.ts`, `src/app/api/yt-export/[city]/[window]/[[...fontStop]]/route.ts` | `youtube.test.ts` — `watch_videos?video_ids=…` builder preserves playlist order; cached ids skip search; quota-error → typed degraded response; sheet test asserts YT row hidden on degraded | Lazy: resolved only when the sheet opens; per-artist video-id cache 30d (`yt:{name}`); `Cache-Control: s-maxage=3600`; per-instance burst damping only — **no fake daily counter** (serverless can't enforce one); degradation hides the YT row, rest of sheet intact |
+| 4.4 | `Build this for YOUR city` | `src/components/Masthead.tsx` | `masthead.test.tsx` — button present on **every** playlist render (product-spec MUST FIX — not shared-link-only); routes to `/{ip-city}/next-14-days`; null-geo → opens CityField | Persistent ghost button in the masthead, right-aligned |
+| 4.5 | Share suppression below the bar | `useShareThreshold.ts`, `EmptyState.tsx` | extend `shareThreshold.test.ts` — `belowBar` bundle or Empty state never earns the sheet, even past thresholds | Blueprint risk 6: a dead thin link is never the thing people forward |
+| 4.6 | `LineupPoster` (a) layout engine | `src/components/LineupPoster.tsx`, `src/lib/posterLayout.ts` | `posterLayout.test.ts` — pure layout: size ∝ prominence, **inverted at small-print** (openers get the 96px slots, arena acts drop to 10px agate), overflow wrapping, fixed 1080×1920 export dims | `{CITY} WEEK FEST` title; dates+venues along the bottom smallprint; `smallfont.fm/{canonical-path}` watermark; ink background with day-accent radial washes |
+| 4.7 | `LineupPoster` (b) peel interaction | `LineupPoster.tsx`, `Masthead.tsx` | `posterPeel.test.tsx` — 500ms hold-timer commit/cancel (early release snaps flat); focus trap + return-to-trigger; download invoked with canvas blob | Corner-curl affordance during hold; peel reveal 550ms (rotateX ~8°); audio uninterrupted, player bar stays on top; desktop poster icon button; PNG download; ✕ reverse 400ms; reduced-motion = fade + filling-ring affordance; 100% client-side, no upload |
+
+**Phase 4 ACs closed:** S1 (title/OG), S11 (all, persistent button per MUST FIX), S12 (all), S5's share-suppression criterion.
+
+---
+
+# Phase 5 — Compliance, Verification & Launch (ToS is a feature)
+
+**Goal:** ship-blockers only: attribution, the single e2e, budget/cache verification against R12-scoped guarantees, and the launch checklist executed with evidence.
+
+| # | Task | Create/Modify | Test first | Acceptance criteria |
+|---|---|---|---|---|
+| 5.1 | `AttributionFooter` + linkback audit | `src/components/AttributionFooter.tsx`, row/flip audit | `attribution.test.tsx` — footer present on landing + playlist + empty + error renders; every rendered track carries its `itunesUrl` Apple linkback; every ticket link is a TM deep link; **a page missing either fails a test, not a review** | 11px `--faint` single-line footer: Ticketmaster attribution/linkback, Apple linkback, and the Ticketmaster-coverage honesty line ("listings via Ticketmaster — the smallest rooms may not be here yet", blueprint risk 1) |
+| 5.2 | Motion/contrast sweep | `globals.css`, touched components | `contrast.test.ts` — programmatic WCAG contrast assertions on all token pairs (incl. 12px chip text on `#17171C`) | `prefers-reduced-motion` honored across theater/flip/dial/peel/share; all text ≥ 4.5:1, nothing below 11px |
+| 5.3 | `MOCK_APIS=1` factory + the one Playwright smoke | `src/lib/api/index.ts` (factory), `tests/e2e/smoke.spec.ts`, `playwright.config.ts` | The spec IS the test, written against Phase 2/3 selectors first: open `/lisbon/next-14-days` → stub rows with gig chips render → press Play → `<audio>` has `src` + playing state → drag dial to Small Print → URL becomes `/lisbon/next-14-days/small-print` + arena-tier rows gone | Module-level factory swaps `lib/api/*` for fixture-backed stubs; runs against `next start`; zero network in CI; nothing else gets an e2e |
+| 5.4 | Budget & reproduction scripts | `scripts/verify-budgets.ts`, `scripts/verify-canonical.ts` | Script assertions are the tests (CI-nightly vs preview; prod at launch): (a) N requests to one key ⇒ upstream calls grow with distinct keys, not visitors (log-diff); (b) same URL, two devices, within TTL ⇒ track-for-track identical **per cache entry (R12)**; cross-region drift documented as accepted; (c) TM daily-usage sampling with 80%-of-5k alert threshold as a checklist item | — |
+| 5.5 | `LAUNCH.md` executed with evidence | `LAUNCH.md` | Every checklist row references the automated test/script that proves it — no unverifiable rows | ✓ TM + Apple attributions · ✓ no audio proxying (grep `previewUrl` flows + network audit — audio src is always `*.apple.com`) · ✓ MB User-Agent set · ✓ queues at R1 rates · ✓ no cookies (response-header audit) · ✓ no DB provisioned · ✓ geocode negative-cache live · ✓ report-artist lines visible in Vercel log drains · ✓ TM-skew honesty line in footer |
+
+**Phase 5 ACs closed:** S10's attribution criterion, S14 (all, R12-scoped), and launch-metric plumbing (edge logs + anonymous beacons only — "session" for the engagement metrics = one pageview's in-memory id attached to beacons, consistent with no-cookies).
+
+---
+
+# Risk register — the three spike-first tasks ⚠
+
+1. **0.2 Ticketmaster reality** — billing-order reliability, field sparsity, pagination and 429 behavior decide the shape of `Show`, bill mirroring, and the widen ladder. Everything downstream consumes its fixture. If attraction order proves unreliable, bill mirroring falls back to "headliner = attraction matching the event name; others = openers" and `NOTES.md` must say so before Phase 1.9.
+2. **0.3 iTunes previews on real devices** — preview-URL stability and mobile-Safari gesture-chained sequential playback are the product's heartbeat. If chaining from `ended` fails on iOS, `usePlayer` must be redesigned (single reused `<audio>` element with `src` swap inside the event handler) **before** Phase 2.5 hardens.
+3. **1.7 MusicBrainz from Vercel egress IPs** — MB blocks by IP/UA persistently and Vercel IPs are shared. The spike proves 1 req/s + jitter + serialization survives; the strictly-non-fatal design means even a full block only widens silent-drops, never breaks a page.
+
+# Sequencing rationale
+
+Deploy-first (Phase 0) because the two external-API bets and the mobile-audio bet are the only things that can invalidate the architecture — everything else is deterministic pure functions TDD'd against fixtures. Engine before paint (Phase 1 → 2) because every UX state is a pure function of pipeline outputs. Dial after player (Phase 3 → 2) because `applyFontStop` needs the full bundle contract and a rendered list to choreograph against. Share/poster (Phase 4) only matter once there's something worth sharing. Compliance last as a phase but present from Phase 0 (R2 caching, attribution fields carried in `Track` from day one) so Phase 5 is verification, not retrofit.
+
+---
+
+# Appendix A — Product Spec (v1 user stories, review MUST-FIXes applied)
+
+Source of truth: `blueprint.json`. Numbers are exact per R1; every "~" from earlier drafts is resolved.
+
+**Product goal.** Small Font turns the concerts near you into an instantly playable 30-second-preview mixtape, read from the gig poster bottom-up: open `smallfont.fm/{city}/{window}` and press play to hear one top track per artist playing your city, in show order, each stamped with its gig. The Small Font dial (Everything / No Arenas / Small Print) fades famous headliners out and rebuilds the mix around openers and small-room acts. No accounts, no database, no cookies — every playlist is a pure function of its URL, edge-cached one hour. Built exclusively on Ticketmaster Discovery, iTunes Search, MusicBrainz/ListenBrainz. Next.js on Vercel.
+
+### S1 — Canonical URL route and pure-function page
+- Route `/{city}/{window}[/{font-stop}]`, windows `tonight | this-weekend | next-14-days`, stops `everything | no-arenas | small-print`. Page renders as a pure function of the three segments — no cookies, no DB, no per-user variation.
+- Omitted stop defaults to `everything`, no redirect. `/{city}/{window}/everything` renders with `rel=canonical` → the short form; OG/share always emit the short form (R11).
+- Invalid window/stop → designed 404 linking to the city's default window. City slug failing grammar `^[a-z0-9-]{2,40}$` or failing the geocode canonical-slug round-trip → designed 404 with CityField open; geocode failures negative-cached 24 h; Geocoding only fires from the typeahead server action or a grammar-passing bare slug (R10). `/lisbon` vs `/lisboa` converge via the round-trip, never two artifacts.
+- Rendered playlists carry canonical title `LISBON · JUL 18–31` + OG tags (city, dates, top small-font finds).
+
+### S2 — Edge cache per (city, window, font-stop)
+- Miss → full response cached at the edge, TTL 3600 s per exact key (degraded bundles: 120 s, R3). Hit → zero upstream API calls.
+- Two visitors on the same cache entry within TTL get track-for-track identical playlists. **Guarantee scope: per cache entry (R12)** — cross-region/variant drift across independent revalidations is documented, monitored, accepted.
+
+### S3 — City prefill and window chips (no submit button)
+- Fresh visit: city pre-resolved server-side from Vercel geo headers (transient, GDPR-clean, nothing stored); headline "Hear your city before it happens."; one button "Play {City}"; browser geolocation prompt never fired. **Geo-null fallback: "Play your city" with CityField open.**
+- "not {City}?" opens a typeahead field; typed cities geocode via Google Geocoding (commit-time server action, results cached 30 d per slug — budget guard).
+- Changing city/chip/stop updates the URL and rebuilds immediately; no submit button. City/window changes stop audio and replay the loading theater; dial changes are seamless (Phase 3).
+
+### S4 — Ticketmaster fetch behind rate-limit-safe caching
+- Query: latlong + 30 km radius, `classificationName=Music`, window date range; pagination respects the 1,000-result cap.
+- All calls through a server-side queue at 4 req/s (R1). 429 → one jittered retry; then, if a cached response exists (incl. stale-while-revalidate), serve it with a "showing listings from earlier today" tag; no cache → honest degraded state ("we couldn't read the posters right now"), never a raw error or infinite spinner.
+- Aggressive per-key caching keeps daily usage far inside 5k/day; the 80% threshold is a Phase 5 checklist alert item computed from log drains.
+
+### S5 — Sparse-market auto-widen with honest copy
+- < 8 shows → widen radius 30 → 50 km and re-query before rendering. Still < 8 → widen the window up the ladder `tonight → this-weekend → next-14-days`; **next-14-days is terminal** and no `next-30-days` route exists (R5).
+- **Widening never changes the canonical URL or cache key** — it is internal; `bundle.widened` drives the honest copy ("Quiet week in Braga — widened to 50 km." / "…widened to next 14 days.") shown on 100% of widened builds.
+- Small Print filtering the bill below the bar → suggest flipping toward No Arenas/Everything instead of a blank page.
+- Playlists below the 8-show bar after all widening never earn the share sheet; only URLs that passed the bar get the full share treatment.
+
+### S6 — Artist extraction, normalization, tribute detection
+- Every attraction kept — openers never discarded. "presents…" phrases and tour suffixes stripped; deduped across events; billing slots recorded.
+- Tribute detection: strong patterns ("tribute", "plays X") flag alone; weak pattern ("The X Show") flags only with the famous-artist secondary signal — flagged acts are treated as ambiguous downstream.
+
+### S7 — iTunes resolution with MB cross-check, silent-drop, report link
+- Exact-name iTunes match first; top track + 30 s preview URL; one track per artist; **the headliner's 2nd track is always fetched into the bundle and only shown at Everything (R7)**.
+- Ambiguity (multi-candidate, tribute flag, fuzzy-only) → MusicBrainz genre/area cross-check (1 req/s, mandatory User-Agent, strictly non-fatal) against event context.
+- No confident match → silent drop; absence beats wrong. Silent-drop rate monitored (< 25%/playlist target).
+- Every row: one-tap "wrong artist?" → fire-and-forget beacon → `POST /api/report-artist` → one structured log line; Vercel log drains compute the < 2%-of-rows metric (R9 — resolves the no-DB contradiction). Client feedback "Thanks — noted".
+- All lookups through the 1 req/3.5 s queue; per-artist results cached 30 d (effectively forever) — repeat cities cost near-zero lookups. **Progressive resolution (R4)**: earliest gigs resolve first under the 25 s budget, so time-to-first-audio p95 < 20 s cold is arithmetically honest; stragglers fill on the 120 s degraded revalidate.
+
+### S8 — Prominence scoring and the dial
+- Free proxies only: ListenBrainz listens, iTunes catalog depth, TM billing order. **Deterministic classification per R6** (formula + thresholds above); same bundle ⇒ same tiers, always.
+- Everything: all resolved artists (headliner 2nd tracks visible). No Arenas: arena tier capped at one token track (row tagged). Small Print: arena tier dropped; mix rebuilds from the bottom of the bill.
+- Every dial change updates the URL (`everything` omitted); the exact dig is reproducible by link.
+
+### S9 — Playlist assembly and the sequential preview player
+- Chronological by gig date; within a gig, openers' tracks precede the headliner's; cap **30** tracks; final slot = **encore: one track from the window's last show, from its least-prominent billed act** (R8).
+- Play → 30 s previews back-to-back via one HTML5 `<audio>`, streamed directly from Apple with linkback — never proxied; now-playing ticker ties track to show. Skip advances to the next row (openers are never skipped past silently — Skip is next-track, preserving the discovery goal). Failed preview → auto-skip < 500 ms, no stall.
+- Loading = crate-digging theater ("Reading the small print on 43 gig posters…") with stamped rows dropping in; first preview buffered before the animation ends; **45 s hard timeout → Error state**. Playback begins only on a user gesture.
+- Hearts/skips → localStorage only, never sent to a server. The heart affordance lives on every stub row (S10).
+
+### S10 — Ticket-stub rows with flip and mandatory attribution
+- Row: song above a perforated divider, gig chip below ("SAT 20 · MUSICBOX · FROM €15"); per-day accents and date dividers make the playlist an itinerary; heart on every row.
+- Chip tap flips the stub: venue, doors, billing framing, other tracks from the bill, full-width "Tickets →" TM deep link.
+- Ticketmaster attribution/linkback + Apple linkback present on every page — ToS requirement enforced by test (Phase 5.1); a page missing either does not ship.
+- Full-length listening: Spotify / Apple Music / YouTube **search deep links only** — no Spotify Web API, no OAuth.
+
+### S11 — Share bar and post-value claim moment
+- Threshold: two previews played ≥ 15 s each OR 20 s active interaction — never a wall before first sound; in-memory per pageview.
+- Sheet: Copy link; group-chat share ("ok which of these are we going to 👀" + OG card); zero-auth YouTube `watch_videos` link (ids resolved lazily at share time, cached 30 d, quota-degradation hides the row); Spotify/Apple deep links.
+- A friend's shared link reproduces the identical playlist (same cache entry) — and **"Build this for YOUR city" is a persistent masthead button on every playlist page** (restored per MUST FIX), not just for shared-link visitors.
+
+### S12 — Lineup Poster (client-side canvas)
+- Long-press the masthead → playlist peels into "{CITY} WEEK FEST", drawn client-side on canvas, zero backend.
+- Type sized by prominence — **inverted at Small Print** (openers get the headline font); dates/venues along the bottom; site URL watermarked; download = 1080×1920 PNG.
+
+### S13 — Designed empty and degraded states
+- Zero shows after full widen → torn-poster empty state with recovery actions (Everything stop if filtering; CityField; the widen action is omitted at the terminal window per R5).
+- Small Print emptying the list → "try No Arenas" suggestion. Upstream failure with no cache → "The poster wall is down." + retry. 0 blank-page renders, ever.
+
+### S14 — Deploy, cache verification, launch checklist
+- Same URL, same cache entry, within TTL ⇒ identical content (R12 scope). Launch-day simulation: upstream calls grow with distinct keys, not visitors.
+- Checklist (all rows tied to automated proof): TM + Apple attributions; no audio proxying; MB User-Agent; queues at R1 rates; no cookies; no database; geocode negative-cache; report-artist logs flowing; TM-skew honesty line present.
+
+**Launch success criteria** (measured via edge logs + anonymous per-pageview beacons only): time-to-first-audio p50 < 5 s / p95 < 12 s warm, p95 < 20 s cold (honest under R4); first preview buffered before animation ends ≥ 95% of builds; per-cache-entry share reproduction 100% of sampled checks; ≥ 99% correct canonical/OG metadata; edge cache hit rate ≥ 80% week 1; TM usage ≤ 50% of budget, zero user-facing 429s; zero queue violations; wrong-artist reports < 2% of rows; silent-drop < 25%/playlist average; 0 blank pages; ≥ 90% of playlists meet the 8-show bar post-widen; widen copy on 100% of widened builds; ≥ 40% of pageviews play two previews; ≥ 10% use the dial; ≥ 5% copy/share; ≥ 20% of shared-link visitors tap "Build this for YOUR city".
+
+**Non-goals for v1 (cut list):** any Spotify Web API/OAuth; Apple MusicKit; SeatGeek/JamBase merge; accounts, database, cookies, notifications; genre filters; radius slider; venue-capacity tables; Blind Dig; Walk to the Venue; Gig Horoscope; city battles; Thursday Drop; .ics export; session bandit personalization; setlist.fm; 1001tracklists; classical work-extraction; more than three dial stops.
+
+---
+
+# Appendix B — UX Spec (review MUST-FIXes applied)
+
+One page, one route pattern; every "screen" is a state of `(city, window, font-stop)` + fetch phase. Phases: `landing | loading | playing | empty | error`.
+
+## B1. Screen states
+
+**Initial land (`/`).** Near-black (`--ink #0E0E11`), centered stack: wordmark `SMALL FONT` small (~18px, deliberately); hook "Hear your city before it happens." (clamp 34–56px); oversized `▶ Play {City}` (server-resolved from IP headers before paint — no layout shift, no geolocation prompt ever). **IP-resolution failure (VPNs, datacenter IPs, absent headers): button reads "Play your city" and the CityField opens by default** (MUST FIX). `not {City}?` opens the typeahead inline (commit-only geocoding — no live suggestions in v1; Escape/blur restores). WindowChips (default Next 14 Days) + dial live before first play; touching either starts the build — no submit button. Single-line 11px attribution footer. No nav, no cookie banner.
+
+**Visited shared link:** skip landing → Loading → **Playing, arrived paused, awaiting the Play gesture** (autoplay is forbidden — B4); persistent `Build this for YOUR city` ghost button in the masthead (on every playlist page, not only shared visits).
+
+**Invalid URL (page-level, MUST FIX):** a slug failing grammar or geocode round-trip, or an unknown window/stop segment, renders the designed 404: headline "That poster's not on our wall.", CityField open, link to `/{city}/next-14-days` when the city part is valid. Never a stack trace, never a blank page.
+
+**Loading — crate-digging theater.** Never a spinner. Duration clamps: min 1.2 s (so the theater reads), theater adds ≤ 400 ms over real latency. **Worst-case rules (MUST FIX):** the response is a single streamed blob, so until it lands the theater shows an indeterminate "Reading the small print…" with the progress rule in indeterminate mode — the count starts ticking and rows start dropping only when data arrives (client-side choreography, not server events). Rows drop already stamped with their gig chip (fall 180 ms, stagger 60–90 ms, 2px thud). Play button is `Cueing…` until the first preview is buffered, then flips to `▶ Play` with one pulse even while rows still drop. **Hard timeout: 45 s → Error state (R4); `Cueing…` can never hang indefinitely** — if the payload landed but the first preview won't buffer, flip to Playing anyway after 10 s with the buffered-later rule (tapping Play starts whichever track buffers first). Reduced motion: fades, no fall, no pulse.
+
+**Playing — radio mode.** Sticky header: masthead `LISBON · JUL 18–31` + dial + collapsed chips (tap expands; collapses on selection or tap-away). Body: itinerary — `DayDivider` bars with weekday accent, stub rows grouped, openers above headliner, ≤ 30 rows, final row tagged `ENCORE`. Sticky bottom `RadioPlayer` (64px + safe-area): 44px artwork, ticker, 30s progress ring, Skip (= next row). 300 ms inter-track gap; auto-advance at preview end; playback order = visual order, always. Active row: accent left-rule + perforation glow; auto-scrolls into view unless the user scrolled (or keyboard-navigated rows) in the last 5 s. Heart per row → localStorage; **played rows: artist name at 60% opacity**. Share grabber appears above the player only after the threshold.
+
+**Transitions out of Playing (MUST FIX):** city or window commit ⇒ audio stops, full navigation, Loading theater replays for the new key. Dial changes alone are seamless (§B3.1) and never hit the network — the full bundle is client-side, so no "uncached dial rebuild" path exists.
+
+**Sparse market.** Ochre `SparseNotice` under the header: "Quiet week in Braga — widened to 50 km." / "…widened to next 14 days." / both; dismissible; plain, never apologetic-cute. Widened rows carry `+38 KM` or out-of-window annotations. If Small Print leaves < 8 shows: "Small Print runs dry here — try No Arenas" with a one-tap dial link.
+
+**Empty state.** Only when the full internal widen ladder still yields zero playable tracks. Torn-poster CSS/SVG; "Nothing on the poster." / "No shows we can play near {City} in this window." Recovery actions (`RecoveryAction = { label, action: route | dialStop | openCityField }`): **[Everything on the dial]** (if the stop was filtering), **[Try another city]**, and — since widening is internal and next-14-days is terminal — **no widen-window button exists** (MUST FIX: the `next-30-days` route is gone). Share sheet/player/poster unreachable; share copy suppressed.
+
+**Error state.** "The poster wall is down." / "We couldn't reach the listings. Nothing's wrong with your city." One action: [Try again]. If a stale cached copy exists, prefer serving it silently with a "showing listings from earlier today" tag. Typed-city geocode miss: inline under CityField ("Can't find that one — try the nearest big city."), field stays open. Per-row preview 404 mid-radio: auto-skip < 500 ms + muted "preview unavailable" tag — no toast.
+
+**`wrong artist?` outcome (MUST FIX):** tap fires one `navigator.sendBeacon` to `/api/report-artist` (structured log sink, R9); the link flips to "Thanks — noted" and disables; the row itself is unchanged (the track keeps playing — reports tune the pipeline, they don't censor the session).
+
+## B2. Component inventory (canonical names)
+
+`AppShell` (phase router) · `Masthead` (title, long-press peel target, persistent Build-yours ghost button) · `CityField` (commit-only geocode) · `WindowChips` · `SmallFontDial` (3 detents) · `LoadingTheater` (posterCount, resolvedRows, firstTrackReady, onTimeout) · `DayDivider` · `TicketStubRow` (states `idle|playing|played|unavailable`, flipped, hearted, widenedTag, isEncore, onPlayHere/onFlip/onHeart/onWrongArtist) · `StubBack` · `RadioPlayer` (owns THE single `<audio>`; queue = visual order) · `NowPlayingTicker` · `SparseNotice` (kind `radius|window|both`, suggestion) · `LineupPoster` (canvas, onDownload, onClose) · `ShareSheet` (url, prewrittenCopy, youtubeUrl?, deepLinks) · `EmptyState` (RecoveryAction[]) · `ErrorState` (onRetry, staleAvailable) · `AttributionFooter`.
+
+Rules: `TicketStubRow` is one component with a flip state, not two. Rows never own audio — `onPlayHere` sets the player index. `LineupPoster` renders offscreen canvas; on-screen reveal is DOM/CSS of the same layout.
+
+## B3. Signature interactions
+
+**B3.1 Dial → rebuild + URL.** Three hard detents (Everything → No Arenas → Small Print), drag or tap, keyboard arrows step. On detent land: haptic tick; `history.pushState` (everything omitted); rebuild. Choreography: survivors stay put; removed rows' type shrinks to 40% over 250 ms and collapses (the big names literally shrink off the poster); new rows drop in; No Arenas demotes headliners to one row tagged `TOKEN TRACK`; total ≤ 800 ms (always local data). Playback: surviving current track continues uninterrupted; filtered-out → 400 ms crossfade to the nearest following survivor. Back/forward walk dial history.
+
+**B3.2 Stub flip.** Trigger: gig-chip tap (play/heart on the top half never flip). rotateY 180°, 400 ms, perspective 1200px, perforation as hinge cue. Back: venue + doors · billing framing ("BALTHVS opening for KHRUANGBIN"; inverted framing at Small Print) · same-bill mini-rows (tap plays) · full-width `Tickets →` with attribution mark · `wrong artist?` 11px bottom-right. One flipped at a time; ephemeral, never in the URL. Reduced motion: crossfade.
+
+**B3.3 Long-press poster peel.** 500 ms masthead hold, corner-curl progress affordance, early release snaps flat; desktop: click-and-hold + visible poster icon button. Commit: list peels away (rotateX ~8°, 550 ms) revealing the full-screen poster; audio keeps playing; player bar stays. Poster: `{CITY} WEEK FEST`, type ∝ prominence (inverted at Small Print), dates/venues bottom, URL watermark, 1080×1920 download, ✕ reverse. Reduced motion: fade + filling ring.
+
+**B3.4 Share sheet — only after value.** Threshold: two previews played ≥ 15 s each OR 20 s active interaction; Playing state only; in-memory per pageview; below-bar playlists never earn it. Grabber "Take it with you" never auto-opens; expands to ~55% height; dismiss = stays as grabber. Contents in order: Copy link → group-chat `navigator.share` with prewritten copy (fallback copy-with-text) → YouTube playlist link (hidden on quota degradation) → Spotify/Apple deep links. On visited shared links the sheet header adds Build-yours as item 0.
+
+## B4. Visual direction + accessibility (binding)
+
+Canvas `#0E0E11`, surfaces `#17171C`, text `#F2EFE9`/`#9B9890`/`#5C5A54`; single dark theme. Two type voices: condensed grotesque ALL CAPS display (weight = hierarchy: headliners 800, openers 500; inverted on the Small Print poster) + system utility sans (chips 12px, attribution 11px, never below 11px, 4.5:1 minimum — bump `#9B9890`→`#A8A59D` if the 12px chip misses). Fixed weekday accent cycle (Mon `#5AA9E6` … Sun `#5AE6D0`), used sparingly: dividers, active-row rule/glow, progress rule, poster washes — never fills. Perforated stub divider via radial-gradient masks. Play button is the only loud element. Motion verbs: drop, stamp, peel, flip; ease-out, ≤ 2px overshoot; nothing shimmers. Mobile-first 390×844 (works from 320), desktop = same single 720px column.
+
+Accessibility: player `role="region"`, real buttons, one polite live region announcing track changes as static sentences (marquee `aria-hidden`, announcements throttled to track boundaries); **no autoplay ever** — sound starts only from a user gesture. Dial: `role="slider"`, `aria-valuemin/max/now` + `aria-valuetext` per stop, ←/→/Home/End, 44px thumb, meaning never color-only. Keyboard: Space play/pause, →/N skip, ↑↓ rows, Enter play-here, F flip, H heart; hint reachable via `?`. Rows are `<ol>` groups with full sentences; flip back inert while hidden (`aria-expanded` on the chip). Focus trapped in sheet/poster, returned to trigger on close. `prefers-reduced-motion` honored everywhere; audio behavior unaffected.
