@@ -13,6 +13,9 @@ import { bundleCacheProfile } from '../../../../lib/cache';
 import { TicketmasterError } from '../../../../lib/api/ticketmaster';
 import { PlaylistScreen } from '../../../../components/PlaylistScreen';
 import { LoadingTheater } from '../../../../components/LoadingTheater';
+import { EmptyState } from '../../../../components/EmptyState';
+import { ErrorState } from '../../../../components/ErrorState';
+import { recoveryActionsForEmpty } from '../../../../lib/recoveryActions';
 
 export const maxDuration = 60;
 
@@ -60,6 +63,24 @@ async function PlaylistSection({ params }: { params: Params }) {
   await connection();
   try {
     const b = await getBundle(key.city, key.window);
+    // The full internal widen ladder still yielded nothing playable → the bare
+    // wall, with honest escape hatches (§2.6 "Empty"). `unfilteredHadShows` lets
+    // the derivation offer an "Everything on the dial" reset when the emptiness
+    // is a filtering choice, not a genuinely dead city+window.
+    if (b.tracks.length === 0) {
+      return (
+        <EmptyState
+          city={key.city}
+          window={key.window}
+          actions={recoveryActionsForEmpty({
+            city: key.city,
+            window: key.window,
+            fontStop: key.fontStop,
+            unfilteredHadShows: b.shows.length > 0,
+          })}
+        />
+      );
+    }
     return (
       <PlaylistScreen
         entries={orderPlaylist(b.shows, b.artists, b.tracks)}
@@ -72,11 +93,7 @@ async function PlaylistSection({ params }: { params: Params }) {
     );
   } catch (err) {
     if (err instanceof TicketmasterError) {
-      return (
-        <p className="text-sm text-foreground opacity-70">
-          We couldn&apos;t read the posters right now — try again in a few minutes.
-        </p>
-      );
+      return <ErrorState />;
     }
     throw err;
   }
