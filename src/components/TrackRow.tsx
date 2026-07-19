@@ -1,6 +1,8 @@
 'use client';
 
 import type { CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
+import { StubBack, type SameBillItem, type StubReport } from './StubBack';
 
 /**
  * TicketStubRow (front face) — the ticket-stub track row that is the visual
@@ -33,7 +35,36 @@ export interface TrackRowProps {
   accentHue?: string;       // day's weekday-ink; falls back to --admission
   onPlay?: () => void;
   onHeart?: () => void;
-  onOpenGig?: () => void;   // the gig-chip tap (flip target — wired in 2.3)
+  onOpenGig?: () => void;   // the gig-chip tap (fired alongside the flip)
+
+  // ── Flip / StubBack (Task 2.3) ──────────────────────────────────────────
+  /**
+   * Controlled flip state. When provided, the parent (2.4 list) owns which stub
+   * is open and enforces one-open-at-a-time by only ever setting one row's
+   * `isOpen` true. Omit for the uncontrolled standalone fallback used in tests.
+   */
+  isOpen?: boolean;
+  /** Fired with the requested next flip state on chip tap / ✕ close. */
+  onOpenChange?: (next: boolean) => void;
+  /** Back-face billing: 'opener' → "opening for {headliner}"; else "headlining". */
+  role?: 'opener' | 'headliner';
+  headliner?: string;
+  sameBill?: SameBillItem[];
+  report?: StubReport;
+}
+
+/** Guarded `prefers-reduced-motion: reduce` probe — false (motion) under SSR/jsdom. */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+  return reduced;
 }
 
 /**
@@ -69,6 +100,7 @@ export function TrackRow({
   venue,
   dateLabel,
   doors,
+  ticketUrl,
   state,
   prominence = 0.5,
   isEncore,
@@ -78,10 +110,28 @@ export function TrackRow({
   onPlay,
   onHeart,
   onOpenGig,
+  isOpen,
+  onOpenChange,
+  role,
+  headliner,
+  sameBill,
+  report,
 }: TrackRowProps) {
   const isPlaying = state === 'playing';
   const isPlayed = state === 'played';
   const isUnavailable = state === 'unavailable';
+
+  // Flip state: controlled when `isOpen` is supplied (parent owns exclusivity —
+  // it only ever sets one row open), else an uncontrolled internal fallback.
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = isOpen !== undefined;
+  const open = isControlled ? Boolean(isOpen) : uncontrolledOpen;
+  const reducedMotion = usePrefersReducedMotion();
+
+  function setOpen(next: boolean) {
+    if (!isControlled) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  }
 
   // Active row wears a left rule in the day's ink (or the loud admission stamp
   // as the standalone fallback) + a subtle perforation glow.
@@ -90,15 +140,30 @@ export function TrackRow({
   const chipText =
     `${dateLabel} · ${venue.toUpperCase()}` + (doors ? ` · DOORS ${doors}` : '');
 
-  return (
+  // Shared face geometry: both faces stack in the same box so the row flips as
+  // one object. `preserve-3d` + `backfaceVisibility: hidden` give the rotateY
+  // hinge; under reduced motion we swap to an opacity crossfade (no rotation).
+  const flipTransition = reducedMotion
+    ? 'opacity 400ms ease'
+    : 'transform 400ms cubic-bezier(0.4, 0.2, 0.2, 1)';
+
+  const frontFace = (
     <div
-      className="relative flex flex-col bg-surface text-ink"
-      style={{
-        border: '1px solid var(--line)',
-        borderRadius: 'var(--radius-stub, 3px)',
-        minHeight: '72px',
-        borderLeft: isPlaying ? `3px solid ${accent}` : undefined,
-      }}
+      className="relative flex flex-col"
+      // Hidden (and inert) while the back is showing.
+      inert={open || undefined}
+      aria-hidden={open || undefined}
+      style={
+        reducedMotion
+          ? {
+              transition: flipTransition,
+              opacity: open ? 0 : 1,
+              ...(open
+                ? { position: 'absolute', inset: 0, pointerEvents: 'none' }
+                : null),
+            }
+          : { backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }
+      }
     >
       {/* ── Top half: the playable, fame-sized name line ─────────────────── */}
       <div className="flex items-center gap-3 px-3 pt-2">
@@ -207,8 +272,11 @@ export function TrackRow({
       <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
         <button
           type="button"
-          aria-expanded={false}
-          onClick={onOpenGig}
+          aria-expanded={open}
+          onClick={() => {
+            onOpenGig?.();
+            setOpen(!open);
+          }}
           className="flex flex-1 items-center justify-between gap-2 font-mono text-xs text-ash focus-visible:outline-2 focus-visible:outline-offset-2"
           style={{
             minHeight: '44px',
@@ -249,6 +317,72 @@ export function TrackRow({
             PREVIEW UNAVAILABLE
           </span>
         ) : null}
+      </div>
+    </div>
+  );
+
+  const backFace = (
+    <div
+      // Inert + hidden from a11y while the front is showing, so the Tickets link
+      // and ✕ are neither focusable nor exposed until the stub is flipped open.
+      inert={!open || undefined}
+      aria-hidden={!open || undefined}
+      style={
+        reducedMotion
+          ? {
+              transition: flipTransition,
+              opacity: open ? 1 : 0,
+              ...(open ? null : { position: 'absolute', inset: 0, pointerEvents: 'none' }),
+            }
+          : {
+              position: 'absolute',
+              inset: 0,
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+            }
+      }
+    >
+      <StubBack
+        artist={artist}
+        venue={venue}
+        dateLabel={dateLabel}
+        doors={doors}
+        ticketUrl={ticketUrl}
+        role={role}
+        headliner={headliner}
+        sameBill={sameBill}
+        report={report}
+        onClose={() => setOpen(false)}
+      />
+    </div>
+  );
+
+  return (
+    <div
+      className="relative bg-surface text-ink"
+      style={{
+        border: '1px solid var(--line)',
+        borderRadius: 'var(--radius-stub, 3px)',
+        minHeight: '72px',
+        borderLeft: isPlaying ? `3px solid ${accent}` : undefined,
+        ...(reducedMotion ? null : { perspective: '1200px' }),
+      }}
+    >
+      <div
+        className="relative"
+        style={
+          reducedMotion
+            ? undefined
+            : {
+                transformStyle: 'preserve-3d',
+                transition: flipTransition,
+                transform: open ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              }
+        }
+      >
+        {frontFace}
+        {backFace}
       </div>
     </div>
   );
