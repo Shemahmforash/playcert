@@ -1,10 +1,10 @@
-# Small Font
+# Earshot
 
 **The best band on the poster is the one you can't read yet.**
 
-Small Font turns the concerts near you into an instantly playable mixtape — and it reads the gig poster from the bottom up. Open `/{city}/{window}` and press play: one 30-second preview per artist playing your city, in show order, each stamped with its gig (venue, date, ticket link). No account, no app, no login wall — the whole product is a shareable URL. Its signature control, the **Small Font dial**, fades the arena headliners you already know out of the mix and rebuilds it around the openers and small-room acts.
+Earshot turns the concerts near you into an instantly playable mixtape — and it reads the gig poster from the bottom up. Open `/{city}/{window}` and press play: one 30-second preview per artist playing your city, in show order, each stamped with its gig (venue, date, ticket link). No account, no app, no login wall — the whole product is a shareable URL. Its signature control, the **Earshot dial**, fades the arena headliners you already know out of the mix and rebuilds it around the openers and small-room acts.
 
-This repository is a greenfield rebuild. The design lives in [`docs/plans/`](docs/plans/) — start with `2026-07-19-small-font.md` (the implementation plan) and the reimagining that produced it.
+This repository is a greenfield rebuild. The design lives in [`docs/plans/`](docs/plans/) — start with `2026-07-19-earshot.md` (the implementation plan) and the reimagining that produced it.
 
 ---
 
@@ -23,7 +23,7 @@ URL (/{city}/{window}/{fontStop})
   → Player         one reused <audio> element chains 30s previews
 ```
 
-The **Small Font dial** is a pure client-side filter over the fully-resolved bundle — it never touches the network, so changing it can't invalidate the cache.
+The **Earshot dial** is a pure client-side filter over the fully-resolved bundle — it never touches the network, so changing it can't invalidate the cache.
 
 ## Architecture principles
 
@@ -103,8 +103,8 @@ Test-driven throughout: every module has a failing test written before its imple
 
 **Geocoding note:** city→coordinates currently uses a small hardcoded table of Ticketmaster-covered cities (London, Madrid, Paris, Berlin, New York, …); real geocoding for arbitrary typed cities is a later task.
 
-**Phase 2 (the UI — "The Bill" design): complete** — the plain engine output is replaced by the real listening screen: a warm bitumen/newsprint palette (Roboto Flex), day-grouped **ticket-stub rows** (name over a perforated divider, gig chip that flips to venue/billing/tickets + a "wrong artist?" report), a sticky **radio player** (30s progress ring, now-playing ticker, iOS-safe playback), the crate-digging **loading theater**, the **landing page** (`Play {City}`), and the designed **empty/sparse/error/404** states — with taste memory (hearts persist), window-change transitions, keyboard shortcuts, and contrast-verified tokens. The signature **Small Font dial** (prominence-based re-typesetting) is Phase 3.
+**Phase 2 (the UI — "The Bill" design): complete** — the plain engine output is replaced by the real listening screen: a warm bitumen/newsprint palette (Roboto Flex), day-grouped **ticket-stub rows** (name over a perforated divider, gig chip that flips to venue/billing/tickets + a "wrong artist?" report), a sticky **radio player** (30s progress ring, now-playing ticker, iOS-safe playback), the crate-digging **loading theater**, the **landing page** (`Play {City}`), and the designed **empty/sparse/error/404** states — with taste memory (hearts persist), window-change transitions, keyboard shortcuts, and contrast-verified tokens. The signature **Earshot dial** (prominence-based re-typesetting) is Phase 3.
 
-**Next:** Phase 3 — prominence scoring + the Small Font dial (the signature). Phase 4 — share loop + lineup poster. Phase 5 — compliance + launch.
+**Next:** Phase 3 — prominence scoring + the Earshot dial (the signature). Phase 4 — share loop + lineup poster. Phase 5 — compliance + launch.
 
-Deployment is intentionally deferred. See `docs/plans/2026-07-19-small-font.md` for the full roadmap and `docs/plans/2026-07-19-small-font-personalization-future-paths.md` for the personalization backlog.
+Deployment is intentionally deferred. See `docs/plans/2026-07-19-earshot.md` for the full roadmap and `docs/plans/2026-07-19-earshot-personalization-future-paths.md` for the personalization backlog.

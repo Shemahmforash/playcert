@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Small Font — Phase 2 design tokens.
+ * Earshot — Phase 2 design tokens.
  * SSOT: docs/design/2026-07-19-phase2-design-system.md §1.
  * Token-level theming: semantic tokens are (re)assigned per context; every
  * Tailwind utility below references them through var(), so flipping the tokens

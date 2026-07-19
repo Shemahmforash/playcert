@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { mbQueue } from '../queue';
 
-const USER_AGENT = 'SmallFont/1.0 (https://smallfont.fm; contact@smallfont.fm)'; // MANDATORY per MB ToS
+const USER_AGENT = 'Earshot/1.0 (https://earshot.fm; contact@earshot.fm)'; // MANDATORY per MB ToS
 
 const MbSearch = z.object({
   artists: z.array(z.object({

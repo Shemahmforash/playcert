@@ -1,16 +1,16 @@
-# Small Font — Personalization & Taste-Matching: Future Paths
+# Earshot — Personalization & Taste-Matching: Future Paths
 
 > **Status:** Not in v1 scope. This is a captured idea backlog, not a commitment.
-> **Companion to:** `2026-07-19-small-font.md` (the v1 implementation plan).
+> **Companion to:** `2026-07-19-earshot.md` (the v1 implementation plan).
 > **Date:** 2026-07-19
 
 ## Why this is deliberately NOT in v1
 
-Small Font's architecture is anti-personalization on purpose. The page is a **pure function of `(city, window, font-stop)`**, edge-cached so *everyone in a city this week gets the identical artifact*. That sameness is the point — it's what makes the URL shareable and the playlist a shared cultural object that reproduces exactly for a friend.
+Earshot's architecture is anti-personalization on purpose. The page is a **pure function of `(city, window, font-stop)`**, edge-cached so *everyone in a city this week gets the identical artifact*. That sameness is the point — it's what makes the URL shareable and the playlist a shared cultural object that reproduces exactly for a friend.
 
 Personalization fights this directly: the moment output depends on *who* is asking, you can no longer cache one artifact per city, and the share link stops reproducing what the recipient heard. So taste-matching is a real trade against the product's spine, not a free add-on.
 
-**Design principle for ALL paths below:** keep the cached city artifact identical for everyone, and layer any personalization as a **client-side re-rank / lens over the full serialized bundle** — exactly like the Small Font dial already works. The shared object stays shared; taste is a view on top of it.
+**Design principle for ALL paths below:** keep the cached city artifact identical for everyone, and layer any personalization as a **client-side re-rank / lens over the full serialized bundle** — exactly like the Earshot dial already works. The shared object stays shared; taste is a view on top of it.
 
 ---
 

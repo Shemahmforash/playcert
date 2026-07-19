@@ -3,7 +3,7 @@ import { Roboto_Flex, Inter, Spline_Sans_Mono } from "next/font/google";
 import "./globals.css";
 
 // Display face — Roboto Flex carries both weight and width axes; the width (`wdth`)
-// axis is load-bearing for the SmallFontDial's live re-typesetting (openers expand
+// axis is load-bearing for the EarshotDial's live re-typesetting (openers expand
 // as headliners condense). Self-hosted via next/font/google, no runtime CDN.
 const robotoFlex = Roboto_Flex({
   variable: "--font-display",
@@ -24,7 +24,7 @@ const splineSansMono = Spline_Sans_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Small Font",
+  title: "Earshot",
   description: "The gig listings you read from the bottom up.",
 };
 

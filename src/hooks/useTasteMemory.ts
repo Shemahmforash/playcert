@@ -22,7 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
  */
 
 // Versioned so the shape can evolve without misreading old data.
-export const TASTE_STORAGE_KEY = 'smallfont:taste:v1';
+export const TASTE_STORAGE_KEY = 'earshot:taste:v1';
 
 export interface TasteMemory {
   hearted: Set<string>;
