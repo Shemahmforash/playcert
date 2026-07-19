@@ -30,6 +30,12 @@ export interface RadioPlayerProps {
   total: number;
   /** 0..1 across the 30s preview; drives the progress ring. */
   progress?: number;
+  /**
+   * Pre-buffer state (§2.5): a shared link arrives paused and the stamp reads
+   * `Cueing…` until the first track can play, then flips `▶` with one pulse.
+   * The button stays enabled throughout so the FIRST tap still unlocks iOS audio.
+   */
+  cueing?: boolean;
   onToggle: () => void;
   onSkip: () => void;
 }
@@ -55,11 +61,16 @@ export function RadioPlayer({
   index,
   total,
   progress = 0,
+  cueing = false,
   onToggle,
   onSkip,
 }: RadioPlayerProps) {
   const clamped = Math.min(1, Math.max(0, progress));
   const dashOffset = PROGRESS_RING_CIRCUMFERENCE * (1 - clamped);
+
+  // The stamp reads `Cueing…` only while paused + pre-buffer; once playing it is
+  // unambiguously the pause control.
+  const showCueing = cueing && !playing;
 
   const marquee = track ? tickerText(track, show) : 'Cueing…';
   const liveSentence = track
@@ -128,7 +139,7 @@ export function RadioPlayer({
         </svg>
         <button
           type="button"
-          aria-label={playing ? 'Pause' : 'Play'}
+          aria-label={showCueing ? 'Cueing…' : playing ? 'Pause' : 'Play'}
           aria-pressed={playing}
           onClick={onToggle}
           disabled={!track}
@@ -139,7 +150,10 @@ export function RadioPlayer({
             outlineColor: 'var(--admission)',
           }}
         >
-          <span aria-hidden>{playing ? '❚❚' : '▶'}</span>
+          {/* Cueing… → ▶ with one settle pulse the moment the stamp goes live. */}
+          <span aria-hidden className={showCueing ? undefined : 'sf-cue-pulse'}>
+            {showCueing ? '…' : playing ? '❚❚' : '▶'}
+          </span>
         </button>
       </div>
 

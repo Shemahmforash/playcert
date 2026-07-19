@@ -78,6 +78,28 @@ describe('RadioPlayer — controls', () => {
   });
 });
 
+describe('RadioPlayer — Cueing…→▶ flip (§2.5)', () => {
+  it('labels the stamp "Cueing…" while cueing + paused', () => {
+    render(<RadioPlayer {...makeProps({ cueing: true, playing: false })} />);
+    const btn = screen.getByRole('button', { name: 'Cueing…' });
+    // Still enabled → the first tap can synchronously unlock iOS audio.
+    expect(btn).toHaveProperty('disabled', false);
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('flips to "Play" once ready (cueing=false)', () => {
+    render(<RadioPlayer {...makeProps({ cueing: false, playing: false })} />);
+    expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Cueing…' })).toBeNull();
+  });
+
+  it('never shows Cueing… once playing (it is the Pause control)', () => {
+    render(<RadioPlayer {...makeProps({ cueing: true, playing: true })} />);
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Cueing…' })).toBeNull();
+  });
+});
+
 describe('RadioPlayer — empty / null-safe', () => {
   it('renders an idle shell with disabled controls when track is null', () => {
     render(<RadioPlayer {...makeProps({ track: null, show: undefined })} />);

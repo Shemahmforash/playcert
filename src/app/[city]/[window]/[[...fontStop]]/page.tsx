@@ -12,6 +12,7 @@ import { orderPlaylist } from '../../../../lib/pipeline/order';
 import { bundleCacheProfile } from '../../../../lib/cache';
 import { TicketmasterError } from '../../../../lib/api/ticketmaster';
 import { PlaylistScreen } from '../../../../components/PlaylistScreen';
+import { LoadingTheater } from '../../../../components/LoadingTheater';
 
 export const maxDuration = 60;
 
@@ -96,7 +97,7 @@ export default function Page({ params }: { params: Params }) {
           <CityTitle params={params} />
         </Suspense>
       </header>
-      <Suspense fallback={<p className="text-sm opacity-60">Reading the small print…</p>}>
+      <Suspense fallback={<LoadingTheater />}>
         <PlaylistSection params={params} />
       </Suspense>
     </main>

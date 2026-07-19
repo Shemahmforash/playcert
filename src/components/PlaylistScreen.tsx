@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Artist, TimeWindow } from '../lib/types';
 import type { PlaylistEntry } from '../lib/pipeline/order';
 import { usePlayer } from '../hooks/usePlayer';
@@ -32,6 +32,23 @@ const INTER_TRACK_GAP_MS = 300;
 // Full preview length; used as the progress-ring denominator until metadata lands.
 const PREVIEW_SECONDS = 30;
 const HEART_STORAGE_KEY = 'smallfont:hearts';
+// Poster-count tick cadence (§2.5 "a count ticks up on arrival").
+const POSTER_TICK_MS = 90;
+// Fallback flip Cueing…→▶ if `canplay` never fires (no preview / test env).
+const CUE_FALLBACK_MS = 1200;
+
+/** Distinct gigs behind the playlist = the poster count (§2.5). */
+export function distinctPosterCount(entries: PlaylistEntry[]): number {
+  return new Set(entries.map((e) => e.show.id)).size;
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
 
 export interface PlaylistScreenProps {
   entries: PlaylistEntry[];
@@ -53,6 +70,42 @@ export function PlaylistScreen({
   const [state, dispatch] = usePlayer(entries.length);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [progress, setProgress] = useState(0);
+
+  // ── Entrance choreography (§2.5) — client-side, AFTER the payload lands ─────
+  // The rows drop staggered (CSS, see `entering` below); here we tick a visible
+  // poster count up to the number of distinct gigs, and flip the player's Play
+  // stamp from `Cueing…` to `▶` once the first preview can play.
+  const posterTotal = useMemo(() => distinctPosterCount(entries), [entries]);
+  const [posterCount, setPosterCount] = useState(0);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    // Reduced motion → no tick, just land on the final count.
+    if (prefersReducedMotion()) {
+      setPosterCount(posterTotal);
+      return;
+    }
+    setPosterCount(0);
+    let n = 0;
+    const id = setInterval(() => {
+      n += 1;
+      setPosterCount(n);
+      if (n >= posterTotal) clearInterval(id);
+    }, POSTER_TICK_MS);
+    return () => clearInterval(id);
+  }, [posterTotal]);
+
+  useEffect(() => {
+    // Prefer the real `canplay` (wired on the <audio> below); this is the
+    // belt-and-braces flip so the stamp never hangs on `Cueing…` if the preview
+    // is missing or `canplay` never fires (e.g. in tests).
+    if (prefersReducedMotion()) {
+      setReady(true);
+      return;
+    }
+    const id = setTimeout(() => setReady(true), CUE_FALLBACK_MS);
+    return () => clearTimeout(id);
+  }, []);
 
   // When true, the NEXT [index,playing] effect run waits INTER_TRACK_GAP_MS
   // before play() — armed only by a natural `ended`, never by a user gesture or
@@ -169,8 +222,19 @@ export function PlaylistScreen({
         }}
         onError={() => dispatch({ type: 'error' })} // prompt <500ms auto-skip
         onTimeUpdate={onTimeUpdate}
+        onCanPlay={() => setReady(true)} // flip Cueing…→▶ the moment audio can start
         preload="metadata"
       />
+
+      {/* Poster count ticks up on arrival — a subtle box-office tally. */}
+      <p
+        className="font-mono text-xs"
+        style={{ color: 'var(--ash-quiet)' }}
+        aria-live="polite"
+      >
+        <span aria-hidden>▓ </span>
+        {posterCount} {posterCount === 1 ? 'poster' : 'posters'}
+      </p>
 
       {widened ? (
         <p className="text-sm text-foreground opacity-60">
@@ -197,6 +261,7 @@ export function PlaylistScreen({
           onHeart={onHeart}
           heartedIds={heartedIds}
           activeItemRef={itemRef}
+          entering
         />
       </div>
 
@@ -215,6 +280,7 @@ export function PlaylistScreen({
         index={state.index}
         total={entries.length}
         progress={progress}
+        cueing={!ready}
         onToggle={toggle}
         onSkip={() => dispatch({ type: 'skip' })}
       />

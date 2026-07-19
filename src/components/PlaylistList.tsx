@@ -37,6 +37,12 @@ export interface PlaylistListProps {
    * test renders omit it.
    */
   activeItemRef?: React.Ref<HTMLLIElement>;
+  /**
+   * Entrance choreography (§2.5): when true the rows drop in staggered on mount
+   * (a 2px thud, 70ms apart). Opt-in so standalone/test renders stay static.
+   * The CSS animation plays once per row mount; reduced motion flattens it.
+   */
+  entering?: boolean;
 }
 
 export function PlaylistList({
@@ -50,6 +56,7 @@ export function PlaylistList({
   onHeart,
   heartedIds,
   activeItemRef,
+  entering = false,
 }: PlaylistListProps) {
   // Flip exclusivity: the list owns which single stub is open (one-at-a-time).
   const [openId, setOpenId] = useState<string | null>(null);
@@ -106,7 +113,13 @@ export function PlaylistList({
               <li
                 key={rowKey}
                 ref={index === currentIndex ? activeItemRef : undefined}
-                className="mt-2 px-3 first:mt-0"
+                className={`mt-2 px-3 first:mt-0${entering ? ' sf-row-drop' : ''}`}
+                // Stagger the thud; cap the delay so late rows don't dawdle.
+                style={
+                  entering
+                    ? { animationDelay: `${Math.min(index, 12) * 70}ms` }
+                    : undefined
+                }
               >
                 <TrackRow
                   artist={nameOf(artistId)}
