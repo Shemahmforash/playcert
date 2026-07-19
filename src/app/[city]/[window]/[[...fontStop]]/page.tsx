@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { connection } from 'next/server';
 import { cacheLife } from 'next/cache';
 import { resolvePageState } from '../../../../lib/pageState';
 import type { RequestKey } from '../../../../lib/urlState';
@@ -58,9 +57,10 @@ async function CityTitle({ params }: { params: Params }) {
 
 async function PlaylistSection({ params }: { params: Params }) {
   const key = await resolveKey(params);
-  // Defer this boundary to request time: the build emits the shell + fallback
-  // instead of trying to prerender-fill the multi-second pipeline.
-  await connection();
+  // NOTE: reading params above already makes this boundary request-time dynamic,
+  // so no connection() is needed. Crucially, connection() here was ALSO defeating
+  // the nested `getBundle` "use cache" persistence on Vercel serverless (the
+  // bundle rebuilt every request); removing it lets the Data Cache persist.
   try {
     const b = await getBundle(key.city, key.window);
     // The full internal widen ladder still yielded nothing playable → the bare
