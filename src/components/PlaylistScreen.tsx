@@ -473,7 +473,8 @@ export function PlaylistScreen({
           history (no navigation). */}
       <EarshotDial value={fontStop} onChange={handleDialChange} />
 
-      {/* Poster count ticks up on arrival — a subtle box-office tally. */}
+      {/* Box-office tally: what the playlist actually is — how many songs, drawn
+          from how many gigs. The gig count ticks up on arrival (§2.5). */}
       <p
         className="font-mono text-xs"
         // --ash (meta ink, contrast-verified ≥4.5:1 on --canvas at 12px) rather
@@ -483,7 +484,8 @@ export function PlaylistScreen({
         aria-live="polite"
       >
         <span aria-hidden>▓ </span>
-        {posterCount} {posterCount === 1 ? 'poster' : 'posters'}
+        {entries.length} {entries.length === 1 ? 'song' : 'songs'} from{' '}
+        {posterCount} {posterCount === 1 ? 'gig' : 'gigs'} near you
       </p>
 
       {/* Polite rebuild announcement — visually hidden, its OWN live region (NOT
