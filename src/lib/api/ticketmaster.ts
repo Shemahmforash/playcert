@@ -6,7 +6,6 @@ import type { Show } from '@/lib/types';
 //
 // Reality vs the original plan (fields the plan assumed present but the live
 // Madrid data proves optional/absent):
-//   - priceRanges:        ABSENT in 100% of recorded events -> optional.
 //   - dates.start.dateTime: present in the current fixtures, but TM omits it
 //                           for TBA-time events (only localDate given) -> optional,
 //                           with a localDate fallback so parsing never throws.
@@ -15,12 +14,6 @@ import type { Show } from '@/lib/types';
 //   - url: treated as optional for safety (empty string fallback).
 // Unknown keys are ignored (schemas are non-strict) so TM can add fields freely.
 // ---------------------------------------------------------------------------
-
-const priceRangeSchema = z.object({
-  currency: z.string().optional(),
-  min: z.number().optional(),
-  max: z.number().optional(),
-});
 
 const attractionSchema = z.object({
   id: z.string(),
@@ -48,7 +41,6 @@ const eventSchema = z.object({
         .optional(),
     })
     .optional(),
-  priceRanges: z.array(priceRangeSchema).optional(),
   _embedded: z
     .object({
       venues: z.array(venueSchema).optional(),
@@ -96,12 +88,6 @@ function toShow(event: z.infer<typeof eventSchema>): Show {
     name: a.name,
   }));
 
-  const priceRange = event.priceRanges?.[0];
-  const priceFrom =
-    priceRange && typeof priceRange.min === 'number'
-      ? { amount: priceRange.min, currency: priceRange.currency ?? 'EUR' }
-      : undefined;
-
   return {
     id: `tm:${event.id}`,
     name: event.name,
@@ -111,7 +97,6 @@ function toShow(event: z.infer<typeof eventSchema>): Show {
       city: venue?.city?.name ?? '',
       address: venue?.address?.line1,
     },
-    priceFrom,
     ticketUrl: event.url ?? '',
     attractions,
     artistIds: [], // filled by extractArtists in Phase 1
