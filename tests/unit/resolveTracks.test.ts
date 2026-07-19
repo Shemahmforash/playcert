@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { resolveTracks } from '../../src/lib/pipeline/resolveTracks';
+import type { Artist } from '../../src/lib/types';
 
-const mkArtist = (id: string, o: Partial<any> = {}) => ({
+const mkArtist = (id: string, o: Partial<Artist> = {}): Artist => ({
   id, normalizedName: id, rawNames: [id], isTribute: false,
   prominence: 0, tier: 'mid', billingSlots: [{ showId: 'tm:1', slot: 0, ofSlots: 1 }], ...o,
 });

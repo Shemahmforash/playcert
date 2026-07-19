@@ -8,7 +8,7 @@ describe('crossCheckArtist', () => {
   it('confirms when genre/area align with event context', async () => {
     const r = await crossCheckArtist('balthvs', ctx, { rawFetch: async () => match });
     expect(r.status).toBe('confirmed');
-    expect(r.mbid).toBeTruthy();
+    if (r.status === 'confirmed') expect(r.mbid).toBeTruthy();
   });
   it('returns unconfident on genre/area mismatch', async () => {
     const r = await crossCheckArtist('boston', ctx, { rawFetch: async () => mismatch });
