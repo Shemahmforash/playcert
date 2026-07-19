@@ -1,26 +1,126 @@
 @import "tailwindcss";
 
+/*
+ * Small Font — Phase 2 design tokens.
+ * SSOT: docs/design/2026-07-19-phase2-design-system.md §1.
+ * Token-level theming: semantic tokens are (re)assigned per context; every
+ * Tailwind utility below references them through var(), so flipping the tokens
+ * on :root re-themes the whole tree with no per-utility overrides.
+ *
+ * Default context = DARK ("the wall" — the warm bitumen pasted-poster night).
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Grounds */
+  --canvas: #16120d;          /* bitumen — the warm pasted-poster black */
+  --surface: #221c14;         /* ticket kraft — stub panels, sticky player */
+  --surface-raised: #2b241a;  /* active/hovered stub, dial track well */
+
+  /* Inks */
+  --ink: #f0eadc;             /* newsprint — primary printed ink (body/meta) */
+  --ash: #a8a59d;             /* secondary/meta ink + un-printed headliner ghost */
+  --ash-quiet: #7c796f;       /* serials, perforation shadow, played-row hint */
+
+  /* Stamps / spot inks (identical across contexts — same inks, different stock) */
+  --admission: #e8402a;       /* the loud red ADMIT ONE stamp */
+  --riso-pink: #ff4d82;       /* spot ink A — headliner display + Play/Tickets */
+  --riso-blue: #3b6be8;       /* spot ink B — opener display, the inversion ink */
+  --stamp-amber: #c99a3e;     /* rubber-stamp overprint (sparse/widen/unavailable) */
+
+  /* Hairline — warm perforation/rule line (no dedicated doc token; warm-derived) */
+  --line: #3a3227;
+
+  /* Weekday ink ledger — 7-hue structural cycle (identical dark/light) */
+  --weekday-mon: #5aa9e6;
+  --weekday-tue: #e68a5a;
+  --weekday-wed: #7fb25a;
+  --weekday-thu: #b27ade;
+  --weekday-fri: #e6c15a;
+  --weekday-sat: #e67a9e;
+  --weekday-sun: #5ae6d0;
+
+  /* Back-compat aliases — existing components use text-foreground / bg-foreground /
+     text-background from the @theme inline mapping. Keep them, now warm-palette. */
+  --background: var(--canvas);
+  --foreground: var(--ink);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+/*
+ * LIGHT context ("the paper" — figure/ground inverts so it reads as an ink-on-real-
+ * paper printout). Used for the downloadable poster/share card. Spot inks unchanged.
+ */
+@media (prefers-color-scheme: light) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #efe7d6;
+    --surface: #f6efdf;
+    --surface-raised: #fbf6ea;
+    --ink: #211d17;
+    --ash: #6e6a61;
+    --ash-quiet: #8c877b;
+    --stamp-amber: #b4842b;
+    --line: #d8ceb8;
   }
 }
 
+:root[data-theme="light"] {
+  --canvas: #efe7d6;
+  --surface: #f6efdf;
+  --surface-raised: #fbf6ea;
+  --ink: #211d17;
+  --ash: #6e6a61;
+  --ash-quiet: #8c877b;
+  --stamp-amber: #b4842b;
+  --line: #d8ceb8;
+}
+
+/* Explicit dark override wins over the OS light preference. */
+:root[data-theme="dark"] {
+  --canvas: #16120d;
+  --surface: #221c14;
+  --surface-raised: #2b241a;
+  --ink: #f0eadc;
+  --ash: #a8a59d;
+  --ash-quiet: #7c796f;
+  --stamp-amber: #c99a3e;
+  --line: #3a3227;
+}
+
+/*
+ * Tailwind utility mapping. Referencing tokens via var() (inline) keeps the
+ * utilities theme-reactive. Existing bg-background / text-foreground utilities are
+ * preserved; new bg-canvas / text-ink / text-admission / etc. are added alongside.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-ink: var(--ink);
+  --color-ash: var(--ash);
+  --color-ash-quiet: var(--ash-quiet);
+  --color-admission: var(--admission);
+  --color-riso-pink: var(--riso-pink);
+  --color-riso-blue: var(--riso-blue);
+  --color-stamp-amber: var(--stamp-amber);
+  --color-line: var(--line);
+
+  --color-weekday-mon: var(--weekday-mon);
+  --color-weekday-tue: var(--weekday-tue);
+  --color-weekday-wed: var(--weekday-wed);
+  --color-weekday-thu: var(--weekday-thu);
+  --color-weekday-fri: var(--weekday-fri);
+  --color-weekday-sat: var(--weekday-sat);
+  --color-weekday-sun: var(--weekday-sun);
+
+  --font-sans: var(--font-body);
+  --font-body: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-body);
 }
