@@ -7,6 +7,8 @@ import { usePlayer } from '../hooks/usePlayer';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { PlaylistList } from './PlaylistList';
 import { RadioPlayer } from './RadioPlayer';
+import { SparseNotice } from './SparseNotice';
+import type { WidenMeta } from '../lib/pipeline/fetchShows';
 
 /**
  * PlaylistScreen — the client container that owns the audio + player state and
@@ -55,7 +57,7 @@ export interface PlaylistScreenProps {
   artists: Record<string, Artist>;
   city: string;
   window: TimeWindow;
-  widened?: unknown;
+  widened?: WidenMeta;
   belowBar?: boolean;
 }
 
@@ -236,11 +238,7 @@ export function PlaylistScreen({
         {posterCount} {posterCount === 1 ? 'poster' : 'posters'}
       </p>
 
-      {widened ? (
-        <p className="text-sm text-foreground opacity-60">
-          Quiet week — widened the search.
-        </p>
-      ) : null}
+      {widened ? <SparseNotice widened={widened} city={city} /> : null}
       {belowBar ? (
         <p className="text-sm text-foreground opacity-60">
           Showing the first few — reload in a minute and we&apos;ll have dug up more.
