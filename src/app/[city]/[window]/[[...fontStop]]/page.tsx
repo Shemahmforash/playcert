@@ -101,7 +101,7 @@ async function PlaylistSection({ params }: { params: Params }) {
 
 export default function Page({ params }: { params: Params }) {
   return (
-    <main className="mx-auto max-w-xl px-5 py-10 flex flex-col gap-6">
+    <main className="mx-auto w-full max-w-xl px-5 py-10 flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.2em] text-foreground opacity-50">Earshot</p>
         <Suspense

@@ -29,7 +29,7 @@ async function PrefilledCityPicker() {
 
 export default function Page() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-8 px-5 py-10">
+    <main className="mx-auto w-full flex min-h-dvh max-w-xl flex-col justify-center gap-8 px-5 py-10">
       <p className="text-xs uppercase tracking-[0.2em] text-ash">Earshot</p>
       <h1 className="font-display text-5xl font-extrabold uppercase leading-[0.95] tracking-[-0.02em] text-ink sm:text-6xl">
         Hear your city before it happens.
