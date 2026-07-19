@@ -11,6 +11,18 @@ export interface Show {
   artistIds: string[]; // filled by extractArtists in Phase 1
 }
 
+export type ProminenceTier = 'arena' | 'mid' | 'small-print';
+export interface Artist {
+  id: string;                // slug of normalizedName
+  rawNames: string[];
+  normalizedName: string;
+  isTribute: boolean;
+  mbid?: string;
+  prominence: number;        // 0..1 (Phase 3 fills; 0 until then)
+  tier: ProminenceTier;      // 'mid' until Phase 3 scores
+  billingSlots: Array<{ showId: string; slot: number; ofSlots: number }>;
+}
+
 export interface Track {
   artistId: string;
   itunesTrackId: number;
