@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { CityWindowBundle, FontStop, TimeWindow } from '../lib/types';
 import type { PlaylistEntry } from '../lib/pipeline/order';
 import { applyFontStop } from '../lib/pipeline/applyFontStop';
+import { resolveContinuity } from '../lib/pipeline/rebuildDiff';
 import { usePlayer } from '../hooks/usePlayer';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useTasteMemory } from '../hooks/useTasteMemory';
@@ -42,6 +43,17 @@ const PREVIEW_SECONDS = 30;
 const POSTER_TICK_MS = 90;
 // Fallback flip Cueing…→▶ if `canplay` never fires (no preview / test env).
 const CUE_FALLBACK_MS = 1200;
+// Dial rebuild (Task 3.6): the polite two-step announcement's settle delay, and
+// the crossfade ramp when a filtered-out current retargets to a survivor (§2.2).
+const REBUILD_ANNOUNCE_MS = 450;
+const CROSSFADE_MS = 400;
+
+/** Human labels for the polite rebuild announcement (the dial's three stops). */
+const STOP_LABEL: Record<FontStop, string> = {
+  everything: 'Everything',
+  'no-arenas': 'No Arenas',
+  'small-print': 'Small Print',
+};
 
 /** Distinct gigs behind the playlist = the poster count (§2.5). */
 export function distinctPosterCount(entries: PlaylistEntry[]): number {
@@ -88,6 +100,42 @@ export function PlaylistScreen({
   const audioRef = useRef<HTMLAudioElement>(null);
   const [progress, setProgress] = useState(0);
 
+  // ── Rebuild continuity (Task 3.6) ──────────────────────────────────────────
+  // When the dial lands on a new stop, `entries` re-derives in place. We retarget
+  // the radio needle the instant that happens, using React's "adjust state during
+  // render" pattern (a conditional dispatch guarded by a prev-value ref): because
+  // the retarget lands BEFORE this render commits, the single <audio src> never
+  // flickers through a stale index — a SURVIVING current track keeps playing
+  // UNINTERRUPTED at its new index (its previewUrl is unchanged, so the element
+  // never reloads). A filtered-out current arms a crossfade to the nearest
+  // following survivor (handled in the auto-advance effect below). Mount is
+  // naturally skipped: prevEntriesRef starts equal to `entries`.
+  const prevEntriesRef = useRef(entries);
+  const crossfadeRef = useRef(false);
+  if (prevEntriesRef.current !== entries) {
+    const prev = prevEntriesRef.current;
+    prevEntriesRef.current = entries;
+    const { nextIndex, survived } = resolveContinuity({
+      prev,
+      next: entries,
+      currentIndex: state.index,
+    });
+    if (!survived && state.playing && entries.length > 0) crossfadeRef.current = true;
+    dispatch({
+      type: 'retarget',
+      index: nextIndex < 0 ? 0 : nextIndex,
+      queueLength: entries.length,
+      playing: state.playing,
+    });
+  }
+
+  // Polite, visually-hidden rebuild announcement — its OWN live region, distinct
+  // from the NowPlayingTicker's track-change region. Two steps: "Rebuilding: X."
+  // on landing, then the settled tally "{n} tracks, {m} shows." a beat later.
+  const [rebuildMsg, setRebuildMsg] = useState('');
+  const announceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const announceMountedRef = useRef(false);
+
   // Defensive unmount cleanup: a fast client transition (or a window-change
   // navigation, which unmounts this screen and STOPS + replays on the new build)
   // must never leave the single <audio> element playing. Pause it on teardown.
@@ -96,6 +144,29 @@ export function PlaylistScreen({
       audioRef.current?.pause();
     };
   }, []);
+
+  // Two-step polite announcement, fired on each stop landing (entries re-derive).
+  // Skips mount; a fresh landing supersedes any pending settle tally.
+  useEffect(() => {
+    if (!announceMountedRef.current) {
+      announceMountedRef.current = true;
+      return;
+    }
+    setRebuildMsg(`Rebuilding: ${STOP_LABEL[fontStop]}.`);
+    if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
+    announceTimerRef.current = setTimeout(() => {
+      setRebuildMsg(`${entries.length} tracks, ${distinctPosterCount(entries)} shows.`);
+      announceTimerRef.current = null;
+    }, REBUILD_ANNOUNCE_MS);
+    return () => {
+      if (announceTimerRef.current) {
+        clearTimeout(announceTimerRef.current);
+        announceTimerRef.current = null;
+      }
+    };
+    // Keyed on `entries` — the single re-derivation that a stop landing produces.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
 
   // Changing the WINDOW is a FULL NAVIGATION to /{city}/{newWindow}: the route
   // unmounts this screen (stopping the audio via the cleanup above) and replays
@@ -202,6 +273,27 @@ export function PlaylistScreen({
     if (!state.playing) {
       el.pause();
       return;
+    }
+    if (crossfadeRef.current) {
+      // Filtered-out current retargeted to the nearest following survivor. The
+      // declarative <audio src> already points at that survivor, so a true
+      // two-source crossfade isn't available with one element — we approximate
+      // the §2.2 400ms crossfade as a guarded fade-IN of the incoming survivor:
+      // start silent, play, ramp volume 0→1. (A clean switch is the acceptable
+      // floor; this softens it without touching the iOS gesture-unlock path.)
+      crossfadeRef.current = false;
+      el.volume = 0;
+      void el.play().catch(() => {});
+      const start = Date.now();
+      const id = setInterval(() => {
+        const t = Math.min(1, (Date.now() - start) / CROSSFADE_MS);
+        el.volume = t;
+        if (t >= 1) clearInterval(id);
+      }, 20);
+      return () => {
+        clearInterval(id);
+        el.volume = 1;
+      };
     }
     if (gapRef.current) {
       // Natural end → honour the 300ms inter-track silence before the next play.
@@ -363,6 +455,27 @@ export function PlaylistScreen({
       >
         <span aria-hidden>▓ </span>
         {posterCount} {posterCount === 1 ? 'poster' : 'posters'}
+      </p>
+
+      {/* Polite rebuild announcement — visually hidden, its OWN live region (NOT
+          the ticker). "Rebuilding: {Stop}." on landing → "{n} tracks, {m} shows."
+          once settled. No role=status, so it never doubles the player's region. */}
+      <p
+        aria-live="polite"
+        data-testid="rebuild-live"
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+      >
+        {rebuildMsg}
       </p>
 
       {widened ? <SparseNotice widened={widened} city={city} /> : null}

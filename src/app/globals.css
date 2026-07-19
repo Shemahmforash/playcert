@@ -177,6 +177,27 @@ body {
 @keyframes sf-cue-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.28); } 100% { transform: scale(1); } }
 .sf-cue-pulse { animation: sf-cue-pulse 320ms ease-out 1; display: inline-block; }
 
+/*
+ * Dial rebuild — removed acts shrink + collapse off the sheet (§2.2 step 2,
+ * --dur-shrink 250ms). Spot ink drains to --ash, the type shrinks toward 40% and
+ * the row's height/opacity collapse so survivors close the gap. transform-origin
+ * top-left so the name shrinks toward the punched Play hole, not the centre.
+ */
+@keyframes sf-row-collapse {
+  0%   { opacity: 1; transform: scale(1); max-height: 120px; margin-top: 0.5rem; }
+  60%  { opacity: 0.5; transform: scale(0.4); }
+  100% { opacity: 0; transform: scale(0.4); max-height: 0; margin-top: 0; }
+}
+.sf-row-collapse {
+  animation: sf-row-collapse 250ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: top left;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Reduced-motion exit: cross-fade OUT in place — no shrink-collapse travel. */
+@keyframes sf-row-fade { from { opacity: 1; } to { opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   .sf-grow,
   .sf-cursor,
@@ -191,4 +212,13 @@ body {
   .sf-strip { opacity: 0.4; }
   .sf-rule-fill { transform: scaleX(1); }
   .sf-row-drop { opacity: 1; transform: none; }
+  /* Exit rows fade in place (no scale, no height travel). Belt-and-braces with
+     the JS probe that swaps sf-row-collapse → sf-row-fade under reduced motion. */
+  .sf-row-collapse,
+  .sf-row-fade {
+    animation: sf-row-fade 250ms linear both !important;
+    transform: none !important;
+    max-height: none;
+    overflow: visible;
+  }
 }
