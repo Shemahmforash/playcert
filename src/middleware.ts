@@ -23,5 +23,8 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Exclude /api/* (route handlers validate their own input), Next internals,
+  // and the favicon. Note "api/" (with slash) so a city slug like "apixyz" still
+  // gets validated.
+  matcher: ['/((?!api/|_next/static|_next/image|favicon.ico).*)'],
 };
