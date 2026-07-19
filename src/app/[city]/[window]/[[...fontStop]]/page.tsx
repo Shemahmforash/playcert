@@ -40,7 +40,7 @@ async function resolveKey(params: Params): Promise<RequestKey> {
 }
 
 async function getBundle(city: string, window: TimeWindow) {
-  'use cache';
+  'use cache: remote';
   const b = await buildBundleCached(city, window, realDeps(city));
   cacheLife(bundleCacheProfile(b.tracks.length));
   return b;

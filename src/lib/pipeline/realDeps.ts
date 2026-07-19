@@ -27,7 +27,7 @@ const DAY = 60 * 60 * 24;
 // slot), so the 25s budget reaches further down the bill. Only cold misses hit
 // the rate queue, so iTunes' ~20/min limit is still respected.
 async function cachedItunesSearch(name: string): Promise<ItunesCandidate[]> {
-  'use cache';
+  'use cache: remote';
   cacheLife({ stale: 3600, revalidate: 30 * DAY, expire: 60 * DAY });
   return itunesQueue.schedule(() => searchArtistTracks(name));
 }
