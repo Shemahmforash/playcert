@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Artist, TimeWindow } from '../lib/types';
 import type { PlaylistEntry } from '../lib/pipeline/order';
 import { usePlayer } from '../hooks/usePlayer';
@@ -9,6 +10,8 @@ import { useTasteMemory } from '../hooks/useTasteMemory';
 import { PlaylistList } from './PlaylistList';
 import { RadioPlayer } from './RadioPlayer';
 import { SparseNotice } from './SparseNotice';
+import { WindowChips } from './WindowChips';
+import { formatCanonicalPath } from '../lib/urlState';
 import type { WidenMeta } from '../lib/pipeline/fetchShows';
 
 /**
@@ -69,9 +72,28 @@ export function PlaylistScreen({
   widened,
   belowBar,
 }: PlaylistScreenProps) {
+  const router = useRouter();
   const [state, dispatch] = usePlayer(entries.length);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [progress, setProgress] = useState(0);
+
+  // Defensive unmount cleanup: a fast client transition (or a window-change
+  // navigation, which unmounts this screen and STOPS + replays on the new build)
+  // must never leave the single <audio> element playing. Pause it on teardown.
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
+
+  // Changing the WINDOW is a FULL NAVIGATION to /{city}/{newWindow}: the route
+  // unmounts this screen (stopping the audio via the cleanup above) and replays
+  // the LoadingTheater on the freshly-built playlist. No manual audio stop.
+  const onWindowChange = (nextWindow: TimeWindow) => {
+    router.push(
+      formatCanonicalPath({ city, window: nextWindow, fontStop: 'everything' }),
+    );
+  };
 
   // ── Entrance choreography (§2.5) — client-side, AFTER the payload lands ─────
   // The rows drop staggered (CSS, see `entering` below); here we tick a visible
@@ -208,6 +230,18 @@ export function PlaylistScreen({
         onCanPlay={() => setReady(true)} // flip Cueing…→▶ the moment audio can start
         preload="metadata"
       />
+
+      {/* Header: the window chips. Changing the window is a full navigation
+          (stop + replay); while the radio plays they collapse to the active
+          chip to stay out of the way. */}
+      <div className="flex items-center justify-between gap-3">
+        <WindowChips
+          value={timeWindow}
+          onChange={onWindowChange}
+          collapsed={state.playing}
+          label="Change window"
+        />
+      </div>
 
       {/* Poster count ticks up on arrival — a subtle box-office tally. */}
       <p
