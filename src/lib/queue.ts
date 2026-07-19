@@ -26,8 +26,12 @@ export class RateQueue {
   }
 }
 
-// R1 rates — module-scope singletons, one per API
-export const tmQueue = new RateQueue({ minSpacingMs: 250 });          // 4 req/s
+// R1 rates — module-scope singletons, one per API.
+// Ticketmaster's Apigee spike-arrest is 5/s with maxBurst=1 — a hard ~200ms
+// floor and NO burst tolerance. 250ms left no margin once network jitter (and
+// overlapping city builds sharing this best-effort per-instance queue) are in
+// play, so we space more conservatively and jitter to de-sync concurrent builds.
+export const tmQueue = new RateQueue({ minSpacingMs: 350, jitterMs: 150 }); // ~2.3 req/s, floor 350ms
 export const itunesQueue = new RateQueue({ minSpacingMs: 3500 });     // ~17/min
 export const mbQueue = new RateQueue({ minSpacingMs: 1000, jitterMs: 300 }); // 1/s + jitter
 export const lbQueue = new RateQueue({ minSpacingMs: 1000 });         // 1/s courtesy

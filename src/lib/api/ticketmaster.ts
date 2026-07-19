@@ -227,30 +227,36 @@ export async function fetchAllEvents(
           return res.json();
         });
 
-  // Fetch a page with a single retry on 429. Any surviving failure becomes a
-  // typed TicketmasterError.
+  // Fetch a page, riding out Ticketmaster's transient spike-arrest 429s with a
+  // few escalating, jittered back-offs (the spike-arrest is a short ~200ms
+  // window, so a brief pause clears it). Non-429 failures fail fast. Any
+  // surviving failure becomes a typed TicketmasterError.
+  const MAX_429_RETRIES = 3;
   const fetchWithRetry = async (page: number): Promise<unknown> => {
-    try {
-      return await fetchPage({ ...params, page });
-    } catch (err) {
-      if ((err as { status?: number })?.status === 429) {
-        await sleep(backoffMs ?? 1000 + Math.random() * 1000);
-        try {
-          return await fetchPage({ ...params, page });
-        } catch (retryErr) {
-          throw new TicketmasterError(
-            `Ticketmaster page ${page} failed after 429 retry: ${
-              (retryErr as Error)?.message ?? retryErr
-            }`,
-          );
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt++) {
+      try {
+        return await fetchPage({ ...params, page });
+      } catch (err) {
+        lastErr = err;
+        if ((err as { status?: number })?.status !== 429) {
+          throw err instanceof TicketmasterError
+            ? err
+            : new TicketmasterError(
+                `Ticketmaster page ${page} failed: ${(err as Error)?.message ?? err}`,
+              );
         }
+        if (attempt === MAX_429_RETRIES) break;
+        // escalating jittered back-off: base, 2×base, 3×base (+ up to base jitter)
+        const base = backoffMs ?? 1000;
+        await sleep(base * (attempt + 1) + Math.random() * base);
       }
-      throw err instanceof TicketmasterError
-        ? err
-        : new TicketmasterError(
-            `Ticketmaster page ${page} failed: ${(err as Error)?.message ?? err}`,
-          );
     }
+    throw new TicketmasterError(
+      `Ticketmaster page ${page} failed after ${MAX_429_RETRIES} 429 retries: ${
+        (lastErr as Error)?.message ?? lastErr
+      }`,
+    );
   };
 
   const shows: Show[] = [];
