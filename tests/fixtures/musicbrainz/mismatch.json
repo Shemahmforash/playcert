@@ -1,0 +1,12 @@
+{
+  "artists": [
+    {
+      "id": "mbid-boston",
+      "name": "Boston",
+      "score": 100,
+      "country": "US",
+      "area": { "name": "United States" },
+      "tags": [{ "name": "arena rock" }, { "name": "classic rock" }]
+    }
+  ]
+}

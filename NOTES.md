@@ -194,3 +194,26 @@ iOS device before committing to the play-loop UX.
   this bill the drop rate would be 0%, but do NOT hard-code that assumption;
   instrument the real drop rate in production, since the untested miss categories
   above are the ones that matter.
+
+## Task 1.7 — MusicBrainz spike
+
+Cross-check client `src/lib/api/musicbrainz.ts` (`crossCheckArtist`) is built and
+fixture-tested (`tests/fixtures/musicbrainz/{match,mismatch}.json`,
+`tests/unit/musicbrainz.test.ts`, 4 tests green). Design:
+- Serialized via `mbQueue` (1 req/s + up to 300ms jitter), mandatory MB-ToS
+  `User-Agent`, 8s `AbortSignal.timeout`, zod-parsed response.
+- Confirmation rule: top artist (exact-name match, else first result) is CONFIRMED
+  when `country === ctx.countryCode` OR any tag contains a genre hint; else UNCONFIDENT.
+- STRICTLY NON-FATAL: any throw (network error, timeout, non-2xx, parse failure)
+  is swallowed → `{ status: 'unconfident' }`. No retry (timeout test asserts a
+  single `rawFetch` call).
+
+### UNVERIFIED / DEFERRED (the live spike question)
+Whether MusicBrainz tolerates a serialized 1 req/s burst from Vercel's shared
+egress IPs without 503s or IP blocks is **UNVERIFIED** — it can only be answered
+from a deployed function, and deploy is deferred (same status as the mobile-Safari
+check). Follow-up: a deployed-function burst test hitting the live MB endpoint.
+CAUTION: because the client is strictly non-fatal, a live block does NOT surface as
+an error — it silently degrades every cross-check to `unconfident`, which only
+*widens* the silent-drop rate. Instrument confirmed/unconfident ratio in prod so a
+block is observable rather than invisible.

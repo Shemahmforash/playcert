@@ -1,0 +1,12 @@
+{
+  "artists": [
+    {
+      "id": "mbid-balthvs",
+      "name": "BALTHVS",
+      "score": 100,
+      "country": "PT",
+      "area": { "name": "Portugal" },
+      "tags": [{ "name": "psychedelic" }, { "name": "funk" }]
+    }
+  ]
+}
