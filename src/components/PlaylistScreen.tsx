@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Artist, TimeWindow } from '../lib/types';
 import type { PlaylistEntry } from '../lib/pipeline/order';
 import { usePlayer } from '../hooks/usePlayer';
 import { useAutoScroll } from '../hooks/useAutoScroll';
+import { useTasteMemory } from '../hooks/useTasteMemory';
 import { PlaylistList } from './PlaylistList';
 import { RadioPlayer } from './RadioPlayer';
 import { SparseNotice } from './SparseNotice';
@@ -33,7 +34,6 @@ import type { WidenMeta } from '../lib/pipeline/fetchShows';
 const INTER_TRACK_GAP_MS = 300;
 // Full preview length; used as the progress-ring denominator until metadata lands.
 const PREVIEW_SECONDS = 30;
-const HEART_STORAGE_KEY = 'smallfont:hearts';
 // Poster-count tick cadence (§2.5 "a count ticks up on arrival").
 const POSTER_TICK_MS = 90;
 // Fallback flip Cueing…→▶ if `canplay` never fires (no preview / test env).
@@ -118,29 +118,10 @@ export function PlaylistScreen({
     state.index,
   );
 
-  // ── Hearts (localStorage-backed, artistId keyed) ──────────────────────────
-  const [heartedIds, setHeartedIds] = useState<Set<string>>(() => new Set());
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HEART_STORAGE_KEY);
-      if (raw) setHeartedIds(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      // ignore corrupt / unavailable storage — hearts are non-essential.
-    }
-  }, []);
-  const onHeart = useCallback((artistId: string) => {
-    setHeartedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(artistId)) next.delete(artistId);
-      else next.add(artistId);
-      try {
-        localStorage.setItem(HEART_STORAGE_KEY, JSON.stringify([...next]));
-      } catch {
-        // ignore storage failures.
-      }
-      return next;
-    });
-  }, []);
+  // ── Taste memory (localStorage-backed, artistId keyed) — Task 2.10 ─────────
+  // Hearts + skips now live in the shared `useTasteMemory` hook (SSR-safe,
+  // never sent to the server) instead of the ad-hoc storage Task 2.5 inlined.
+  const { hearted: heartedIds, toggleHeart, markSkipped } = useTasteMemory();
 
   const current = entries[state.index];
 
@@ -256,7 +237,7 @@ export function PlaylistScreen({
           city={city}
           window={timeWindow}
           onPlayIndex={(i) => jumpTo(i)}
-          onHeart={onHeart}
+          onHeart={toggleHeart}
           heartedIds={heartedIds}
           activeItemRef={itemRef}
           entering
@@ -280,7 +261,11 @@ export function PlaylistScreen({
         progress={progress}
         cueing={!ready}
         onToggle={toggle}
-        onSkip={() => dispatch({ type: 'skip' })}
+        onSkip={() => {
+          // Remember the deliberately-skipped artist (taste signal), then advance.
+          if (current) markSkipped(current.track.artistId);
+          dispatch({ type: 'skip' });
+        }}
       />
     </div>
   );
