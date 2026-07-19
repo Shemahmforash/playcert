@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { CityWindowBundle, FontStop, TimeWindow } from '../lib/types';
 import type { PlaylistEntry } from '../lib/pipeline/order';
 import { applyFontStop } from '../lib/pipeline/applyFontStop';
+import { smallPrintRunsDry } from '../lib/pipeline/smallPrintDry';
 import { resolveContinuity } from '../lib/pipeline/rebuildDiff';
 import { usePlayer } from '../hooks/usePlayer';
 import { useAutoScroll } from '../hooks/useAutoScroll';
@@ -12,6 +13,7 @@ import { useTasteMemory } from '../hooks/useTasteMemory';
 import { PlaylistList } from './PlaylistList';
 import { RadioPlayer } from './RadioPlayer';
 import { SparseNotice } from './SparseNotice';
+import { SmallPrintDryNotice } from './SmallPrintDryNotice';
 import { WindowChips } from './WindowChips';
 import { EarshotDial } from './EarshotDial';
 import { formatCanonicalPath, FONT_STOPS } from '../lib/urlState';
@@ -93,6 +95,13 @@ export function PlaylistScreen({
   const { artists, widened, belowBar } = bundle;
   const entries = useMemo(
     () => applyFontStop(bundle, fontStop),
+    [bundle, fontStop],
+  );
+
+  // "Small Print runs dry" escape hatch (Task 3.7, §2.6): the stop — not a genuinely
+  // quiet week — has thinned the bill below 8 shows. Pure predicate off the bundle.
+  const dry = useMemo(
+    () => fontStop === 'small-print' && smallPrintRunsDry(bundle),
     [bundle, fontStop],
   );
 
@@ -402,10 +411,18 @@ export function PlaylistScreen({
   };
 
   if (entries.length === 0) {
+    // The Small Print stop can filter the bill all the way to zero. The bare
+    // fallback would hide the escape hatch, so when `dry` is true surface the
+    // one-tap No Arenas notice ABOVE it — the dial is still reachable.
     return (
-      <p className="rounded border border-dashed border-current/30 p-4 text-sm opacity-70">
-        Nothing playable in this window yet.
-      </p>
+      <div className="flex flex-col gap-4">
+        {dry ? (
+          <SmallPrintDryNotice onTryNoArenas={() => handleDialChange('no-arenas')} />
+        ) : null}
+        <p className="rounded border border-dashed border-current/30 p-4 text-sm opacity-70">
+          Nothing playable in this window yet.
+        </p>
+      </div>
     );
   }
 
@@ -478,6 +495,9 @@ export function PlaylistScreen({
         {rebuildMsg}
       </p>
 
+      {dry ? (
+        <SmallPrintDryNotice onTryNoArenas={() => handleDialChange('no-arenas')} />
+      ) : null}
       {widened ? <SparseNotice widened={widened} city={city} /> : null}
       {belowBar ? (
         <p className="text-sm text-foreground opacity-60">
