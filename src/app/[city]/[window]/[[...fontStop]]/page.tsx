@@ -11,7 +11,7 @@ import { realDeps } from '../../../../lib/pipeline/realDeps';
 import { orderPlaylist } from '../../../../lib/pipeline/order';
 import { bundleCacheProfile } from '../../../../lib/cache';
 import { TicketmasterError } from '../../../../lib/api/ticketmaster';
-import { Player } from '../../../../components/Player';
+import { PlaylistScreen } from '../../../../components/PlaylistScreen';
 
 export const maxDuration = 60;
 
@@ -59,25 +59,15 @@ async function PlaylistSection({ params }: { params: Params }) {
   await connection();
   try {
     const b = await getBundle(key.city, key.window);
-    const entries = orderPlaylist(b.shows, b.artists, b.tracks);
-    const tracks = entries.map((e) => ({
-      artist: b.artists[e.track.artistId]?.normalizedName ?? e.track.artistId,
-      title: e.track.title,
-      previewUrl: e.track.previewUrl,
-      show: e.show,
-    }));
     return (
-      <div className="flex flex-col gap-4">
-        <Player tracks={tracks} />
-        {b.widened ? (
-          <p className="text-sm text-foreground opacity-60">Quiet week — widened the search.</p>
-        ) : null}
-        {b.belowBar ? (
-          <p className="text-sm text-foreground opacity-60">
-            Showing the first few — reload in a minute and we&apos;ll have dug up more.
-          </p>
-        ) : null}
-      </div>
+      <PlaylistScreen
+        entries={orderPlaylist(b.shows, b.artists, b.tracks)}
+        artists={b.artists}
+        city={key.city}
+        window={key.window}
+        widened={b.widened}
+        belowBar={b.belowBar}
+      />
     );
   } catch (err) {
     if (err instanceof TicketmasterError) {

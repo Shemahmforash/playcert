@@ -31,6 +31,12 @@ export interface PlaylistListProps {
   onPlayIndex: (index: number) => void;
   onHeart?: (artistId: string) => void;
   heartedIds?: Set<string>;
+  /**
+   * Attached to the `<li>` at `currentIndex` so the container's `useAutoScroll`
+   * can scroll the active row into view. Optional + additive — standalone /
+   * test renders omit it.
+   */
+  activeItemRef?: React.Ref<HTMLLIElement>;
 }
 
 export function PlaylistList({
@@ -43,6 +49,7 @@ export function PlaylistList({
   onPlayIndex,
   onHeart,
   heartedIds,
+  activeItemRef,
 }: PlaylistListProps) {
   // Flip exclusivity: the list owns which single stub is open (one-at-a-time).
   const [openId, setOpenId] = useState<string | null>(null);
@@ -96,7 +103,11 @@ export function PlaylistList({
               }));
 
             return (
-              <li key={rowKey} className="mt-2 px-3 first:mt-0">
+              <li
+                key={rowKey}
+                ref={index === currentIndex ? activeItemRef : undefined}
+                className="mt-2 px-3 first:mt-0"
+              >
                 <TrackRow
                   artist={nameOf(artistId)}
                   title={track.title}
