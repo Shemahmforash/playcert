@@ -285,6 +285,7 @@ export function TrackRow({
           type="button"
           aria-expanded={open}
           aria-controls={backFaceId}
+          aria-label={`Gig details, ${chipText}`}
           onClick={() => {
             onOpenGig?.();
             setOpen(!open);
@@ -292,12 +293,22 @@ export function TrackRow({
           className="flex flex-1 items-center justify-between gap-2 font-mono text-xs text-ash focus-visible:outline-2 focus-visible:outline-offset-2"
           style={{
             minHeight: '44px',
+            // A hairline box + an explicit labelled affordance so the bar reads as
+            // a tappable "flip for gig details" control, not a mystery spin.
+            border: '1px solid var(--line)',
             borderRadius: 'var(--radius-chip, 2px)',
+            padding: '0 10px',
             outlineColor: accent,
           }}
         >
           <span className="truncate">{chipText}</span>
-          <span aria-hidden className="shrink-0">▸</span>
+          <span
+            aria-hidden
+            className="shrink-0 uppercase"
+            style={{ letterSpacing: '0.06em', color: 'var(--ink)', opacity: 0.65 }}
+          >
+            Gig info ▸
+          </span>
         </button>
 
         {isEncore ? (
