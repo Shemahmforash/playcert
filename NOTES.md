@@ -217,3 +217,26 @@ CAUTION: because the client is strictly non-fatal, a live block does NOT surface
 an error — it silently degrades every cross-check to `unconfident`, which only
 *widens* the silent-drop rate. Instrument confirmed/unconfident ratio in prod so a
 block is observable rather than invisible.
+
+## Task 3.1 — ListenBrainz client
+
+Keyless listen-count signal `src/lib/api/listenbrainz.ts` (`getArtistListenCount`),
+fixture-tested (`tests/fixtures/listenbrainz/counts.json`,
+`tests/unit/listenbrainz.test.ts`). Design mirrors the MB client:
+- MBID-centric. Without an `mbid` (and no injected `rawFetch`) it returns `null` —
+  we can't query by name reliably in v1. The MBID comes from the MB cross-check
+  when confidence is `mb-confirmed`.
+- Live path serialized via `lbQueue` (1 req/s courtesy), mandatory descriptive
+  `User-Agent` (keyless API — UA only), 8s `AbortSignal.timeout`, zod-parsed.
+- STRICTLY NON-FATAL: any non-2xx / timeout / parse failure / missing count → `null`
+  (never throws). The scorer treats `null` as "unknown" → 0 pre-normalization.
+
+### UNVERIFIED / DEFERRED (needs a later live-verification spike)
+Endpoint used: `GET https://api.listenbrainz.org/1/popularity/artist?artist_mbids=<mbid>`,
+reading `total_listen_count` from the returned per-MBID array. The exact endpoint
+path AND response shape are hand-crafted to a Zod schema and NOT live-verified in CI
+(same status as the MusicBrainz-on-Vercel-IPs spike). Follow-up: confirm the field
+names (`total_listen_count`) and the array/object envelope against the live LB API
+from a deployed function. Because the client is strictly non-fatal, a wrong
+endpoint/shape degrades silently to `null` (contributes 0), so instrument the
+null-rate in prod to make a mismatch observable.
