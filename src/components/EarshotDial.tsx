@@ -35,6 +35,8 @@ interface Detent {
   pt: string;
   /** Full human sentence announced by `aria-valuetext`. */
   valuetext: string;
+  /** Short plain-language caption shown under the dial for the active stop. */
+  blurb: string;
 }
 
 // Order MUST match FONT_STOPS so the index is the aria-valuenow.
@@ -44,18 +46,21 @@ const DETENTS: readonly Detent[] = [
     label: 'MARQUEE',
     pt: '72',
     valuetext: 'Marquee — the whole bill, headliners included',
+    blurb: 'The whole lineup — big-name headliners included.',
   },
   {
     stop: 'no-arenas',
     label: 'NO ARENAS',
     pt: '24',
     valuetext: 'No arenas — drop the biggest headliners',
+    blurb: 'The biggest headliners pulled back.',
   },
   {
     stop: 'small-print',
     label: 'SMALL PRINT',
     pt: '6',
     valuetext: 'Small print — openers and small-room acts only',
+    blurb: 'Just the openers and small-room acts.',
   },
 ];
 
@@ -248,6 +253,18 @@ export function EarshotDial({ value, onChange, className }: EarshotDialProps) {
           );
         })}
       </div>
+
+      {/* Plain-language caption for the active stop. The MARQUEE / NO ARENAS /
+          SMALL PRINT labels are a printed-poster metaphor; this line says what the
+          setting actually does, and updates as the dial moves. aria-hidden because
+          the slider already announces the same meaning via aria-valuetext. */}
+      <p
+        aria-hidden
+        className="mx-[22px] font-mono text-xs"
+        style={{ color: 'var(--ash)' }}
+      >
+        {DETENTS[index].blurb}
+      </p>
     </div>
   );
 }
