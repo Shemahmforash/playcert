@@ -31,7 +31,9 @@ import { downloadPosterPng } from '../lib/downloadPoster';
 const PAPER = '#EFE7D6';
 const SURFACE = '#F6EFDF';
 const INK = '#211D17';
-const ASH = '#6E6A61';
+// Meta ink (footer dates/venues, mono, < 18px = normal text). Task 5.2 a11y bump:
+// #6E6A61 read 4.38:1 on the light paper (below the 4.5 floor); #686456 → 4.81:1.
+const ASH = '#686456';
 
 export interface LineupPosterProps {
   acts: PosterAct[];

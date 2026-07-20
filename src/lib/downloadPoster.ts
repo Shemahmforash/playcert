@@ -19,7 +19,9 @@ const WIDTH = 1080;
 const HEIGHT = 1920;
 const PAPER = '#EFE7D6'; // light-paper ground
 const INK = '#211D17'; // newsprint ink
-const ASH = '#6E6A61'; // meta ink (dates / venues)
+// meta ink (dates / venues, normal-size mono). Task 5.2 a11y bump: #6E6A61 read
+// 4.38:1 on paper (below the 4.5 floor); #686456 → 4.81:1. Mirrors LineupPoster.
+const ASH = '#686456';
 
 // ── Stacking geometry — mirrors the constants `layoutPoster` laid the bill out
 // with, so the canvas stack matches the DOM stack line-for-line. ──────────────

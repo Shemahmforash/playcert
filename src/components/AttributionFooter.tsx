@@ -13,12 +13,18 @@
  * recessive: one wrapping mono line at 11px in the quiet ash tones, `·`-separated,
  * with a coverage-honesty aside. Static text + links only — it never reads geo,
  * headers, or the bundle. Bottom padding keeps it clear of the sticky RadioPlayer.
+ *
+ * A11y (Task 5.2): the base line is 11px = WCAG normal text (< 14px), so it must
+ * clear 4.5:1. `--ash-quiet` is the design's decorative "never-text-< 14px" tone
+ * and misses that floor on BOTH canvases (dark #7c796f → 4.28:1, light #8c877b →
+ * 2.91:1). The base copy therefore uses `--ash` (dark 7.58:1, light 4.81:1 — both
+ * proven ≥ 4.5:1 in tests/unit/contrast.test.ts); the links were already `--ash`.
  */
 export function AttributionFooter() {
   return (
     <footer
       className="mx-auto w-full max-w-xl px-5 pb-28 pt-10 text-center font-mono text-[11px] leading-relaxed"
-      style={{ color: 'var(--ash-quiet)' }}
+      style={{ color: 'var(--ash)' }}
     >
       <p className="text-balance">
         Concert listings via{' '}

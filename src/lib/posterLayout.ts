@@ -15,8 +15,15 @@ import type { CityWindowBundle, FontStop, TimeWindow } from './types';
 import { cityDisplay } from './title';
 
 // ── Light-paper palette (SSOT §2.4). Inline hex: this is a distinct context. ──
+// The poster prints on LIGHT paper, so the spot inks need enough tooth against a
+// near-white stock — the mirror of the dark wall, where they sit on bitumen.
 const INK = '#211D17'; // newsprint ink — the default, colour-free
-const RISO_PINK = '#FF4D82'; // spot ink for whoever is featured at the marquee stops
+// Task 5.2 a11y: the dark-wall riso-pink #FF4D82 reads only 2.57:1 on this paper —
+// below even the 3:1 large-text floor the "chroma-only-≥28px" rule (§1.1) promises.
+// (SSOT §4 flagged riso-BLUE as the risky ink, but on paper it's pink that misses.)
+// #E63A6E is the minimal darkening that clears 3:1 on paper (3.29:1); the dark app
+// and OG card keep #FF4D82, which passes on bitumen (5.89:1). Big names only.
+const RISO_PINK = '#E63A6E'; // spot ink for whoever is featured at the marquee stops
 const RISO_BLUE = '#3B6BE8'; // spot ink for whoever is featured at Small Print (openers)
 
 // ── Fixed export dimensions (SSOT §2.4). ─────────────────────────────────────

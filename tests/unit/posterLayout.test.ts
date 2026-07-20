@@ -19,7 +19,9 @@ import type { Artist, CityWindowBundle } from '../../src/lib/types';
 const HEADLINER: PosterAct = { name: 'GIANT HEADLINER', prominence: 1 };
 const OPENER: PosterAct = { name: 'TINY OPENER', prominence: 0 };
 
-const PINK = '#FF4D82';
+// The poster's light-paper spot pink (Task 5.2 a11y bump from #FF4D82 → #E63A6E:
+// the dark-wall pink read only 2.57:1 on paper, below the 3:1 large-text floor).
+const PINK = '#E63A6E';
 const BLUE = '#3B6BE8';
 const INK = '#211D17';
 
