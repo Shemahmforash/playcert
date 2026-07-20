@@ -42,15 +42,15 @@ export default function RootLayout({
       lang="en"
       className={`${robotoFlex.variable} ${inter.variable} ${splineSansMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full">
         {children}
         {/* Site-wide required source credit (Task 5.1) — mounted once here so
             landing, playlist, empty, error and 404 all carry the JamBase +
-            Apple linkbacks. `mt-auto` seats it at the page bottom when content
-            is short; its own bottom padding clears the sticky RadioPlayer. */}
-        <div className="mt-auto">
-          <AttributionFooter />
-        </div>
+            Apple linkbacks. Rendered in NORMAL FLOW after the content: the
+            earlier `flex flex-col` + `mt-auto` layout broke the RadioPlayer's
+            `position: sticky` (it only appeared at the very end of the page), so
+            the footer sits after the content instead and the sticky bar works. */}
+        <AttributionFooter />
       </body>
     </html>
   );
