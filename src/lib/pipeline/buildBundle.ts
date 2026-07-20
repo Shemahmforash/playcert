@@ -15,7 +15,13 @@ export interface BuildDeps {
   budgetMs?: number; // default 25_000 (R4)
 }
 
-const DEFAULT_BUDGET_MS = 25_000;
+// Resolution budget (R4). 40s (was 25s) resolves more acts per build → a fuller
+// first playlist, at the cost of a slower COLD load — still well under the 45s
+// loading-theatre soft timeout and the 60s function `maxDuration`. It costs no
+// money: iTunes is keyless and per-artist results are cached ('use cache: remote',
+// 30-day), so every rebuild's warm hits are instant and the bill fills out
+// further each time WITHOUT extra iTunes latency or any JamBase calls.
+const DEFAULT_BUDGET_MS = 40_000;
 
 /**
  * Resolution priority (R4): resolve each artist by the EARLIEST slot they play.

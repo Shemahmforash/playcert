@@ -60,7 +60,7 @@ describe('buildBundle (R3/R4)', () => {
     expect(seen).toEqual(['opener-a', 'headliner-a', 'opener-b', 'headliner-b']);
   });
 
-  it('stops resolving once the 25s budget is exceeded → partial bundle + belowBar', async () => {
+  it('stops resolving once the 40s budget is exceeded → partial bundle + belowBar', async () => {
     const shows = [
       mkShow('tm:1', '2026-07-20T10:00:00Z', ['A1', 'A2']),
       mkShow('tm:2', '2026-07-20T11:00:00Z', ['B1', 'B2']),
@@ -68,8 +68,8 @@ describe('buildBundle (R3/R4)', () => {
     ];
     const start = 1_000;
     let calls = 0;
-    // Clock: within budget until two artists have resolved, then jumps past the budget.
-    const now = vi.fn(() => (calls < 2 ? start : start + 25_001));
+    // Clock: within budget until two artists have resolved, then jumps past the 40s budget.
+    const now = vi.fn(() => (calls < 2 ? start : start + 40_001));
     const resolveArtist = vi.fn(async (a: Artist) => {
       calls++;
       return [trackFor(a)];
