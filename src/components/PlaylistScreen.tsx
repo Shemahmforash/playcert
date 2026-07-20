@@ -18,6 +18,8 @@ import { SparseNotice } from './SparseNotice';
 import { SmallPrintDryNotice } from './SmallPrintDryNotice';
 import { WindowChips } from './WindowChips';
 import { EarshotDial } from './EarshotDial';
+import { LineupPoster } from './LineupPoster';
+import { posterActsFromBundle } from '../lib/posterLayout';
 import { formatCanonicalPath, FONT_STOPS } from '../lib/urlState';
 
 /**
@@ -51,6 +53,8 @@ const CUE_FALLBACK_MS = 1200;
 // the crossfade ramp when a filtered-out current retargets to a survivor (§2.2).
 const REBUILD_ANNOUNCE_MS = 450;
 const CROSSFADE_MS = 400;
+// Lineup Poster long-press commit threshold (§2.4): hold 500ms to peel + reveal.
+const POSTER_LONG_PRESS_MS = 500;
 
 /** Human labels for the polite rebuild announcement (the dial's three stops). */
 const STOP_LABEL: Record<FontStop, string> = {
@@ -282,6 +286,40 @@ export function PlaylistScreen({
 
   const current = entries[state.index];
 
+  // ── Lineup Poster (Task 4.7, §2.4) — long-press to peel + reveal ───────────
+  // The masthead poster trigger opens `LineupPoster` as an OVERLAY above the
+  // list: the audio element + RadioPlayer are never unmounted and never paused,
+  // so the radio keeps playing behind the poster. Opening is either a plain
+  // click on the poster icon button (desktop-discoverable) OR a 500ms long-press
+  // (pointerdown arms a timer; any release before 500ms cancels — "snaps flat",
+  // no partial state; at 500ms it commits). On open we focus the trigger first
+  // so LineupPoster (which restores focus to the previously-focused element on
+  // close) returns focus here.
+  const [posterOpen, setPosterOpen] = useState(false);
+  const posterTriggerRef = useRef<HTMLButtonElement>(null);
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearLongPress = () => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  };
+  const openPoster = () => {
+    clearLongPress();
+    posterTriggerRef.current?.focus();
+    setPosterOpen(true);
+  };
+  const startLongPress = () => {
+    clearLongPress();
+    longPressRef.current = setTimeout(() => {
+      longPressRef.current = null;
+      openPoster();
+    }, POSTER_LONG_PRESS_MS);
+  };
+  // Never leave a pending long-press timer behind on unmount.
+  useEffect(() => clearLongPress, []);
+
   // ── Earned share threshold (Task 4.2) ─────────────────────────────────────
   // Sharing is EARNED, never a wall before first sound. The grabber only appears
   // once real engagement has accrued (two previews ≥15s OR ~20s of interaction).
@@ -504,8 +542,44 @@ export function PlaylistScreen({
       {/* The signature control — the printed point-size gauge (Task 3.5). Given
           masthead prominence above the poster count. Dragging/stepping it
           re-filters the playlist with ZERO fetches and updates the URL via
-          history (no navigation). */}
-      <EarshotDial value={fontStop} onChange={handleDialChange} />
+          history (no navigation). The poster trigger sits alongside it. */}
+      <div className="flex items-center justify-between gap-3">
+        <EarshotDial value={fontStop} onChange={handleDialChange} />
+        {/* Poster trigger (§2.4): click opens directly (desktop-discoverable);
+            a 500ms click-hold / long-press also commits. The corner-curl is the
+            hold affordance. Audio keeps playing — this only mounts an overlay. */}
+        <button
+          ref={posterTriggerRef}
+          type="button"
+          aria-label="Make a poster"
+          title="Make a poster (hold to peel)"
+          onClick={openPoster}
+          onPointerDown={startLongPress}
+          onPointerUp={clearLongPress}
+          onPointerLeave={clearLongPress}
+          onPointerCancel={clearLongPress}
+          className="relative shrink-0 rounded-md border p-2 text-xs"
+          style={{ borderColor: 'var(--ash)', color: 'var(--ash)' }}
+        >
+          <span aria-hidden style={{ fontSize: '16px', lineHeight: 1 }}>
+            ◲
+          </span>
+          {/* Corner-curl affordance — a peeling top-right corner. */}
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: 0,
+              height: 0,
+              borderTop: '8px solid var(--ash)',
+              borderLeft: '8px solid transparent',
+              opacity: 0.5,
+            }}
+          />
+        </button>
+      </div>
 
       {/* Box-office tally: what the playlist actually is — how many songs, drawn
           from how many gigs. The gig count ticks up on arrival (§2.5). */}
@@ -554,8 +628,13 @@ export function PlaylistScreen({
       ) : null}
 
       {/* Scroll container for useAutoScroll; padded so the sticky bar never
-          covers the final rows. */}
-      <div ref={containerRef} className="pb-24">
+          covers the final rows. When the poster is open the list PEELS away
+          (rotateX 8°, 550ms; ✕ reverses ~400ms; reduced-motion = cross-fade),
+          while the audio + player bar stay live below. */}
+      <div
+        ref={containerRef}
+        className={`pb-24 sf-peel${posterOpen ? ' sf-peel-open' : ''}`}
+      >
         <PlaylistList
           entries={entries}
           artists={artists}
@@ -592,25 +671,49 @@ export function PlaylistScreen({
         }
       />
 
-      <RadioPlayer
-        track={
-          current
-            ? {
-                artist: artists[current.track.artistId]?.normalizedName ??
-                  current.track.artistId,
-                title: current.track.title,
-              }
-            : null
-        }
-        show={current?.show}
-        playing={state.playing}
-        index={state.index}
-        total={entries.length}
-        progress={progress}
-        cueing={!ready}
-        onToggle={toggle}
-        onSkip={skip}
-      />
+      {/* The player bar stays LIVE and ON TOP while the poster is open — lifted
+          above the poster's backdrop (z-40) / dialog (z-50) so the radio keeps
+          playing and visible behind/above the peeled list. */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: posterOpen ? 60 : undefined,
+        }}
+      >
+        <RadioPlayer
+          track={
+            current
+              ? {
+                  artist: artists[current.track.artistId]?.normalizedName ??
+                    current.track.artistId,
+                  title: current.track.title,
+                }
+              : null
+          }
+          show={current?.show}
+          playing={state.playing}
+          index={state.index}
+          total={entries.length}
+          progress={progress}
+          cueing={!ready}
+          onToggle={toggle}
+          onSkip={skip}
+        />
+      </div>
+
+      {/* The Lineup Poster overlay (Task 4.7). Mounted only while open; it is a
+          focus-trapped modal that reverses focus back to the trigger on close.
+          The audio element above is untouched, so the radio never stops. */}
+      {posterOpen ? (
+        <LineupPoster
+          acts={posterActsFromBundle(bundle)}
+          shows={bundle.shows}
+          city={city}
+          window={timeWindow}
+          fontStop={fontStop}
+          onClose={() => setPosterOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

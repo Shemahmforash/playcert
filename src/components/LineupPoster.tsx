@@ -5,6 +5,7 @@ import type { FontStop, Show, TimeWindow } from '../lib/types';
 import { formatCanonicalPath } from '../lib/urlState';
 import { dayAccentHue } from '../lib/dayAccent';
 import { layoutPoster, type PosterAct } from '../lib/posterLayout';
+import { downloadPosterPng } from '../lib/downloadPoster';
 
 /**
  * LineupPoster — the on-screen reveal of "the week as a downloadable festival
@@ -108,6 +109,18 @@ export function LineupPoster({
   const close = useCallback(() => {
     onClose();
   }, [onClose]);
+
+  // Download the poster as a 1080×1920 PNG, painted from the SAME `layout` this
+  // DOM poster renders (plus the same footer dates/venues/watermark), so the
+  // file matches the on-screen bill exactly. 100% client-side — no upload.
+  const download = useCallback(() => {
+    const filename = `earshot-${city}-${timeWindow}.png`;
+    void downloadPosterPng(layout, filename, {
+      dates: dateStamps,
+      venues,
+      watermarkPath: watermark,
+    });
+  }, [layout, city, timeWindow, dateStamps, venues, watermark]);
 
   // Capture the trigger, move focus into the dialog, and restore focus on close.
   useEffect(() => {
@@ -344,6 +357,13 @@ export function LineupPoster({
             letterSpacing: '0.04em',
           }}
         >
+          {/* Overflow is honest, not an error: the finite bill dropped N smaller
+              acts (§2.4). Surface it as a quiet "+N more" note on the paper. */}
+          {layout.overflowDropped > 0 ? (
+            <div data-testid="poster-overflow" style={{ marginBottom: '0.6em', color: ASH }}>
+              +{layout.overflowDropped} more
+            </div>
+          ) : null}
           {dateStamps.length > 0 ? (
             <div style={{ textTransform: 'uppercase' }}>{dateStamps.join('  ·  ')}</div>
           ) : null}
@@ -353,6 +373,27 @@ export function LineupPoster({
             </div>
           ) : null}
           <div style={{ marginTop: '0.9em', color: INK }}>{watermark}</div>
+
+          {/* Download — paints the SAME layout onto an offscreen 1080×1920 canvas
+              and saves a PNG. Light-paper styled to stay in the poster's context. */}
+          <button
+            type="button"
+            onClick={download}
+            style={{
+              marginTop: '1.2em',
+              padding: '0.5em 1.1em',
+              borderRadius: '9999px',
+              background: SURFACE,
+              border: `1px solid ${INK}`,
+              color: INK,
+              fontSize: '1em',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            Download poster
+          </button>
         </div>
       </div>
     </div>
