@@ -38,7 +38,7 @@ export function AttributionFooter() {
           JamBase
         </a>
         {' · '}
-        Previews &amp; artwork via{' '}
+        Previews via{' '}
         <a
           href="https://music.apple.com"
           target="_blank"

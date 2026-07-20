@@ -258,10 +258,10 @@ describe('nameSizePx — prominence sizing', () => {
     expect(nameSizePx(0.9)).toBeGreaterThan(nameSizePx(0.3));
   });
 
-  it('anchors near the spec points (0→15, 0.5→28, 1→64)', () => {
+  it('anchors near the spec points (0→15, 0.5→28, 1→48)', () => {
     expect(nameSizePx(0)).toBe(15);
     expect(nameSizePx(0.5)).toBe(28);
-    expect(nameSizePx(1)).toBe(64);
+    expect(nameSizePx(1)).toBe(48); // capped at 48 (down from 64) so wrapped names stay ~2 lines
   });
 
   it('defaults to the 0.5 midpoint size', () => {
@@ -270,6 +270,6 @@ describe('nameSizePx — prominence sizing', () => {
 
   it('clamps out-of-range prominence to the sane range', () => {
     expect(nameSizePx(-5)).toBe(15);
-    expect(nameSizePx(9)).toBe(64);
+    expect(nameSizePx(9)).toBe(48);
   });
 });

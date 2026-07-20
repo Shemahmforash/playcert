@@ -72,18 +72,20 @@ function usePrefersReducedMotion(): boolean {
  * Map an artist's prominence (0..1 fame) to a display-name size in px.
  *
  * Anchored to the design system's concrete scale (§1.2 / Task 2.2): the fine
- * print floor sits at ~15px, the default mid act at ~28px, and an arena
- * headliner bleeds up to ~64px. The curve is two linear segments hinged at the
- * 0.5 midpoint so all three anchors land exactly and the mapping stays strictly
- * monotonic. Prominence is clamped to [0,1], so the output never escapes
- * [15, 64] px. Phase 3's dial will drive `prominence` live.
+ * print floor sits at ~15px, the default mid act at ~28px, and a top-billed
+ * headliner reaches ~48px. (Capped at 48, down from 64: names now WRAP instead
+ * of truncating, and 64px headliners wrapped to 3–4 lines — 48 keeps a long name
+ * to ~2 readable lines while still reading much bigger than an opener.) The curve
+ * is two linear segments hinged at the 0.5 midpoint so all three anchors land
+ * exactly and the mapping stays strictly monotonic. Prominence is clamped to
+ * [0,1], so the output never escapes [15, 48] px.
  */
 export function nameSizePx(prominence = 0.5): number {
   const p = Math.min(1, Math.max(0, prominence));
   const px =
     p <= 0.5
       ? 15 + (p / 0.5) * (28 - 15) // 0 → 15 … 0.5 → 28
-      : 28 + ((p - 0.5) / 0.5) * (64 - 28); // 0.5 → 28 … 1 → 64
+      : 28 + ((p - 0.5) / 0.5) * (48 - 28); // 0.5 → 28 … 1 → 48
   return Math.round(px);
 }
 
@@ -206,10 +208,13 @@ export function TrackRow({
             can occupy two rows — the song line is what tells them apart. */}
         <div className="min-w-0 flex-1 flex flex-col justify-center">
           <span
-            className="truncate font-display uppercase"
+            // WRAP, never truncate — the biggest (most prominent) names are the
+            // longest and were the ones getting cut to "BELLE AN…", which defeats
+            // the size-as-importance idea. Long names now wrap to a second line.
+            className="font-display uppercase break-words"
             style={{
               fontSize: `${nameSizePx(prominence)}px`,
-              lineHeight: 1.05,
+              lineHeight: 1.0,
               letterSpacing: '-0.02em',
               opacity: isPlayed ? 0.6 : undefined, // used-stub: exact 60%
               color: 'var(--ink)',
