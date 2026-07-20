@@ -10,8 +10,10 @@ import { resolveContinuity } from '../lib/pipeline/rebuildDiff';
 import { usePlayer } from '../hooks/usePlayer';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useTasteMemory } from '../hooks/useTasteMemory';
+import { useShareThreshold } from '../hooks/useShareThreshold';
 import { PlaylistList } from './PlaylistList';
 import { RadioPlayer } from './RadioPlayer';
+import { ShareSheet } from './ShareSheet';
 import { SparseNotice } from './SparseNotice';
 import { SmallPrintDryNotice } from './SmallPrintDryNotice';
 import { WindowChips } from './WindowChips';
@@ -280,6 +282,14 @@ export function PlaylistScreen({
 
   const current = entries[state.index];
 
+  // ── Earned share threshold (Task 4.2) ─────────────────────────────────────
+  // Sharing is EARNED, never a wall before first sound. The grabber only appears
+  // once real engagement has accrued (two previews ≥15s OR ~20s of interaction).
+  // Suppressed for thin playlists (belowBar) — Task 4.5 extends this to Empty.
+  const { earned, notePreviewProgress, noteInteraction } = useShareThreshold({
+    suppressed: belowBar,
+  });
+
   // AUTO-ADVANCE ONLY. Once the element is unlocked by a synchronous play()
   // inside a user gesture (toggle/jump below), iOS Safari permits programmatic
   // play() on the SAME element for subsequent tracks. This effect must NOT be
@@ -330,6 +340,7 @@ export function PlaylistScreen({
 
   // ── Gesture handlers — play() is SYNCHRONOUS within the tap (iOS unlock) ───
   const toggle = () => {
+    noteInteraction(); // genuine gesture → accrue active-interaction time
     const el = audioRef.current;
     if (state.playing) {
       el?.pause();
@@ -341,6 +352,7 @@ export function PlaylistScreen({
   };
 
   const jumpTo = (i: number) => {
+    noteInteraction(); // genuine gesture → accrue active-interaction time
     const el = audioRef.current;
     if (el) {
       // Set src + play synchronously, before React re-renders — keeps the whole
@@ -365,6 +377,7 @@ export function PlaylistScreen({
   };
 
   const skip = () => {
+    noteInteraction(); // genuine gesture → accrue active-interaction time
     // Remember the deliberately-skipped artist (taste signal), then advance.
     if (current) markSkipped(current.track.artistId);
     dispatch({ type: 'skip' });
@@ -428,6 +441,8 @@ export function PlaylistScreen({
     const dur =
       Number.isFinite(el.duration) && el.duration > 0 ? el.duration : PREVIEW_SECONDS;
     setProgress(Math.min(1, el.currentTime / dur));
+    // Feed the earned-share threshold — ONLY while actually playing (§B S11).
+    if (state.playing) notePreviewProgress(state.index, el.currentTime);
   };
 
   if (entries.length === 0) {
@@ -553,6 +568,27 @@ export function PlaylistScreen({
           entering
         />
       </div>
+
+      {/* Earned share sheet (Task 4.2): a quiet "Take it with you" grabber sits
+          ~24px ABOVE the player once sharing is earned — it renders NOTHING until
+          then and never auto-opens. Canonical URL is built from location.origin at
+          click time (no geo/header read). */}
+      <ShareSheet
+        earned={earned}
+        city={city}
+        window={timeWindow}
+        fontStop={fontStop}
+        currentTrack={
+          current
+            ? {
+                artist:
+                  artists[current.track.artistId]?.normalizedName ??
+                  current.track.artistId,
+                title: current.track.title,
+              }
+            : null
+        }
+      />
 
       <RadioPlayer
         track={
