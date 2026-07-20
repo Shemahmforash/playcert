@@ -1,0 +1,70 @@
+{
+  "events": [
+    {
+      "identifier": "jambase:16063353",
+      "name": "Matt Berninger at Electric Ballroom",
+      "startDate": "2026-07-20T19:00:00",
+      "url": "https://www.jambase.com/show/matt-berninger-electric-ballroom-20260720",
+      "location": {
+        "name": "Electric Ballroom",
+        "address": {
+          "addressLocality": "London"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": 51.5397,
+          "longitude": -0.1431
+        }
+      },
+      "offers": [
+        {
+          "url": "https://link.dice.fm/z196523f6dcb?utm_source=jambase",
+          "category": "ticketingLinkPrimary",
+          "seller": "DICE"
+        }
+      ],
+      "x-headlinerInSupport": false,
+      "performer": [
+        {
+          "name": "Matt Berninger",
+          "x-isHeadliner": true
+        },
+        {
+          "name": "Ronboy",
+          "x-isHeadliner": false
+        }
+      ]
+    },
+    {
+      "identifier": "jambase:15668838",
+      "name": "Juanes at O2 Forum Kentish Town",
+      "startDate": "2026-07-20T19:00:00",
+      "url": "https://www.jambase.com/show/juanes-o2-forum-kentish-town-20260720",
+      "location": {
+        "name": "O2 Forum Kentish Town",
+        "address": {
+          "addressLocality": "London"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": 51.5522,
+          "longitude": -0.142
+        }
+      },
+      "offers": [
+        {
+          "url": "https://link.dice.fm/k842aacabc59",
+          "category": "ticketingLinkPrimary",
+          "seller": "DICE"
+        }
+      ],
+      "x-headlinerInSupport": false,
+      "performer": [
+        {
+          "name": "Juanes",
+          "x-isHeadliner": true
+        }
+      ]
+    }
+  ]
+}

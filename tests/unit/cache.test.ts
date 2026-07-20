@@ -28,13 +28,13 @@ describe('cacheKeys', () => {
   });
 });
 
-describe('bundleCacheProfile (R3)', () => {
-  it('returns 120s below the 8-playable-track bar', () => {
-    expect(bundleCacheProfile(7)).toEqual({ revalidate: 120 });
-    expect(bundleCacheProfile(0)).toEqual({ revalidate: 120 });
+describe('bundleCacheProfile (cost control — JamBase free tier)', () => {
+  it('returns 6h (21600s) degraded below the 8-playable-track bar', () => {
+    expect(bundleCacheProfile(7)).toEqual({ revalidate: 21_600 });
+    expect(bundleCacheProfile(0)).toEqual({ revalidate: 21_600 });
   });
-  it('returns 3600s at/above the bar', () => {
-    expect(bundleCacheProfile(8)).toEqual({ revalidate: 3600 });
-    expect(bundleCacheProfile(30)).toEqual({ revalidate: 3600 });
+  it('returns 24h (86400s) at/above the bar', () => {
+    expect(bundleCacheProfile(8)).toEqual({ revalidate: 86_400 });
+    expect(bundleCacheProfile(30)).toEqual({ revalidate: 86_400 });
   });
 });

@@ -8,7 +8,7 @@ import { geoForCity } from '../../../../lib/api/geo';
 import { buildBundleCached } from '../../../../lib/pipeline/buildBundle';
 import { realDeps } from '../../../../lib/pipeline/realDeps';
 import { bundleCacheProfile } from '../../../../lib/cache';
-import { TicketmasterError } from '../../../../lib/api/ticketmaster';
+import { JambaseError } from '../../../../lib/api/jambase';
 import { PlaylistScreen } from '../../../../components/PlaylistScreen';
 import { LoadingTheater } from '../../../../components/LoadingTheater';
 import { EmptyState } from '../../../../components/EmptyState';
@@ -94,7 +94,9 @@ async function PlaylistSection({ params }: { params: Params }) {
       />
     );
   } catch (err) {
-    if (err instanceof TicketmasterError) {
+    // JamBase is the live source: a quota/error → ErrorState while the edge
+    // serves stale is acceptable graceful degradation.
+    if (err instanceof JambaseError) {
       return <ErrorState />;
     }
     throw err;

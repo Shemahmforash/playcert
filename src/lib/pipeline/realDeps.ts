@@ -1,22 +1,13 @@
 import { notFound } from 'next/navigation';
 import { cacheLife } from 'next/cache';
 import { geoForCity } from '../api/geo';
-import type { TimeWindow } from '../types';
 import type { BuildDeps } from './buildBundle';
-import { fetchShowsWithWiden } from './fetchShows';
 import { extractArtists } from './extractArtists';
 import { resolveTracks } from './resolveTracks';
-import { fetchAllEvents } from '../api/ticketmaster';
+import { fetchJambaseShows } from '../api/jambase';
 import { searchArtistTracks, type ItunesCandidate } from '../api/itunes';
 import { crossCheckArtist } from '../api/musicbrainz';
 import { itunesQueue } from '../queue';
-
-function windowRange(w: TimeWindow) {
-  const iso = (d: Date) => d.toISOString().replace(/\.\d+Z$/, 'Z');
-  const now = new Date();
-  const days = w === 'tonight' ? 1 : w === 'this-weekend' ? 3 : 14;
-  return { startISO: iso(now), endISO: iso(new Date(now.getTime() + days * 864e5)) };
-}
 
 const DAY = 60 * 60 * 24;
 
@@ -41,19 +32,10 @@ export function realDeps(city: string): BuildDeps {
       if (!geo) notFound();
       return geo!;
     },
-    fetchShows: (g, w) =>
-      fetchShowsWithWiden(g, w, {
-        query: async (gg, radiusKm, ww) => {
-          const { startISO, endISO } = windowRange(ww);
-          return fetchAllEvents({
-            apikey: process.env.TICKETMASTER_KEY!,
-            latlong: `${gg.lat},${gg.lng}`,
-            radiusKm,
-            startDateTime: startISO,
-            endDateTime: endISO,
-          });
-        },
-      }),
+    // JamBase is the primary source. Exactly ONE network call per build: a wide
+    // fetch (50km / next-14-days) with local window filtering — no escalating
+    // widen calls — to stay inside the 1k-calls/month free tier.
+    fetchShows: (g, w) => fetchJambaseShows(g, w),
     extract: extractArtists,
     resolveArtist: (a) =>
       resolveTracks([a], {

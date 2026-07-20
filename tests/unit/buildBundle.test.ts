@@ -89,7 +89,7 @@ describe('buildBundle (R3/R4)', () => {
       fetchShows: async () => ({ shows: [mkShow('tm:1', '2026-07-20T10:00:00Z', ['X', 'Y'])] }),
     }));
     expect(partial.belowBar).toBe(true);
-    expect(bundleCacheProfile(partial.tracks.length)).toEqual({ revalidate: 120 });
+    expect(bundleCacheProfile(partial.tracks.length)).toEqual({ revalidate: 21_600 });
 
     // Full bundle (8 acts → 8 tracks).
     const eight = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -98,7 +98,7 @@ describe('buildBundle (R3/R4)', () => {
     }));
     expect(full.tracks.length).toBe(8);
     expect(full.belowBar).toBe(false);
-    expect(bundleCacheProfile(full.tracks.length)).toEqual({ revalidate: 3600 });
+    expect(bundleCacheProfile(full.tracks.length)).toEqual({ revalidate: 86_400 });
   });
 
   it('buildBundleCached coalesces concurrent calls for the same key into ONE build', async () => {
