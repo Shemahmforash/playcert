@@ -158,7 +158,7 @@ export async function fetchJambaseShows(
     eventDateFrom: from,
     eventDateTo: to,
     perPage: String(PER_PAGE),
-    sortEvents: 'date:asc',
+    sort: 'eventDate', // ascending by date (JamBase's `sort` enum: eventDate | -eventDate)
   };
 
   const json = await fetchOnce(params, deps);

@@ -42,6 +42,9 @@ export function cityFromHeaders(headers: Headers): CityHint | null {
  */
 export const CITY_TABLE: Record<string, Geo> = {
   london: { lat: 51.5074, lng: -0.1278, displayName: 'London', countryCode: 'GB', tz: 'Europe/London' },
+  // Portugal — now reachable because JamBase (unlike Ticketmaster) covers PT.
+  lisbon: { lat: 38.7223, lng: -9.1393, displayName: 'Lisbon', countryCode: 'PT', tz: 'Europe/Lisbon' },
+  porto: { lat: 41.1579, lng: -8.6291, displayName: 'Porto', countryCode: 'PT', tz: 'Europe/Lisbon' },
   manchester: { lat: 53.4808, lng: -2.2426, displayName: 'Manchester', countryCode: 'GB', tz: 'Europe/London' },
   dublin: { lat: 53.3498, lng: -6.2603, displayName: 'Dublin', countryCode: 'IE', tz: 'Europe/Dublin' },
   madrid: { lat: 40.4168, lng: -3.7038, displayName: 'Madrid', countryCode: 'ES', tz: 'Europe/Madrid' },
