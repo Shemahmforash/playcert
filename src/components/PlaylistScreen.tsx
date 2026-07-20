@@ -19,7 +19,7 @@ import { SmallPrintDryNotice } from './SmallPrintDryNotice';
 import { WindowChips } from './WindowChips';
 import { EarshotDial } from './EarshotDial';
 import { LineupPoster } from './LineupPoster';
-import { posterActsFromBundle } from '../lib/posterLayout';
+import { posterActsFromEntries } from '../lib/posterLayout';
 import { formatCanonicalPath, FONT_STOPS } from '../lib/urlState';
 
 /**
@@ -706,7 +706,7 @@ export function PlaylistScreen({
           The audio element above is untouched, so the radio never stops. */}
       {posterOpen ? (
         <LineupPoster
-          acts={posterActsFromBundle(bundle)}
+          acts={posterActsFromEntries(entries, artists)}
           shows={bundle.shows}
           city={city}
           window={timeWindow}

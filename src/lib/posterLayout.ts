@@ -11,7 +11,8 @@
 // dark app so it reads as an ink-on-paper printout), so the colours here are
 // inline hex from the light palette — deliberately NOT the app's dark tokens.
 
-import type { CityWindowBundle, FontStop, TimeWindow } from './types';
+import type { Artist, CityWindowBundle, FontStop, TimeWindow } from './types';
+import type { PlaylistEntry } from './pipeline/order';
 import { cityDisplay } from './title';
 
 // ── Light-paper palette (SSOT §2.4). Inline hex: this is a distinct context. ──
@@ -94,6 +95,32 @@ export function posterActsFromBundle(bundle: CityWindowBundle): PosterAct[] {
     acts.push({ name, prominence: clamp01(artist.prominence) });
   }
   // Prominence DESC; name ASC as a stable, deterministic tie-break.
+  acts.sort((a, b) => b.prominence - a.prominence || a.name.localeCompare(b.name));
+  return acts;
+}
+
+/**
+ * Distinct acts pulled from the CURRENT playlist entries — i.e. exactly the acts
+ * the visitor sees on screen (artists whose tracks actually resolved and are in
+ * this font-stop view). This is what the poster should show: `posterActsFromBundle`
+ * draws from `bundle.artists`, which includes acts that were extracted but never
+ * got a playable track (unresolved headliners), so it listed names absent from
+ * the list. De-duped by artistId, sorted by billing prominence DESC.
+ */
+export function posterActsFromEntries(
+  entries: PlaylistEntry[],
+  artists: Record<string, Artist>,
+): PosterAct[] {
+  const seen = new Set<string>();
+  const acts: PosterAct[] = [];
+  for (const entry of entries) {
+    const id = entry.track.artistId;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const artist = artists[id];
+    if (!artist) continue;
+    acts.push({ name: artist.normalizedName, prominence: clamp01(artist.prominence) });
+  }
   acts.sort((a, b) => b.prominence - a.prominence || a.name.localeCompare(b.name));
   return acts;
 }

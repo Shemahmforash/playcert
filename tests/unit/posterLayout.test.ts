@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   layoutPoster,
   posterActsFromBundle,
+  posterActsFromEntries,
   type PosterAct,
 } from '../../src/lib/posterLayout';
 import type { Artist, CityWindowBundle } from '../../src/lib/types';
+import type { PlaylistEntry } from '../../src/lib/pipeline/order';
 
 /**
  * Task 4.6 — the PURE Lineup Poster layout engine.
@@ -149,5 +151,23 @@ describe('posterActsFromBundle', () => {
     const acts = posterActsFromBundle(bundle);
     expect(acts.map((a) => a.name)).toEqual(['HEADLINER', 'MID ACT', 'OPENER']);
     expect(acts).toHaveLength(3);
+  });
+
+  it('posterActsFromEntries: only the acts in the playlist, deduped + prominence-sorted', () => {
+    const artists: Record<string, Artist> = {
+      played: mkArtist('played', 'PLAYED ACT', 0.4),
+      head: mkArtist('head', 'HEADLINER', 0.9),
+      // An extracted-but-UNRESOLVED headliner: in bundle.artists but NOT in any
+      // entry (no playable track). The poster must NOT show it (the on-screen bug).
+      ghost: mkArtist('ghost', 'GHOST HEADLINER', 1.0),
+    };
+    const mkEntry = (artistId: string) =>
+      ({ track: { artistId }, show: { id: 's' }, isEncore: false }) as unknown as PlaylistEntry;
+    // HEADLINER appears twice (2nd-headliner track) — must dedupe to one.
+    const entries = [mkEntry('played'), mkEntry('head'), mkEntry('head')];
+
+    const acts = posterActsFromEntries(entries, artists);
+    expect(acts.map((a) => a.name)).toEqual(['HEADLINER', 'PLAYED ACT']); // no GHOST
+    expect(acts).toHaveLength(2);
   });
 });
