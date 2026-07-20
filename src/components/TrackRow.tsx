@@ -27,6 +27,7 @@ export interface TrackRowProps {
   dateLabel: string;        // e.g. "SAT 20" (caller derives from show.startsAt)
   doors?: string;           // e.g. "8PM"
   ticketUrl: string;
+  itunesUrl?: string;       // Track.itunesUrl — per-track Apple linkback (ToS)
   state: 'idle' | 'playing' | 'played' | 'unavailable';
   prominence?: number;      // 0..1 — display-name size (fame). Default 0.5.
   isEncore?: boolean;
@@ -102,6 +103,7 @@ export function TrackRow({
   dateLabel,
   doors,
   ticketUrl,
+  itunesUrl,
   state,
   prominence = 0.5,
   isEncore,
@@ -386,6 +388,7 @@ export function TrackRow({
         dateLabel={dateLabel}
         doors={doors}
         ticketUrl={ticketUrl}
+        itunesUrl={itunesUrl}
         role={role}
         headliner={headliner}
         sameBill={sameBill}

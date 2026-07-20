@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Roboto_Flex, Inter, Spline_Sans_Mono } from "next/font/google";
 import "./globals.css";
+import { AttributionFooter } from "../components/AttributionFooter";
 
 // Display face — Roboto Flex carries both weight and width axes; the width (`wdth`)
 // axis is load-bearing for the EarshotDial's live re-typesetting (openers expand
@@ -41,7 +42,16 @@ export default function RootLayout({
       lang="en"
       className={`${robotoFlex.variable} ${inter.variable} ${splineSansMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {/* Site-wide required source credit (Task 5.1) — mounted once here so
+            landing, playlist, empty, error and 404 all carry the JamBase +
+            Apple linkbacks. `mt-auto` seats it at the page bottom when content
+            is short; its own bottom padding clears the sticky RadioPlayer. */}
+        <div className="mt-auto">
+          <AttributionFooter />
+        </div>
+      </body>
     </html>
   );
 }

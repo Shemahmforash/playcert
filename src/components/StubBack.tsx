@@ -38,6 +38,12 @@ export interface StubBackProps {
   dateLabel: string;
   doors?: string;
   ticketUrl: string;
+  /**
+   * Apple linkback for THIS track (Track.itunesUrl). Apple's API terms REQUIRE a
+   * linkback to the track on Apple wherever we use its preview/artwork, so every
+   * rendered track surfaces it here as a quiet "Apple Music ▸" next to Tickets.
+   */
+  itunesUrl?: string;
   /** 'opener' bills "opening for {headliner}"; 'headliner' bills "— headlining". */
   role?: 'opener' | 'headliner';
   headliner?: string;
@@ -54,6 +60,7 @@ export function StubBack({
   dateLabel,
   doors,
   ticketUrl,
+  itunesUrl,
   role,
   headliner,
   sameBill,
@@ -157,6 +164,21 @@ export function StubBack({
       >
         Tickets ▸
       </a>
+
+      {/* Apple linkback for this track — a ToS requirement wherever we use the
+          Apple-hosted preview/artwork. Quiet mono row beneath the Tickets stamp;
+          rendered whenever the track carries an itunesUrl (always, in the list). */}
+      {itunesUrl ? (
+        <a
+          href={itunesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center uppercase focus-visible:outline-2 focus-visible:outline-offset-2"
+          style={{ minHeight: '32px', color: 'var(--ash)', letterSpacing: '0.06em' }}
+        >
+          Apple Music ▸
+        </a>
+      ) : null}
 
       {/* wrong artist? — fires the beacon once, then reads "Thanks — noted". */}
       <div className="mt-auto flex justify-end">

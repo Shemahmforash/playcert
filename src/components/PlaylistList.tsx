@@ -296,6 +296,7 @@ export function PlaylistList({
           venue={show.venue.name}
           dateLabel={dateLabelFor(show.startsAt)}
           ticketUrl={show.ticketUrl}
+          itunesUrl={track.itunesUrl}
           state={state}
           prominence={artists[artistId]?.prominence ?? 0.5}
           isEncore={isEncore}
