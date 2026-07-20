@@ -285,9 +285,11 @@ export function PlaylistScreen({
   // ── Earned share threshold (Task 4.2) ─────────────────────────────────────
   // Sharing is EARNED, never a wall before first sound. The grabber only appears
   // once real engagement has accrued (two previews ≥15s OR ~20s of interaction).
-  // Suppressed for thin playlists (belowBar) — Task 4.5 extends this to Empty.
+  // Suppressed for thin (belowBar) AND empty playlists (Task 4.5) — a dead thin
+  // link is never worth forwarding (blueprint risk 6). The empty case also never
+  // reaches the ShareSheet render (early return below), so this is belt-and-braces.
   const { earned, notePreviewProgress, noteInteraction } = useShareThreshold({
-    suppressed: belowBar,
+    suppressed: belowBar || entries.length === 0,
   });
 
   // AUTO-ADVANCE ONLY. Once the element is unlocked by a synchronous play()

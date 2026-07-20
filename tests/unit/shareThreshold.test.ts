@@ -108,4 +108,21 @@ describe('useShareThreshold — hook behaviour', () => {
     });
     expect(result.current.earned).toBe(false);
   });
+
+  // Task 4.5 — the same engagement earns a NORMAL playlist but never a thin/empty
+  // one (PlaylistScreen passes `suppressed: belowBar || entries.length === 0`).
+  // A dead thin link is never worth forwarding (blueprint risk 6).
+  it('4.5: suppression is the discriminator — identical signals earn only when not suppressed', () => {
+    const signals = (r: { notePreviewProgress: (i: number, s: number) => void }) => {
+      r.notePreviewProgress(0, 20);
+      r.notePreviewProgress(1, 20);
+    };
+    const normal = renderHook(() => useShareThreshold({ suppressed: false }));
+    act(() => signals(normal.result.current));
+    expect(normal.result.current.earned).toBe(true); // full playlist → earns
+
+    const thin = renderHook(() => useShareThreshold({ suppressed: true }));
+    act(() => signals(thin.result.current));
+    expect(thin.result.current.earned).toBe(false); // belowBar / Empty → never
+  });
 });
