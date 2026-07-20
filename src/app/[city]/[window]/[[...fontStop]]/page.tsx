@@ -1,9 +1,11 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cacheLife } from 'next/cache';
 import { resolvePageState } from '../../../../lib/pageState';
-import type { RequestKey } from '../../../../lib/urlState';
+import { formatCanonicalPath, type RequestKey } from '../../../../lib/urlState';
 import type { TimeWindow } from '../../../../lib/types';
+import { pageTitle, pageDescription } from '../../../../lib/title';
 import { geoForCity } from '../../../../lib/api/geo';
 import { buildBundleCached } from '../../../../lib/pipeline/buildBundle';
 import { realDeps } from '../../../../lib/pipeline/realDeps';
@@ -27,6 +29,38 @@ const titleCase = (slug: string) =>
   slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 type Params = Promise<{ city: string; window: string; fontStop?: string[] }>;
+
+/**
+ * Per-request page metadata (title/description/canonical + OG/Twitter). Derived
+ * from the URL ONLY — it must NEVER read the bundle / call JamBase, since social
+ * crawlers hit these unpredictably across many URLs (the OG image is likewise
+ * URL-derived, see opengraph-image.tsx). The OG image itself is auto-wired by
+ * the `opengraph-image` file convention, so `openGraph.images` is left unset.
+ *
+ * Canonical is the SHORT form (R11): `formatCanonicalPath` omits `/everything`,
+ * so `/london/next-14-days/everything` and `/london/next-14-days` both canonicalize
+ * to `…/next-14-days`.
+ */
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { city, window, fontStop } = await params;
+  const state = resolvePageState({ city, window, fontStop });
+  if (state.kind !== 'render') {
+    // Invalid params → the page 404s; give crawlers plain brand metadata.
+    return { title: 'Earshot', description: 'The gig listings you read from the bottom up.' };
+  }
+  const key = state.key;
+  // Request-time date for the range label — dynamic per request, no bundle read.
+  const title = pageTitle(key.city, key.window, new Date());
+  const description = pageDescription(key.city);
+  const canonical = formatCanonicalPath(key);
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: { title, description, url: canonical, type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
+  };
+}
 
 // Resolves + validates the dynamic params inside a Suspense boundary. With
 // dynamicParams=false this always succeeds, but the checks stay as defense.
