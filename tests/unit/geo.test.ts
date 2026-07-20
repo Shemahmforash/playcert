@@ -24,7 +24,7 @@ describe('geoForCity', () => {
     expect(typeof g?.lat).toBe('number');
     expect(typeof g?.tz).toBe('string');
   });
-  it('returns null for an uncovered city (e.g. Lisbon — no Ticketmaster coverage)', () => {
-    expect(geoForCity('lisbon')).toBeNull();
+  it('returns null for an uncovered city (not in the table)', () => {
+    expect(geoForCity('reykjavik')).toBeNull();
   });
 });

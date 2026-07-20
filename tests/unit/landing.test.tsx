@@ -49,7 +49,7 @@ describe('CityPicker', () => {
     render(<CityPicker prefill={null} />);
 
     const input = screen.getByLabelText(/city/i) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'lisbon' } });
+    fireEvent.change(input, { target: { value: 'reykjavik' } });
     fireEvent.submit(input.closest('form') as HTMLFormElement);
 
     expect(
