@@ -8,7 +8,7 @@ import type { TimeWindow } from '../../../../lib/types';
 import { pageTitle, pageDescription } from '../../../../lib/title';
 import { geoForCity } from '../../../../lib/api/geo';
 import { buildBundleCached } from '../../../../lib/pipeline/buildBundle';
-import { realDeps } from '../../../../lib/pipeline/realDeps';
+import { buildDeps } from '../../../../lib/pipeline/deps';
 import { bundleCacheProfile } from '../../../../lib/cache';
 import { JambaseError } from '../../../../lib/api/jambase';
 import { PlaylistScreen } from '../../../../components/PlaylistScreen';
@@ -74,7 +74,7 @@ async function resolveKey(params: Params): Promise<RequestKey> {
 
 async function getBundle(city: string, window: TimeWindow) {
   'use cache: remote';
-  const b = await buildBundleCached(city, window, realDeps(city));
+  const b = await buildBundleCached(city, window, buildDeps(city));
   cacheLife(bundleCacheProfile(b.tracks.length));
   return b;
 }
