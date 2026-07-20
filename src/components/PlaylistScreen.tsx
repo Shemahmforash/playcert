@@ -57,6 +57,14 @@ const STOP_LABEL: Record<FontStop, string> = {
   'small-print': 'Small Print',
 };
 
+/** Title-case a city slug for display, e.g. "new-york" → "New York". */
+function titleCaseCity(slug: string): string {
+  return slug
+    .split('-')
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
 /** Distinct gigs behind the playlist = the poster count (§2.5). */
 export function distinctPosterCount(entries: PlaylistEntry[]): number {
   return new Set(entries.map((e) => e.show.id)).size;
@@ -465,6 +473,15 @@ export function PlaylistScreen({
           collapsed={state.playing}
           label="Change window"
         />
+        {/* Mis-located? Reach the picker WITHOUT the middleware auto-redirecting
+            straight back — ?pick=1 is the escape hatch. Kept visually quiet. */}
+        <a
+          href="/?pick=1"
+          className="shrink-0 text-xs underline underline-offset-4"
+          style={{ color: 'var(--ash)' }}
+        >
+          not {titleCaseCity(city)}?
+        </a>
       </div>
 
       {/* The signature control — the printed point-size gauge (Task 3.5). Given

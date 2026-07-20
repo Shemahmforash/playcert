@@ -6,6 +6,7 @@ import type { TimeWindow } from '../lib/types';
 import { CITY_TABLE, geoForCity } from '../lib/api/geo';
 import { slugify } from '../lib/pipeline/extractArtists';
 import { WindowChips } from './WindowChips';
+import { UseMyLocation } from './UseMyLocation';
 
 /**
  * CityPicker — the landing entry point (Task 2.7).
@@ -98,6 +99,10 @@ export function CityPicker({ prefill }: CityPickerProps) {
         </p>
       )}
 
+      {/* GPS upgrade — jump straight to the visitor's precise city. Prompts the
+          browser geolocation permission ONLY on click, never on mount. */}
+      <UseMyLocation window={window} />
+
       {fieldOpen && (
         <form onSubmit={commitCity} className="flex flex-col gap-2" noValidate>
           <label htmlFor="city-field" className="text-xs uppercase tracking-[0.2em] text-ash">
@@ -130,6 +135,12 @@ export function CityPicker({ prefill }: CityPickerProps) {
           )}
         </form>
       )}
+
+      {/* Privacy one-liner — approximate location only, nothing stored. */}
+      <p className="text-[11px] leading-snug text-ash-quiet">
+        We use your approximate location to show nearby gigs — no account, no
+        cookies, nothing stored.
+      </p>
     </div>
   );
 }

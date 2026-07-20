@@ -59,3 +59,63 @@ export const CITY_TABLE: Record<string, Geo> = {
 export function geoForCity(slug: string): Geo | null {
   return CITY_TABLE[slug] ?? null;
 }
+
+/**
+ * Read Vercel's approximate IP coordinates (`x-vercel-ip-latitude` /
+ * `x-vercel-ip-longitude`). Pure and keyless: parseFloat both, return null
+ * unless BOTH are finite numbers. These headers exist ONLY at the edge — they
+ * must be read in middleware (before the cache), never in a page render.
+ */
+export function latLngFromHeaders(headers: Headers): { lat: number; lng: number } | null {
+  const lat = parseFloat(headers.get('x-vercel-ip-latitude') ?? '');
+  const lng = parseFloat(headers.get('x-vercel-ip-longitude') ?? '');
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+const EARTH_RADIUS_KM = 6371;
+
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(s));
+}
+
+/**
+ * Snap arbitrary coordinates to the nearest COVERED city (great-circle km,
+ * R=6371). Returns the closest entry ONLY if within `maxKm` (default 150) —
+ * else null ("not in your area yet"). Pure, no network. Snapping to the finite
+ * CITY_TABLE (rather than geocoding a name) keeps the URL cache-key space finite.
+ */
+export function nearestCity(
+  lat: number,
+  lng: number,
+  maxKm = 150,
+): { slug: string; geo: Geo; distanceKm: number } | null {
+  let best: { slug: string; geo: Geo; distanceKm: number } | null = null;
+  for (const [slug, geo] of Object.entries(CITY_TABLE)) {
+    const distanceKm = haversineKm(lat, lng, geo.lat, geo.lng);
+    if (best === null || distanceKm < best.distanceKm) {
+      best = { slug, geo, distanceKm };
+    }
+  }
+  if (best === null || best.distanceKm > maxKm) return null;
+  return best;
+}
+
+/**
+ * The testable middleware decision for the root path. If `wantsPicker` (the
+ * `?pick=1` escape hatch), return null — never auto-redirect. Otherwise read the
+ * IP coords and, if present, snap to the nearest covered city's slug (or null
+ * when no city is within range / no coords). Pure — build a Headers to test it.
+ */
+export function rootRedirectSlug(headers: Headers, wantsPicker: boolean): string | null {
+  if (wantsPicker) return null;
+  const coords = latLngFromHeaders(headers);
+  if (!coords) return null;
+  return nearestCity(coords.lat, coords.lng)?.slug ?? null;
+}
