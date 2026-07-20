@@ -45,22 +45,22 @@ const DETENTS: readonly Detent[] = [
     stop: 'everything',
     label: 'MARQUEE',
     pt: '72',
-    valuetext: 'Marquee — the whole bill, headliners included',
-    blurb: 'The whole lineup — big-name headliners included.',
+    valuetext: 'Marquee — the whole bill, every act',
+    blurb: 'The whole lineup — headliners and openers.',
   },
   {
     stop: 'no-arenas',
     label: 'NO ARENAS',
     pt: '24',
-    valuetext: 'No arenas — drop the biggest headliners',
-    blurb: 'The biggest headliners pulled back.',
+    valuetext: 'No arenas — headliners cut to a single song',
+    blurb: 'Headliners cut to one song each.',
   },
   {
     stop: 'small-print',
     label: 'SMALL PRINT',
     pt: '6',
-    valuetext: 'Small print — openers and small-room acts only',
-    blurb: 'Just the openers and small-room acts.',
+    valuetext: 'Small print — the opening and support acts only',
+    blurb: 'Just the opening and support acts.',
   },
 ];
 

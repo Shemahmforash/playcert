@@ -83,31 +83,6 @@ describe('buildBundle (R3/R4)', () => {
     expect(bundle.posterCount).toBe(3);
   });
 
-  it('gathers signals ONLY for resolved artists, never the unresolved ones (perf regression guard)', async () => {
-    // Six artists but the budget blows after two resolve. getSignals must be
-    // handed only those two — gathering signals for the 4 unresolved artists
-    // fired cold, rate-limited iTunes/ListenBrainz calls that hung the build.
-    const shows = [
-      mkShow('tm:1', '2026-07-20T10:00:00Z', ['A1', 'A2']),
-      mkShow('tm:2', '2026-07-20T11:00:00Z', ['B1', 'B2']),
-      mkShow('tm:3', '2026-07-20T12:00:00Z', ['C1', 'C2']),
-    ];
-    const start = 1_000;
-    let calls = 0;
-    const now = vi.fn(() => (calls < 2 ? start : start + 25_001));
-    const resolveArtist = vi.fn(async (a: Artist) => {
-      calls++;
-      return [trackFor(a)];
-    });
-    const getSignals = vi.fn(async (_artists: Artist[]) => ({}));
-    const deps = baseDeps({ fetchShows: async () => ({ shows }), resolveArtist, now, getSignals });
-    await buildBundle('braga', 'tonight', deps);
-    expect(getSignals).toHaveBeenCalledTimes(1);
-    const passed = getSignals.mock.calls[0][0].map((a) => a.id).sort();
-    // Exactly the two resolved artists — not the six billed.
-    expect(passed).toEqual(['a1', 'a2']);
-  });
-
   it('bundleCacheProfile matches belowBar: 120s degraded for partial, 3600s for full', async () => {
     // Partial bundle (2 tracks).
     const partial = await buildBundle('braga', 'tonight', baseDeps({
@@ -145,34 +120,17 @@ describe('buildBundle (R3/R4)', () => {
     expect(resolveArtist).toHaveBeenCalledTimes(5);
   });
 
-  it('scores artist prominence/tier from injected getSignals (R6)', async () => {
-    // One 2-act show: opener (slot 0) + headliner (slot 1, top slot).
-    const shows = [mkShow('tm:1', '2026-07-20T20:00:00Z', ['Opener', 'Headliner'])];
-    const deps = baseDeps({
-      fetchShows: async () => ({ shows }),
-      getSignals: async () => ({
-        // Headliner dominates both signals → mm 1 on both → prominence 1.0.
-        headliner: { listens: 999, releaseCount: 99 },
-        // Opener has the min terms → mm 0 → prominence 0.
-        opener: { listens: 0, releaseCount: 0 },
-      }),
-    });
-    const bundle = await buildBundle('braga', 'tonight', deps);
-    const headliner = bundle.artists['headliner'];
-    const opener = bundle.artists['opener'];
-    expect(headliner.prominence).toBeCloseTo(1.0, 12);
-    expect(headliner.tier).toBe('arena'); // 1.0 + top slot
-    expect(opener.prominence).toBe(0);
-    expect(opener.tier).toBe('small-print'); // 0 and not top slot
-  });
-
-  it('with NO getSignals every artist scores prominence 0 (default behaviour)', async () => {
+  it('scores prominence/tier from OBJECTIVE billing order (headliner → arena, opener → small-print)', async () => {
+    // One 2-act show: opener (slot 0) + headliner (slot 1, top slot). Prominence
+    // comes straight from the billed order via the real extract + scoreArtists —
+    // no signals injected.
     const shows = [mkShow('tm:1', '2026-07-20T20:00:00Z', ['Opener', 'Headliner'])];
     const bundle = await buildBundle('braga', 'tonight', baseDeps({ fetchShows: async () => ({ shows }) }));
-    for (const a of Object.values(bundle.artists)) {
-      expect(a.prominence).toBe(0);
-      // 0 <= 0.35 → small-print for everyone when there are no signals.
-      expect(a.tier).toBe('small-print');
-    }
+    const headliner = bundle.artists['headliner'];
+    const opener = bundle.artists['opener'];
+    expect(headliner.prominence).toBe(1); // top of the bill
+    expect(headliner.tier).toBe('arena');
+    expect(opener.prominence).toBe(0); // bottom of the bill
+    expect(opener.tier).toBe('small-print');
   });
 });

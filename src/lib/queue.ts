@@ -34,4 +34,3 @@ export class RateQueue {
 export const tmQueue = new RateQueue({ minSpacingMs: 350, jitterMs: 150 }); // ~2.3 req/s, floor 350ms
 export const itunesQueue = new RateQueue({ minSpacingMs: 3500 });     // ~17/min
 export const mbQueue = new RateQueue({ minSpacingMs: 1000, jitterMs: 300 }); // 1/s + jitter
-export const lbQueue = new RateQueue({ minSpacingMs: 1000 });         // 1/s courtesy

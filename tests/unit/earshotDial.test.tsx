@@ -16,9 +16,9 @@ import type { FontStop } from '../../src/lib/types';
 afterEach(cleanup);
 
 const VALUETEXT: Record<FontStop, string> = {
-  everything: 'Marquee — the whole bill, headliners included',
-  'no-arenas': 'No arenas — drop the biggest headliners',
-  'small-print': 'Small print — openers and small-room acts only',
+  everything: 'Marquee — the whole bill, every act',
+  'no-arenas': 'No arenas — headliners cut to a single song',
+  'small-print': 'Small print — the opening and support acts only',
 };
 
 describe('EarshotDial — slider semantics', () => {

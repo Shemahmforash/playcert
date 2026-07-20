@@ -2,7 +2,7 @@ import type { Artist, CityWindowBundle, Show, TimeWindow, Track } from '../types
 import type { Geo } from '../api/geo';
 import type { WidenMeta } from './fetchShows';
 import { memoInFlight, cacheKeys } from '../cache';
-import { scoreArtists, type ProminenceSignals } from './score';
+import { scoreArtists } from './score';
 
 export type { CityWindowBundle } from '../types';
 
@@ -11,9 +11,6 @@ export interface BuildDeps {
   fetchShows: (geo: Geo, window: TimeWindow) => Promise<{ shows: Show[]; widened?: WidenMeta }>;
   extract: (shows: Show[]) => Record<string, Artist>; // mutates shows[].artistIds
   resolveArtist: (artist: Artist) => Promise<Track[]>; // PER-ARTIST so the budget can be checked between artists
-  // Prominence signals (R6), gathered AFTER resolution. Optional: default → {}
-  // so all prominence collapses to 0 and existing behaviour is unaffected.
-  getSignals?: (artists: Artist[]) => Promise<Record<string, ProminenceSignals>>;
   now: () => number; // injectable clock (ms)
   budgetMs?: number; // default 25_000 (R4)
 }
@@ -66,20 +63,9 @@ export async function buildBundle(
     tracks.push(...(await deps.resolveArtist(artist)));
   }
 
-  // R6 prominence scoring: gather signals (non-fatal, post-resolution) then
-  // mutate each artist's prominence/tier. No getSignals → {} → all prominence 0.
-  const allArtists = Object.values(artists);
-  // Only gather signals for RESOLVED artists (those that produced a track).
-  // Unresolved artists appear in no playlist, so their prominence is irrelevant —
-  // and gathering it was catastrophic: an unresolved artist has NO warm iTunes
-  // cache, so its releaseCount lookup fired a cold ~3.5s iTunes call, and each one
-  // also added a serial ListenBrainz call. Over dozens of unresolved acts that
-  // pushed the build past 90s. Scoping to the (budget-capped) resolved set keeps
-  // releaseCount a warm cache hit and bounds the work.
-  const resolvedIds = new Set(tracks.map((t) => t.artistId));
-  const signalArtists = allArtists.filter((a) => resolvedIds.has(a.id));
-  const signals = deps.getSignals ? await deps.getSignals(signalArtists) : {};
-  scoreArtists(allArtists, signals);
+  // Prominence/tier scoring from OBJECTIVE billing order (pure, no signals):
+  // headliner/solo = top of the bill = arena; opener = bottom = small-print.
+  scoreArtists(Object.values(artists));
 
   const belowBar = tracks.length < 8;
   return {

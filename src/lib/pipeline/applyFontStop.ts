@@ -12,15 +12,18 @@ import { orderPlaylist, type PlaylistEntry } from './order';
  * identically on the server (SSR of any stop URL) and on the client (a dial
  * drag) with zero fetches.
  *
+ * `tier` is derived from OBJECTIVE billing order (see score.ts): a top-billed
+ * headliner/solo act is `arena`; everyone billed below them is `small-print`.
+ *
  * Per-stop rules:
  *   everything   keep ALL tracks — the ONLY stop where an
  *                `isSecondHeadlinerTrack` track is visible (R7).
- *   no-arenas    DROP every `isSecondHeadlinerTrack` track, so an arena
+ *   no-arenas    DROP every `isSecondHeadlinerTrack` track, so a top-billed
  *                headliner is capped at its ONE primary token track; all
  *                artists' primary tracks are kept.
  *   small-print  DROP every track whose artist has `tier === 'arena'` entirely,
- *                AND drop `isSecondHeadlinerTrack` tracks — openers/small rooms
- *                only.
+ *                AND drop `isSecondHeadlinerTrack` tracks — so the top-billed
+ *                headliners fall away and only the opening/support acts remain.
  *
  * If a stop empties the set, ordering the empty set naturally yields `[]`.
  */
