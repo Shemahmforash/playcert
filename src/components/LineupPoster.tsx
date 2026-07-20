@@ -336,9 +336,10 @@ export function LineupPoster({
                 textTransform: 'uppercase',
                 textAlign: 'center',
                 maxWidth: '100%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                // Sizes are now fitted to the poster width (posterLayout), so names
+                // render on one line — never truncate. If the estimate is slightly
+                // off, wrap rather than clip; never an ellipsis.
+                overflowWrap: 'break-word',
               }}
             >
               {line.name}

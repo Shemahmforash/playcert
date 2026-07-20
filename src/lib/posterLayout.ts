@@ -34,6 +34,11 @@ const HEIGHT = 1920 as const;
 const MIN_PX = 18; // agate / fine print
 const MAX_PX = 168; // giant headline that fills a 1080-wide poster
 
+// Fit-to-width: cap each name's size so it fits on one line. Side margin each
+// edge, and an estimated glyph advance for a bold uppercase sans (~0.62em).
+const SIDE_MARGIN_PX = 72;
+const CHAR_WIDTH_RATIO = 0.62;
+
 // Chroma-coupled-to-size threshold: spot ink only rides on type ≥ this size;
 // anything smaller is newsprint ink. Size carries the meaning; colour never
 // carries it alone.
@@ -160,11 +165,20 @@ export function layoutPoster({
   const height = dims?.height ?? HEIGHT;
   const title = `${cityDisplay(city).toUpperCase()} WEEK FEST`;
 
-  // Size every act, then rank by rendered size (DESC), name ASC as a stable,
-  // deterministic tie-break so equal-prominence acts always order the same way.
+  // Size every act by prominence, THEN cap each so the name fits the poster width
+  // on one line — the prominence size alone made long names (e.g. BELLE AND
+  // SEBASTIAN at 168px) far wider than 1080px, so the DOM truncated them and the
+  // canvas clipped them on both sides. `fitSize` is a length-based estimate for a
+  // bold uppercase sans (~0.62em per glyph); the canvas refines it with real
+  // measureText. usable width leaves a 72px side margin.
+  const usableWidth = width - 2 * SIDE_MARGIN_PX;
   const sized: PosterLine[] = acts.map((act) => {
     const key = sizingKey(act.prominence, fontStop);
-    const sizePx = sizePxFromKey(key);
+    const fitSize = usableWidth / Math.max(1, act.name.trim().length * CHAR_WIDTH_RATIO);
+    const sizePx = Math.max(
+      MIN_PX,
+      Math.min(sizePxFromKey(key), Math.round(fitSize)),
+    );
     return {
       name: act.name,
       sizePx,

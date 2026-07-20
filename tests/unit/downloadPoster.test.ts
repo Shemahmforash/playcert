@@ -50,6 +50,12 @@ function makeCtxStub() {
     fillText: (t: string) => {
       fillTexts.push(t);
     },
+    // Rough width estimate so the fit-to-width guard runs (real ctx measures glyphs).
+    measureText: (t: string) => {
+      const m = /(\d+)px/.exec(fonts[fonts.length - 1] ?? '');
+      const size = m ? Number(m[1]) : 16;
+      return { width: t.length * size * 0.6 };
+    },
   };
   return {
     ctx,

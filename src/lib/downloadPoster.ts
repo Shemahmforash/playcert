@@ -82,10 +82,21 @@ export function renderPosterCanvas(
   ctx.textAlign = 'center';
   const cx = width / 2;
 
+  // Fit-to-width: set ctx.font to `template(size)`, but if the text would be
+  // wider than the usable column, shrink the size with real measureText so it
+  // NEVER clips (a bold name or a long dates row centred wider than the canvas
+  // was getting cut on both sides in the PNG). 72px side margin each edge.
+  const maxTextW = width - 2 * 72;
+  const setFitted = (text: string, size: number, template: (s: number) => string) => {
+    ctx.font = template(size);
+    const w = ctx.measureText(text).width;
+    if (w > maxTextW) ctx.font = template(Math.max(1, Math.floor((size * maxTextW) / w)));
+  };
+
   // Title band.
   ctx.textBaseline = 'middle';
   ctx.fillStyle = INK;
-  ctx.font = `800 72px ${SANS}`;
+  setFitted(layout.title, 72, (s) => `800 ${s}px ${SANS}`);
   ctx.fillText(layout.title, cx, TITLE_BAND_PX * 0.62);
 
   // The bill — same sizePx / weight / colour the layout computed, stacked with
@@ -97,7 +108,7 @@ export function renderPosterCanvas(
   let y = TITLE_BAND_PX + Math.max(0, (usable - stackH) / 2);
   for (const line of layout.lines) {
     const lh = line.sizePx * LINE_HEIGHT;
-    ctx.font = `${line.weight} ${line.sizePx}px ${SANS}`;
+    setFitted(line.name.toUpperCase(), line.sizePx, (s) => `${line.weight} ${s}px ${SANS}`);
     ctx.fillStyle = line.color;
     ctx.fillText(line.name.toUpperCase(), cx, y + lh / 2);
     y += lh + GAP_PX;
@@ -116,18 +127,20 @@ export function renderPosterCanvas(
   let fy = footerTop + 64;
   ctx.fillStyle = ASH;
   if (opts.dates && opts.dates.length > 0) {
-    ctx.font = `500 28px ${MONO}`;
-    ctx.fillText(opts.dates.join('   ·   '), cx, fy);
+    const datesText = opts.dates.join('   ·   ');
+    setFitted(datesText, 28, (s) => `500 ${s}px ${MONO}`);
+    ctx.fillText(datesText, cx, fy);
     fy += 48;
   }
   if (opts.venues && opts.venues.length > 0) {
-    ctx.font = `500 26px ${MONO}`;
-    ctx.fillText(opts.venues.join('   ·   '), cx, fy);
+    const venuesText = opts.venues.join('   ·   ');
+    setFitted(venuesText, 26, (s) => `500 ${s}px ${MONO}`);
+    ctx.fillText(venuesText, cx, fy);
     fy += 48;
   }
   if (opts.watermarkPath) {
     ctx.fillStyle = INK;
-    ctx.font = `600 30px ${MONO}`;
+    setFitted(opts.watermarkPath, 30, (s) => `600 ${s}px ${MONO}`);
     ctx.fillText(opts.watermarkPath, cx, footerTop + FOOTER_BAND_PX - 56);
   }
 
