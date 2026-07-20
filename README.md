@@ -2,64 +2,68 @@
 
 **The best band on the poster is the one you can't read yet.**
 
-Earshot turns the concerts near you into an instantly playable mixtape — and it reads the gig poster from the bottom up. Open `/{city}/{window}` and press play: one 30-second preview per artist playing your city, in show order, each stamped with its gig (venue, date, ticket link). No account, no app, no login wall — the whole product is a shareable URL. Its signature control, the **Earshot dial**, fades the arena headliners you already know out of the mix and rebuilds it around the openers and small-room acts.
+Earshot turns the concerts near you into an instantly playable mixtape — and it reads the gig poster from the bottom up. Open `/{city}/{window}` and press play: one 30-second preview per act playing your city, in show order, each stamped with its gig (venue, date, ticket link). No account, no app, no login wall — the whole product is a shareable URL. Its signature control, the **Earshot dial**, pulls the top-billed headliners out of the mix and rebuilds it around the openers and small-room acts.
 
-This repository is a greenfield rebuild. The design lives in [`docs/plans/`](docs/plans/) — start with `2026-07-19-earshot.md` (the implementation plan) and the reimagining that produced it.
+Live at **[earshot-one.vercel.app](https://earshot-one.vercel.app)** (auto-locates you to the nearest covered city). The design and roadmap live in [`docs/plans/`](docs/plans/) — start with `2026-07-19-earshot.md` (read its **STATUS UPDATE** block first — the product diverged from the original plan in a few deliberate ways, captured there).
 
 ---
 
 ## How it works
 
-The page is a **pure function of `(city, window, font-stop)`** encoded in the URL (e.g. `/london/next-14-days/small-print`), edge-cached for an hour, so everyone in a city gets the same shareable artifact. On a cache miss the server builds a `CityWindowBundle` through this pipeline:
+The page is a **pure function of `(city, window, font-stop)`** encoded in the URL (e.g. `/london/next-14-days/small-print`), edge-cached, so everyone in a city gets the same shareable artifact. On a cache miss the server builds a `CityWindowBundle` through this pipeline:
 
 ```
 URL (/{city}/{window}/{fontStop})
-  → geo            resolve the city to lat/long
-  → fetchShows     Ticketmaster Discovery events near it (auto-widen if sparse)
-  → extractArtists every attraction, normalized + deduped, tributes flagged
+  → geo            resolve the city to lat/long  (or IP auto-locate → nearest covered city)
+  → fetchShows     JamBase events near it — exactly ONE call per build, local window filter
+  → extractArtists every act, normalized + deduped, in BILLED order (opener → headliner)
   → resolveTracks  iTunes exact-match → MusicBrainz cross-check → silent-drop
+  → score          prominence + tier from the poster's OBJECTIVE billing (headliner 1 … opener 0)
   → order          chronological, openers-before-headliner, 30-cap, encore
-  → cache          1h TTL (120s "degraded" when the playlist is thin)
+  → cache          24h TTL (6h "degraded" when thin) via `use cache: remote`
   → Player         one reused <audio> element chains 30s previews
 ```
 
-The **Earshot dial** is a pure client-side filter over the fully-resolved bundle — it never touches the network, so changing it can't invalidate the cache.
+The **Earshot dial** (Marquee → No Arenas → Small Print) is a pure client-side filter over the fully-resolved bundle — it never touches the network, so changing it can't invalidate the cache or cost an API call.
 
 ## Architecture principles
 
 - **State lives in the URL.** No database, no accounts, no cookies. Taste memory (hearts/skips) is `localStorage` only.
-- **Source-agnostic.** Everything is a `Show[]` with source-prefixed IDs (`tm:…`), so a second concert source drops in behind the same contract.
-- **Rate-limit-safe.** Every external API goes through a per-API `RateQueue` (Ticketmaster 4/s, iTunes ~17/min, MusicBrainz 1/s + jitter) with permanent per-artist caches; a cache hit never consumes a queue slot.
-- **Strictly non-fatal enrichment.** MusicBrainz/name-collision failures widen silent-drops; they never break a page. A wrong preview is worse than none.
-- **Honest degradation.** Sparse markets auto-widen (radius 30→50 km, then the time window) before rendering, with honest copy; thin bundles get a short cache TTL so they keep refilling.
+- **Ranking is objective billing order, not fame.** Prominence/tier come from the poster's own billing (opener→headliner), computed from `billingSlots` — not any subjective popularity signal. (An earlier ListenBrainz "fame" pipeline was removed; the API is dead and the metric was subjective.)
+- **Source-agnostic concert data.** Everything is a `Show[]` with source-prefixed IDs. **JamBase** is the primary source (`jb:…`) behind a swappable adapter; Ticketmaster (`tm:…`) is kept as a retired-but-present alternate. JamBase was chosen because it covers markets Ticketmaster doesn't (incl. Portugal) **and** exposes a reliable headliner/support billing order, which the whole product depends on.
+- **Cost-capped by construction (≤ €5/month).** JamBase's free tier is 1,000 calls/month. We stay under it without a runtime counter: **exactly one JamBase call per bundle build** (one wide fetch, then all window/radius narrowing is local) and **long cache TTLs** (24h), so calls scale with cache rebuilds, not visitors. The surest belt: no payment method on the JamBase account → it physically stops at 1,000.
+- **Auto-located, no prompt.** Middleware snaps the visitor's IP (Vercel geo headers) to the nearest covered city and redirects `/` → `/{city}/{window}` — geo is read only in middleware (before the edge cache), so the playlist page stays a pure cacheable URL. An optional "use my exact location" (browser GPS, on click) and the `/?pick=1` picker cover the rest.
+- **Rate-limit-safe & non-fatal.** Every external API goes through a per-API `RateQueue` with durable per-artist caches; a cache hit never consumes a slot. MusicBrainz/name-collision failures widen silent-drops — a wrong preview is worse than none.
+- **Honest degradation.** Sparse markets auto-widen before rendering, with honest copy; thin bundles keep refilling on later rebuilds.
 
 ## Tech stack
 
-- **Next.js 16** (App Router, Cache Components) · **React 19** · **TypeScript** (strict)
+- **Next.js 16** (App Router, Cache Components / PPR) · **React 19** · **TypeScript** (strict)
 - **Tailwind CSS 4** · **Zod** (validating every external response)
-- **Vitest** (fixture-driven, network-free) · **pnpm** · **Node 22**
-- Target host: **Vercel**
-- **APIs:** [Ticketmaster Discovery](https://developer.ticketmaster.com/) (events), [iTunes Search](https://performance-partners.apple.com/search-api) (keyless — 30s previews), [MusicBrainz](https://musicbrainz.org/doc/MusicBrainz_API) (disambiguation)
-- **Explicitly NOT used:** the Spotify Web API — in 2026 it caps new apps at 5 users and has deprecated the endpoints this product would need. Only keyless iTunes previews + deep links are relied on for playback.
+- **Vitest** (fixture-driven, network-free) · **pnpm** · **Node 22** · **Vercel**
+- **APIs:** [JamBase Concert Data](https://data.jambase.com/) (events + billing order), [iTunes Search](https://performance-partners.apple.com/search-api) (keyless — 30s previews + Apple linkback), [MusicBrainz](https://musicbrainz.org/doc/MusicBrainz_API) (disambiguation). Location uses Vercel's IP-geo headers + optional browser Geolocation.
+- **Explicitly NOT used:** the Spotify Web API (caps new apps at 5 users in 2026), OAuth, any database/KV, cookies, analytics SDKs. Ticketmaster is retired (no Portugal coverage, no reliable billing order); ListenBrainz is gone (dead endpoint + subjective).
 
 ## Getting started
 
-**Prerequisites:** Node 22, pnpm 10, and a free Ticketmaster Discovery API key ([developer.ticketmaster.com](https://developer.ticketmaster.com/) → your **Consumer Key**).
+**Prerequisites:** Node 22, pnpm 10, and a free **JamBase Developer** API key ([data.jambase.com](https://data.jambase.com/) → the free Developer tier, 1,000 calls/month).
 
 ```bash
 pnpm install
 
 # Add your key (gitignored — never committed):
-echo "TICKETMASTER_KEY=your-consumer-key" > .env.local
+echo "JAMBASE_KEY=your-jambase-key" > .env.local
 
 pnpm dev
 ```
 
-Then open **http://localhost:3000/london/next-14-days**.
+Then open **http://localhost:3000/london/next-14-days** (or just `/` — auto-location routes you). Covered cities: **London, Manchester, Dublin, Madrid, Barcelona, Paris, Berlin, Amsterdam, Lisbon, Porto, New York, Los Angeles.**
 
-> **Note — market coverage.** The launch market is **London**. Ticketmaster has **zero coverage in Portugal** (and thin coverage in some markets), so Lisbon and other non-Ticketmaster cities return nothing until an additional data source is added. See `docs/plans/` for the deferred multi-source plan.
+> **Cost note.** The free JamBase tier is €0 for 1,000 calls/month; the app makes ~one call per city-build per day thanks to 24h caching. To guarantee you're never charged, keep the JamBase account with **no payment method on file** (it hard-stops at 1,000). On Vercel, set `JAMBASE_KEY` in the project's Environment Variables (Production/Preview) too — the deploy fails loudly without it.
 >
-> The first load of a city is slow while the walking-skeleton route resolves artists sequentially; it's cached and instant afterwards. (The production rate-limited pipeline replaces that pacing — see status below.)
+> **Portugal works.** Lisbon and Porto now return real gigs (they were empty under Ticketmaster) because JamBase covers PT.
+
+The first load of a cold city takes ~30s while it resolves artists within the 25s budget; it's cached and instant afterwards, and fills out further on later rebuilds.
 
 ## Scripts
 
@@ -68,43 +72,49 @@ Then open **http://localhost:3000/london/next-14-days**.
 | `pnpm dev` | Dev server (Turbopack) |
 | `pnpm build` | Production build |
 | `pnpm start` | Serve the production build |
-| `pnpm test` | Run the Vitest suite |
+| `pnpm test` | Run the Vitest suite (network-free) |
 | `pnpm typecheck` | `tsc --noEmit` (also enforced in CI) |
 
 ## Project structure
 
 ```
 src/
+  middleware.ts                                IP auto-location redirect + route validation
   app/
-    [city]/[window]/[[...fontStop]]/page.tsx   the URL route (Suspense + use-cache)
-  components/Player.tsx                        sequential 30s-preview player
-  hooks/usePlayer.ts                           pure player reducer
+    page.tsx                                   landing / picker (+ GPS, privacy line)
+    layout.tsx                                 root metadata / metadataBase
+    [city]/[window]/[[...fontStop]]/page.tsx   the URL route (Suspense + use cache: remote)
+    [city]/[window]/opengraph-image.tsx        branded OG card (URL-derived, no API)
+  components/
+    PlaylistScreen.tsx   client container: audio, dial, share sheet, poster trigger
+    EarshotDial.tsx · PlaylistList.tsx · TrackRow.tsx · RadioPlayer.tsx
+    ShareSheet.tsx · LineupPoster.tsx · UseMyLocation.tsx · CityPicker.tsx
+  hooks/       usePlayer.ts · useShareThreshold.ts · useTasteMemory.ts …
   lib/
-    urlState.ts                                parse/validate the URL triple
-    queue.ts                                   per-API RateQueue
-    cache.ts                                   in-flight memo, key builders, TTL profiles
-    api/         ticketmaster.ts · itunes.ts · musicbrainz.ts · geo.ts
-    pipeline/    fetchShows.ts · extractArtists.ts · resolveTracks.ts · order.ts
+    urlState.ts · queue.ts · cache.ts · title.ts · downloadPoster.ts
+    api/         jambase.ts (primary) · itunes.ts · musicbrainz.ts · geo.ts · ticketmaster.ts (retired)
+    pipeline/    fetchShows.ts · extractArtists.ts · resolveTracks.ts · score.ts (billing) ·
+                 applyFontStop.ts · order.ts · buildBundle.ts · realDeps.ts · posterLayout.ts
 tests/
-  unit/          fixture-driven, network-free
-  fixtures/      recorded API responses (Ticketmaster, iTunes, MusicBrainz)
-docs/plans/      the design + implementation plan (source of truth)
+  unit/          fixture-driven, network-free (~341 tests)
+  fixtures/      recorded API responses (JamBase, iTunes, MusicBrainz)
+docs/plans/      the design + implementation plan (read the STATUS UPDATE block first)
 ```
 
 ## Testing
 
-Test-driven throughout: every module has a failing test written before its implementation. External APIs are hit once to **record fixtures** (committed under `tests/fixtures/`); CI never touches the network. CI runs `typecheck → test → build` on Node 22.
+Test-driven throughout: modules have failing tests written before implementation. External APIs are hit once to **record fixtures** (committed under `tests/fixtures/`); CI never touches the network. CI runs `typecheck → test → build` on Node 22.
 
 ## Status
 
-**Phase 0 (walking skeleton): complete** — a real London route renders playable previews end-to-end; verified playing and auto-chaining in desktop and mobile Safari.
+**Live on Vercel** at [earshot-one.vercel.app](https://earshot-one.vercel.app).
 
-**Phase 1 (core pipeline): complete** — the full URL→bundle engine is built, tested, and wired into the page. Any covered `/{city}/{window}` URL now runs the real hardened pipeline (validated params, rate-limited API queues, sparse-market widen ladder, artist extraction, iTunes + MusicBrainz resolution with silent-drop, chronological/bill-mirrored ordering, and an edge-cached bundle with degraded TTL). Invalid cities/windows return a real 404 (via middleware, required for correct status under Cache Components streaming). A cold city first renders a *partial* playlist within the 25s resolution budget and fills out over subsequent revalidations — the intended degraded-fill behaviour. The `/api/report-artist` sink logs wrong-match reports (no database). ~74 unit tests, all network-free; CI runs `typecheck → test → build`.
+- **Phase 0 — walking skeleton:** ✅ complete.
+- **Phase 1 — core pipeline:** ✅ complete (URL→bundle engine: validated params, rate-limited queues, sparse-market widen, artist extraction, iTunes + MusicBrainz resolution with silent-drop, chronological/bill-mirrored ordering, edge-cached bundle; invalid routes 404 via middleware).
+- **Phase 2 — the UI ("The Bill"):** ✅ complete (warm bitumen/newsprint palette, day-grouped ticket-stub rows with flip-to-gig-info, sticky radio player with iOS-safe playback, crate-digging loading theater, landing page, empty/sparse/error/404 states, taste memory, keyboard shortcuts, contrast-verified tokens).
+- **Phase 3 — the Earshot dial:** ✅ complete (billing-driven prominence/tier, the 3-detent dial, zero-fetch client re-filter, in-place rebuild choreography with playback continuity, "Small Print runs dry" escape hatch).
+- **Phase 4 — share loop + lineup poster:** ✅ complete (canonical metadata + branded OG cards; an *earned* share sheet — copy-link, native share, Spotify/Apple search deep-links, and a "Hear your own city" CTA; share suppression on thin/empty bills; the downloadable **Lineup Poster** — long-press → peel-reveal → client-side 1080×1920 PNG). YouTube export is deferred.
 
-**Geocoding note:** city→coordinates currently uses a small hardcoded table of Ticketmaster-covered cities (London, Madrid, Paris, Berlin, New York, …); real geocoding for arbitrary typed cities is a later task.
+**Next: Phase 5 — compliance, verification & launch** (attribution: JamBase + ticket seller + Apple; the single e2e smoke; budget verification against the €5 JamBase cap; the launch checklist).
 
-**Phase 2 (the UI — "The Bill" design): complete** — the plain engine output is replaced by the real listening screen: a warm bitumen/newsprint palette (Roboto Flex), day-grouped **ticket-stub rows** (name over a perforated divider, gig chip that flips to venue/billing/tickets + a "wrong artist?" report), a sticky **radio player** (30s progress ring, now-playing ticker, iOS-safe playback), the crate-digging **loading theater**, the **landing page** (`Play {City}`), and the designed **empty/sparse/error/404** states — with taste memory (hearts persist), window-change transitions, keyboard shortcuts, and contrast-verified tokens. The signature **Earshot dial** (prominence-based re-typesetting) is Phase 3.
-
-**Next:** Phase 3 — prominence scoring + the Earshot dial (the signature). Phase 4 — share loop + lineup poster. Phase 5 — compliance + launch.
-
-Deployment is intentionally deferred. See `docs/plans/2026-07-19-earshot.md` for the full roadmap and `docs/plans/2026-07-19-earshot-personalization-future-paths.md` for the personalization backlog.
+Beyond the main plan, `docs/plans/2026-07-19-earshot-personalization-future-paths.md` holds the personalization backlog.
