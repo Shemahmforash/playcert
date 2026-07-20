@@ -83,7 +83,7 @@ describe('buildBundle (R3/R4)', () => {
     expect(bundle.posterCount).toBe(3);
   });
 
-  it('bundleCacheProfile matches belowBar: 120s degraded for partial, 3600s for full', async () => {
+  it('bundleCacheProfile matches belowBar: 6h degraded for partial, 48h for full', async () => {
     // Partial bundle (2 tracks).
     const partial = await buildBundle('braga', 'tonight', baseDeps({
       fetchShows: async () => ({ shows: [mkShow('tm:1', '2026-07-20T10:00:00Z', ['X', 'Y'])] }),
@@ -98,7 +98,7 @@ describe('buildBundle (R3/R4)', () => {
     }));
     expect(full.tracks.length).toBe(8);
     expect(full.belowBar).toBe(false);
-    expect(bundleCacheProfile(full.tracks.length)).toEqual({ revalidate: 86_400 });
+    expect(bundleCacheProfile(full.tracks.length)).toEqual({ revalidate: 172_800 });
   });
 
   it('buildBundleCached coalesces concurrent calls for the same key into ONE build', async () => {

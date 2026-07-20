@@ -33,8 +33,8 @@ describe('bundleCacheProfile (cost control — JamBase free tier)', () => {
     expect(bundleCacheProfile(7)).toEqual({ revalidate: 21_600 });
     expect(bundleCacheProfile(0)).toEqual({ revalidate: 21_600 });
   });
-  it('returns 24h (86400s) at/above the bar', () => {
-    expect(bundleCacheProfile(8)).toEqual({ revalidate: 86_400 });
-    expect(bundleCacheProfile(30)).toEqual({ revalidate: 86_400 });
+  it('returns 48h (172800s) at/above the bar', () => {
+    expect(bundleCacheProfile(8)).toEqual({ revalidate: 172_800 });
+    expect(bundleCacheProfile(30)).toEqual({ revalidate: 172_800 });
   });
 });
