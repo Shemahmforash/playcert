@@ -24,7 +24,14 @@ export const WINDOW_CHIP_LABELS: Record<TimeWindow, string> = {
 };
 
 const CHIP_CLASS = [
-  'rounded-[2px] px-3 py-1.5 text-xs font-medium tracking-wide transition-colors',
+  // `relative` anchors the hit-slop overlay; `whitespace-nowrap` keeps
+  // "This weekend" / "Next 14 days" from breaking mid-label so the row stays
+  // one stable line at ~390px (the wrap-unevenly bug).
+  'relative whitespace-nowrap rounded-[2px] px-3 py-1.5 text-xs font-medium tracking-wide transition-colors',
+  // ~44px effective hit area without inflating the compact ~28px pill: a
+  // centred, transparent overlay (part of the <button>, so taps still count as
+  // the button) extends the touch target vertically to h-11 (44px).
+  'after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-[\'\']',
   'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-weekday-fri',
 ];
 
@@ -32,8 +39,12 @@ function chipClass(selected: boolean): string {
   return [
     ...CHIP_CLASS,
     selected
+      // Selected — stays the loudest: raised stub + full-strength ink.
       ? 'bg-surface-raised text-ink ring-1 ring-inset ring-line'
-      : 'text-ash hover:text-ink',
+      // Unselected — a quiet-but-tappable resting pill: a hairline --line ring
+      // and a subtle --surface fill give a visible affordance so it reads as a
+      // control, not inert ash text — quieter than, yet distinct from, selected.
+      : 'bg-surface text-ash ring-1 ring-inset ring-line hover:bg-surface-raised hover:text-ink',
   ].join(' ');
 }
 
@@ -67,7 +78,7 @@ export function WindowChips({
   // Collapsed + not yet expanded → a single chip that expands on tap.
   if (collapsed && !expanded) {
     return (
-      <div ref={rootRef} role="group" aria-label={label} className="flex flex-wrap gap-2">
+      <div ref={rootRef} role="group" aria-label={label} className="flex flex-nowrap gap-2">
         <button
           type="button"
           aria-pressed
@@ -91,7 +102,7 @@ export function WindowChips({
       ref={rootRef}
       role="group"
       aria-label={label}
-      className="flex flex-wrap gap-2"
+      className="flex flex-nowrap gap-2"
       onBlur={(e) => {
         // Tapping/keyboarding away (focus leaves the group) folds it back.
         if (collapsed && !rootRef.current?.contains(e.relatedTarget as Node | null)) {

@@ -537,8 +537,24 @@ export function PlaylistScreen({
       {/* The signature control — the printed point-size gauge (Task 3.5). Given
           masthead prominence above the poster count. Dragging/stepping it
           re-filters the playlist with ZERO fetches and updates the URL via
-          history (no navigation). The poster trigger sits alongside it. */}
-      <div className="flex items-center justify-between gap-3">
+          history (no navigation). The poster trigger sits alongside it.
+
+          STICKY DOCK (metriq b81cccb0): the dial is the repeated control, so it
+          must stay reachable while the bill scrolls. It `position: sticky` docks
+          to the viewport top the moment the (non-sticky) masthead scrolls past —
+          the LIGHTEST fix, on the OPPOSITE edge from the `position: fixed`
+          RadioPlayer, so the two never fight for layout/insets. z-30 keeps it
+          above the list yet below the player (z-40) and the poster overlay
+          (backdrop z-40 / dialog z-50). `-mx-5 px-5` gives it a full-bleed
+          `--canvas` ground (the page background) so scrolled rows never peek
+          out beside it while it's docked. */}
+      <div
+        className="sticky top-0 z-30 -mx-5 flex items-center justify-between gap-3 px-5 py-2"
+        style={{
+          background: 'var(--canvas)',
+          borderBottom: '1px solid var(--line)',
+        }}
+      >
         <EarshotDial value={fontStop} onChange={handleDialChange} />
         {/* Poster trigger (§2.4): click opens directly (desktop-discoverable);
             a 500ms click-hold / long-press also commits. The corner-curl is the

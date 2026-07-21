@@ -258,10 +258,17 @@ describe('nameSizePx — prominence sizing', () => {
     expect(nameSizePx(0.9)).toBeGreaterThan(nameSizePx(0.3));
   });
 
-  it('anchors near the spec points (0→15, 0.5→28, 1→48)', () => {
-    expect(nameSizePx(0)).toBe(15);
-    expect(nameSizePx(0.5)).toBe(28);
+  it('anchors on the widened four-tier cascade (0→14, 0.4→22, 0.7→34, 1→48)', () => {
+    expect(nameSizePx(0)).toBe(14); // fine-print floor, lowered to widen the spread
+    expect(nameSizePx(0.4)).toBe(22); // opener / lower support
+    expect(nameSizePx(0.7)).toBe(34); // distinct mid act
     expect(nameSizePx(1)).toBe(48); // capped at 48 (down from 64) so wrapped names stay ~2 lines
+  });
+
+  it('keeps a distinct, glance-separable mid tier between opener and headliner', () => {
+    // The mid act must sit clearly above an opener and clearly below a headliner.
+    expect(nameSizePx(0.7) - nameSizePx(0.4)).toBeGreaterThanOrEqual(10);
+    expect(nameSizePx(1) - nameSizePx(0.7)).toBeGreaterThanOrEqual(10);
   });
 
   it('defaults to the 0.5 midpoint size', () => {
@@ -269,7 +276,7 @@ describe('nameSizePx — prominence sizing', () => {
   });
 
   it('clamps out-of-range prominence to the sane range', () => {
-    expect(nameSizePx(-5)).toBe(15);
+    expect(nameSizePx(-5)).toBe(14);
     expect(nameSizePx(9)).toBe(48);
   });
 });

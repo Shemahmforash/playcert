@@ -89,21 +89,32 @@ function usePrefersReducedMotion(): boolean {
 /**
  * Map an artist's prominence (0..1 fame) to a display-name size in px.
  *
- * Anchored to the design system's concrete scale (§1.2 / Task 2.2): the fine
- * print floor sits at ~15px, the default mid act at ~28px, and a top-billed
- * headliner reaches ~48px. (Capped at 48, down from 64: names now WRAP instead
- * of truncating, and 64px headliners wrapped to 3–4 lines — 48 keeps a long name
- * to ~2 readable lines while still reading much bigger than an opener.) The curve
- * is two linear segments hinged at the 0.5 midpoint so all three anchors land
- * exactly and the mapping stays strictly monotonic. Prominence is clamped to
- * [0,1], so the output never escapes [15, 48] px.
+ * FOUR anchors, not two: the old floor→mid→top curve read as binary — nearly
+ * every row landed on the ~28px mid, so billing order wasn't legible at rest.
+ * We widen the spread and carve a distinct MID tier between opener and headliner
+ * so the three roles separate at a glance:
+ *   0    → 14  (fine-print floor — the lower floor widens the bottom of the scale)
+ *   0.4  → 22  (opener / lower support)
+ *   0.7  → 34  (mid act — clearly above an opener, clearly below a headliner)
+ *   1    → 48  (top headliner; still capped at 48, down from 64: names WRAP
+ *              instead of truncating, and 48 keeps a long name to ~2 readable lines)
+ * The curve is three linear segments hinged at 0.4 / 0.7 so every anchor lands
+ * exactly and the mapping stays STRICTLY monotonic. The ≥ 28px spot-ink gate
+ * (SPOT_INK_MIN_PX) is unchanged and still keys off the FITTED size; on this curve
+ * it bites around p ≈ 0.55, so mid acts and headliners earn the loud ink while
+ * openers stay newsprint. Prominence is clamped to [0,1], so the output never
+ * escapes [14, 48] px.
  */
 export function nameSizePx(prominence = 0.5): number {
   const p = Math.min(1, Math.max(0, prominence));
-  const px =
-    p <= 0.5
-      ? 15 + (p / 0.5) * (28 - 15) // 0 → 15 … 0.5 → 28
-      : 28 + ((p - 0.5) / 0.5) * (48 - 28); // 0.5 → 28 … 1 → 48
+  let px: number;
+  if (p <= 0.4) {
+    px = 14 + (p / 0.4) * (22 - 14); // 0 → 14 … 0.4 → 22
+  } else if (p <= 0.7) {
+    px = 22 + ((p - 0.4) / 0.3) * (34 - 22); // 0.4 → 22 … 0.7 → 34
+  } else {
+    px = 34 + ((p - 0.7) / 0.3) * (48 - 34); // 0.7 → 34 … 1 → 48
+  }
   return Math.round(px);
 }
 
@@ -219,6 +230,16 @@ export function TrackRow({
   const chipText =
     `${dateLabel} · ${venue.toUpperCase()}` + (doors ? ` · DOORS ${doors}` : '');
 
+  // DISPLAY-ONLY trailing-punctuation strip. At fame size a trailing period reads
+  // as a stray print smudge ("VOLNERO." → "VOLNERO"). This touches PIXELS ONLY:
+  // `artist` (and therefore the upstream slug/id, iTunes match target and cache
+  // key — all derived from the untouched `normalizedName`) still carries the real
+  // name; we only trim what the big name line paints. A lone '!'/'?' is left alone
+  // (it can belong to a name, e.g. "Wham!"); we strip trailing dots, commas,
+  // colons/semicolons, middots, bullets and dashes plus any trailing whitespace,
+  // and fall back to the raw name if that somehow empties the string.
+  const displayName = artist.replace(/[\s.,;:·•–—-]+$/u, '') || artist;
+
   // Shared face geometry: both faces stack in the same box so the row flips as
   // one object. `preserve-3d` + `backfaceVisibility: hidden` give the rotateY
   // hinge; under reduced motion we swap to an opacity crossfade (no rotation).
@@ -256,7 +277,7 @@ export function TrackRow({
         {/* Punched-hole Play — quiet outline; --admission fill only while playing */}
         <button
           type="button"
-          aria-label={`Play preview of ${artist}`}
+          aria-label={`Play preview of ${displayName}`}
           aria-pressed={isPlaying}
           disabled={isUnavailable}
           onClick={onPlay}
@@ -273,9 +294,12 @@ export function TrackRow({
           {isPlaying ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
         </button>
 
-        {/* The fame-sized display name + the song title beneath it. The title is
-            essential: a headliner shows a SECOND track at Marquee, so the same act
-            can occupy two rows — the song line is what tells them apart. */}
+        {/* The fame-sized display name + the song title beneath it. The title
+            EARNS its keep here: a headliner shows a SECOND track at Marquee, so the
+            same act can occupy two consecutive rows with the identical big name —
+            without a legible song line the pair reads as an accidental dupe. So the
+            title line is deliberately given more presence than a footnote (below):
+            it's the one thing that tells a headliner's two rows apart. */}
         <div className="min-w-0 flex-1 flex flex-col justify-center">
           <span
             ref={nameRef}
@@ -296,11 +320,19 @@ export function TrackRow({
               ...nameVariation(prominence),
             }}
           >
-            {artist}
+            {displayName}
           </span>
+          {/* Song title: lifted from a 12px near-afterthought to a 14px mono line
+              with a touch of tracking, so it carries real presence and does the
+              work of distinguishing a headliner's two rows (see note above). Still
+              --ash (quiet ink) and truncating so it never competes with the name. */}
           <span
-            className="truncate font-mono text-xs"
-            style={{ color: 'var(--ash)', opacity: isPlayed ? 0.6 : undefined }}
+            className="truncate font-mono text-sm"
+            style={{
+              color: 'var(--ash)',
+              letterSpacing: '0.01em',
+              opacity: isPlayed ? 0.6 : undefined,
+            }}
           >
             {title}
           </span>
@@ -309,7 +341,7 @@ export function TrackRow({
         {/* Heart — outline → filled riso-pink on tap (localStorage in 2.4). */}
         <button
           type="button"
-          aria-label={hearted ? `Unheart ${artist}` : `Heart ${artist}`}
+          aria-label={hearted ? `Unheart ${displayName}` : `Heart ${displayName}`}
           aria-pressed={Boolean(hearted)}
           onClick={onHeart}
           className="flex shrink-0 items-center justify-center rounded-full text-lg leading-none focus-visible:outline-2 focus-visible:outline-offset-2"

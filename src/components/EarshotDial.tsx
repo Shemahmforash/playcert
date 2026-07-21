@@ -146,7 +146,19 @@ export function EarshotDial({ value, onChange, className }: EarshotDialProps) {
 
   return (
     <div className={['w-full select-none', className].filter(Boolean).join(' ')}>
-      {/* The slider itself — the paper ruler track (owns keyboard + drag). */}
+      {/* The slider itself — the paper ruler track (owns keyboard + drag).
+
+          LEFT GUTTER (metriq b81cccb0): the interactive track is inset a full
+          48px from the dial's left edge — a NON-draggable gutter (it sits OUTSIDE
+          this <div>, which is the only pointer-handling element). Sitting inside
+          a `px-5` (20px) column that puts the thumb's parked position at ~68px
+          and its left edge at ~46px from the VIEWPORT — clear of iOS Safari's
+          left-edge back-swipe hot-zone, so a right-drag on the thumb moves the
+          thumb instead of navigating the browser back. `mr-[22px]` keeps the old
+          symmetric room so the 100% thumb never clips the right edge. The label
+          grid below MUST carry the same `ml-[48px] mr-[22px]` so its columns stay
+          aligned to the detents (0/50/100% of THIS inset track — the detent math
+          is unchanged, it's measured against this element's own rect). */}
       <div
         ref={trackRef}
         role="slider"
@@ -162,7 +174,7 @@ export function EarshotDial({ value, onChange, className }: EarshotDialProps) {
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         className={[
-          'relative mx-[22px] flex h-11 cursor-pointer touch-none items-center',
+          'relative ml-[48px] mr-[22px] flex h-11 cursor-pointer touch-none items-center',
           'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-weekday-fri',
         ].join(' ')}
       >
@@ -205,7 +217,10 @@ export function EarshotDial({ value, onChange, className }: EarshotDialProps) {
           embodied, so they were removed (kept as poster flavor elsewhere). The
           ACTIVE column is bold + underlined (never color-only, §4). Each column
           is a tap target; tabIndex=-1 keeps the single slider the one tab-stop. */}
-      <div className="mx-[22px] mt-1 grid grid-cols-3">
+      {/* Same `ml-[48px] mr-[22px]` inset as the track above so each column's
+          detent-aligned edge (col 0 text-left = 0%, col 1 centre = 50%, col 2
+          text-right = 100%) stays locked under its tick. */}
+      <div className="ml-[48px] mr-[22px] mt-1 grid grid-cols-3">
         {DETENTS.map((d, i) => {
           const active = i === index;
           const align =
