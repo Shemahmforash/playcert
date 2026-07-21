@@ -143,7 +143,7 @@ export default function Page({ params }: { params: Params }) {
       <header className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.2em] text-foreground opacity-50">Earshot</p>
         <p className="text-[0.7rem] leading-snug tracking-[0.04em] text-ash">
-          Tonight&rsquo;s lineups, as a playlist — read from the bottom up.
+          Gig lineups, as a playlist — read from the bottom up.
         </p>
         <Suspense
           fallback={
