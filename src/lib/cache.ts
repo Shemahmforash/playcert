@@ -19,31 +19,36 @@ export const cacheKeys = {
 } as const;
 
 /** TTL table (enforced via "use cache" + cacheLife at call sites):
- *  bundle 48h (or 6h degraded) · per-artist itunes/mb/lb/yt 30d · geo 30d · geo-negative 24h
+ *  shows 48h · bundle 3h (or 2h degraded) · per-artist itunes/mb/lb/yt 30d · geo 30d · geo-negative 24h
  *
- *  COST CONTROL: these long bundle TTLs are the single biggest cost lever for the
- *  JamBase free tier (1k calls/month, owner budget EUR5/mo). With exactly one
- *  JamBase call per bundle build, a 48h FULL / 6h DEGRADED TTL caps calls to
- *  ~1 build per 2 days per (city, window). At the worst case (all 12 cities x 3
- *  windows = 36 combos active), 36 x ceil(720/48) = 540 calls/month — comfortably
- *  under the 1,000 free cap with ~460 headroom. The full TTL was bumped 24h→48h
- *  in 5.4: at 24h the worst case was 36 x 30 = 1,080/month, OVER the free cap.
- *  Concert listings tolerate 1–2 days of staleness; the EUR5 hard cap wins over
- *  freshness. `scripts/verify-budgets.ts` asserts this by construction.
- *  The old 120s degraded value would have blown the budget: one page revalidating
- *  every 120s is ~21k calls/month by itself. */
-export const TTL = { BUNDLE: 172_800, BUNDLE_DEGRADED: 21_600, SHOWS: 172_800, ARTIST_30D: 2_592_000, GEO_NEG: 86_400 } as const;
+ *  COST CONTROL lives in SHOWS (48h), NOT the bundle TTL. Post-decoupling (5.5/5.6)
+ *  the one JamBase call sits inside the 48h `getShows` cache (realDeps.ts), so a
+ *  (city, window) makes ~1 JamBase call per 48h no matter how often the bundle
+ *  rebuilds. Worst case (all 12 cities x 3 windows = 36 combos active):
+ *  36 x ceil(720/48) = 540 calls/month — under the 1,000 free cap (~460 headroom).
+ *  `scripts/verify-budgets.ts` asserts this against SHOWS. Concert listings
+ *  tolerate 1–2 days of staleness; the EUR5 hard cap wins over freshness.
+ *
+ *  BUNDLE / BUNDLE_DEGRADED are now short (3h / 2h) FILL-OUT knobs with ZERO budget
+ *  impact: each bundle rebuild reuses the 48h-cached Show[] (no new JamBase call)
+ *  and re-runs the FREE, keyless iTunes resolution, so a fresh (or below-bar)
+ *  playlist climbs toward the full bill within hours instead of up to 2 days.
+ *  Degraded (partial, <8 tracks) is the shorter of the two so sparse bills fill
+ *  fastest. Trade-off: more frequent background revalidation = more Vercel compute,
+ *  which is NOT a JamBase cost. */
+export const TTL = { BUNDLE: 10_800, BUNDLE_DEGRADED: 7_200, SHOWS: 172_800, ARTIST_30D: 2_592_000, GEO_NEG: 86_400 } as const;
 
 /**
  * Full/degraded revalidate for the OUTER bundle cache. Post-decoupling (5.5) the
  * JamBase call lives in the 48h `getShows` layer (see realDeps.ts), so this TTL
  * no longer governs COST — it governs how often the bundle re-runs the FREE
- * iTunes resolution to fill the bill out. A shorter value ⇒ faster fill-out at
- * zero JamBase cost. Production recommendation: shorten to ~2–3h (see spike report).
+ * iTunes resolution to fill the bill out. Shortened to 3h full / 2h degraded (5.6)
+ * so a fresh or below-bar playlist fills toward the full bill within hours at zero
+ * JamBase cost.
  *
- * `SPIKE_BUNDLE_REVALIDATE` (seconds) is a temporary env override used ONLY to
- * observe rebuilds empirically; unset in prod/tests, so the committed 48h/6h
- * values (and the budget assertions) are unaffected.
+ * `SPIKE_BUNDLE_REVALIDATE` (seconds) is an env override used ONLY to observe
+ * rebuilds empirically; unset in prod/tests, so the committed 3h/2h values (and
+ * the budget assertions, which key off TTL.SHOWS) are unaffected.
  */
 export function bundleCacheProfile(playableTracks: number): { revalidate: number } {
   const spike = Number(process.env.SPIKE_BUNDLE_REVALIDATE);

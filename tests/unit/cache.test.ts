@@ -28,13 +28,13 @@ describe('cacheKeys', () => {
   });
 });
 
-describe('bundleCacheProfile (cost control — JamBase free tier)', () => {
-  it('returns 6h (21600s) degraded below the 8-playable-track bar', () => {
-    expect(bundleCacheProfile(7)).toEqual({ revalidate: 21_600 });
-    expect(bundleCacheProfile(0)).toEqual({ revalidate: 21_600 });
+describe('bundleCacheProfile (fill-out cadence — free iTunes re-resolution, no JamBase cost)', () => {
+  it('returns 2h (7200s) degraded below the 8-playable-track bar', () => {
+    expect(bundleCacheProfile(7)).toEqual({ revalidate: 7_200 });
+    expect(bundleCacheProfile(0)).toEqual({ revalidate: 7_200 });
   });
-  it('returns 48h (172800s) at/above the bar', () => {
-    expect(bundleCacheProfile(8)).toEqual({ revalidate: 172_800 });
-    expect(bundleCacheProfile(30)).toEqual({ revalidate: 172_800 });
+  it('returns 3h (10800s) at/above the bar', () => {
+    expect(bundleCacheProfile(8)).toEqual({ revalidate: 10_800 });
+    expect(bundleCacheProfile(30)).toEqual({ revalidate: 10_800 });
   });
 });

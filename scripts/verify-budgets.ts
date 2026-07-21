@@ -9,25 +9,33 @@
  * (≤ 900, leaving the ~100-call €5 overage band as pure, unused buffer), computed
  * from the REAL city table × windows × cache TTL — not hardcoded.
  *
- * THE MODEL (computed honestly):
- *   calls/month ≈ combos × rebuildsPerMonth × callsPerBuild
- *     combos           = |CITY_TABLE| × |WINDOWS|              (worst case: ALL active)
- *     rebuildsPerMonth = ceil(720h / ttlHours)                (720 = 30d × 24h;
- *                        `use cache` revalidates ~once per TTL per ACCESSED combo,
- *                        stale-while-revalidate)
- *     callsPerBuild    = 1                                     (INVARIANT, asserted below)
+ * COST DRIVER = TTL.SHOWS, NOT the bundle TTL (post-decoupling, 5.5). The single
+ * JamBase call now lives inside the 48h `getShows` ('use cache: remote') layer in
+ * realDeps.ts, keyed by (city, window). The OUTER bundle can rebuild as often as
+ * it likes (to fill the bill out via the FREE iTunes re-resolution) and every
+ * rebuild inside the 48h window reuses the cached Show[] — ZERO new JamBase calls.
+ * So the number that gates cost is TTL.SHOWS, and `TTL.BUNDLE` is now a
+ * fill-out-speed knob with no budget impact.
  *
- * CURRENT PROJECTION (12 cities × 3 windows = 36 combos, 48h full-bundle TTL):
- *   rebuildsPerMonth = ceil(720/48) = 15  →  36 × 15 × 1 = 540 calls/month.
+ * THE MODEL (computed honestly):
+ *   calls/month ≈ combos × showsRefetchesPerMonth × callsPerFetch
+ *     combos                 = |CITY_TABLE| × |WINDOWS|        (worst case: ALL active)
+ *     showsRefetchesPerMonth = ceil(720h / TTL.SHOWS hours)    (720 = 30d × 24h;
+ *                              getShows revalidates ~once per TTL.SHOWS per ACCESSED
+ *                              combo, stale-while-revalidate)
+ *     callsPerFetch          = 1                               (INVARIANT, asserted below)
+ *
+ * CURRENT PROJECTION (12 cities × 3 windows = 36 combos, 48h TTL.SHOWS):
+ *   showsRefetchesPerMonth = ceil(720/48) = 15  →  36 × 15 × 1 = 540 calls/month.
  *   540 ≤ 900 (safety threshold) ≤ 1,000 (free cap). ~460 calls of headroom.
  *
- * If this projection EVER exceeds 900 (e.g. someone adds cities or shortens the
- * TTL), this script exits non-zero. THE FIX is to raise the full-bundle TTL:
- * bump `bundleCacheProfile`'s full `revalidate` (TTL.BUNDLE) in src/lib/cache.ts
- * to the smallest clean value that brings the worst case back ≤ 900, update the
- * TTL tests, and re-run. (History: 5.4 bumped it 24h→48h — at 24h the worst case
- * was 36 × 30 = 1,080/month, OVER the free cap.) Concert listings tolerate 1–2
- * days of staleness; the €5 hard cap wins over freshness.
+ * If this projection EVER exceeds 900 (e.g. someone adds cities or shortens
+ * TTL.SHOWS), this script exits non-zero. THE FIX is to raise TTL.SHOWS in
+ * src/lib/cache.ts to the smallest clean value that brings the worst case back
+ * ≤ 900, update the TTL tests, and re-run. (History: 5.4 set the shows/bundle TTL
+ * to 48h — at 24h the worst case was 36 × 30 = 1,080/month, OVER the free cap.)
+ * Concert listings tolerate 1–2 days of staleness; the €5 hard cap wins over
+ * freshness. NOTE: `TTL.BUNDLE` no longer appears here — shortening it is free.
  *
  * THE €5 BELT (operational — this script documents it, cannot assert it):
  *   1. The JamBase account MUST have NO payment method on file, so an overage is
@@ -59,7 +67,7 @@ async function main() {
   const windows = WINDOWS.length;
   const combos = cities * windows;
 
-  const ttlSeconds = TTL.BUNDLE; // full-bundle revalidate — the real value from cache.ts
+  const ttlSeconds = TTL.SHOWS; // the getShows cache TTL — the ONLY JamBase-cost driver
   const ttlHours = ttlSeconds / 3600;
   const rebuildsPerMonth = Math.ceil(HOURS_PER_MONTH / ttlHours);
   const worstCaseCallsPerMonth = combos * rebuildsPerMonth * CALLS_PER_BUILD;
@@ -70,10 +78,10 @@ async function main() {
   console.log('════════════════════════════════════════════════════════════');
   console.log(`  Cities (CITY_TABLE) ............. ${cities}`);
   console.log(`  Windows (WINDOWS) .............. ${windows}`);
-  console.log(`  Full-bundle TTL ............... ${ttlSeconds}s (${ttlHours}h)`);
+  console.log(`  Shows-cache TTL (getShows) .... ${ttlSeconds}s (${ttlHours}h)`);
   console.log(`  Combos (cities × windows) ...... ${combos}`);
-  console.log(`  Rebuilds/mo (ceil 720h / TTL) .. ${rebuildsPerMonth}`);
-  console.log(`  Calls per build (invariant) .... ${CALLS_PER_BUILD}`);
+  console.log(`  Shows refetches/mo (720h/TTL) .. ${rebuildsPerMonth}`);
+  console.log(`  Calls per fetch (invariant) .... ${CALLS_PER_BUILD}`);
   console.log('  ──────────────────────────────────────────────────────────');
   console.log(`  WORST-CASE CALLS/MONTH ......... ${worstCaseCallsPerMonth}`);
   console.log(`  Safety threshold .............. ≤ ${SAFETY_THRESHOLD}`);
@@ -91,7 +99,7 @@ async function main() {
   if (worstCaseCallsPerMonth > SAFETY_THRESHOLD) {
     fail(
       `worst-case ${worstCaseCallsPerMonth} calls/month exceeds the ${SAFETY_THRESHOLD} safety threshold.\n` +
-        `   FIX: raise the full-bundle TTL (TTL.BUNDLE in src/lib/cache.ts) to the smallest\n` +
+        `   FIX: raise TTL.SHOWS (the getShows cache) in src/lib/cache.ts to the smallest\n` +
         `   clean value that brings ${combos} × ceil(720/ttlHours) ≤ ${SAFETY_THRESHOLD}, then update the TTL tests.`,
     );
   }

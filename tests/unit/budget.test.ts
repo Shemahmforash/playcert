@@ -58,14 +58,16 @@ describe('JamBase budget — one call per build (all windows cost 1 call)', () =
 
 describe('JamBase budget — worst-case monthly projection ≤ 900', () => {
   // Same formula as scripts/verify-budgets.ts, computed from the REAL city
-  // table × windows × full-bundle TTL. Adding cities or shortening the TTL
-  // later fails CI here until the math is brought back within budget.
+  // table × windows × TTL.SHOWS. Post-decoupling (5.5) the JamBase call lives in
+  // the 48h `getShows` cache, so TTL.SHOWS — NOT TTL.BUNDLE — is the cost driver:
+  // bundle rebuilds reuse the cached Show[] at zero JamBase cost. Adding cities or
+  // shortening TTL.SHOWS fails CI here until the math is brought back within budget.
   it('|CITY_TABLE| × |WINDOWS| × ceil(720/ttlHours) stays under the free-tier safety threshold', () => {
     const cities = Object.keys(CITY_TABLE).length;
     const windows = WINDOWS.length;
     const combos = cities * windows;
 
-    const ttlHours = TTL.BUNDLE / 3600;
+    const ttlHours = TTL.SHOWS / 3600;
     const rebuildsPerMonth = Math.ceil(HOURS_PER_MONTH / ttlHours);
     const worstCaseCallsPerMonth = combos * rebuildsPerMonth * CALLS_PER_BUILD;
 
