@@ -20,9 +20,9 @@ describe('EmptyState — the bare wall (§2.6 "Empty")', () => {
       unfilteredHadShows: true,
     });
     render(<EmptyState city="braga" window="tonight" actions={actions} />);
-    // widen route + Everything dial link + Try another city.
+    // widen route + Marquee dial link + Try another city.
     expect(screen.getByText('Try this weekend')).toBeTruthy();
-    expect(screen.getByText('Everything on the dial')).toBeTruthy();
+    expect(screen.getByText('Marquee on the dial')).toBeTruthy();
     expect(screen.getByText('Try another city')).toBeTruthy();
   });
 
@@ -46,11 +46,11 @@ describe('EmptyState — the bare wall (§2.6 "Empty")', () => {
         city="braga"
         window="tonight"
         actions={[
-          { label: 'Everything on the dial', action: { kind: 'dialStop', stop: 'everything' } },
+          { label: 'Marquee on the dial', action: { kind: 'dialStop', stop: 'everything' } },
         ]}
       />,
     );
-    const link = screen.getByRole('link', { name: 'Everything on the dial' });
+    const link = screen.getByRole('link', { name: 'Marquee on the dial' });
     // everything stop → canonical path omits the fontStop segment.
     expect(link.getAttribute('href')).toBe('/braga/tonight');
   });

@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import type { FontStop } from '../lib/types';
-import { FONT_STOPS } from '../lib/urlState';
+import { FONT_STOPS, FONT_STOP_LABELS } from '../lib/urlState';
 
 /**
  * EarshotDial — the signature 3-detent font-stop control (Task 3.5).
@@ -32,32 +32,31 @@ import { FONT_STOPS } from '../lib/urlState';
 
 interface Detent {
   stop: FontStop;
-  label: string;
-  /** Full human sentence announced by `aria-valuetext`. */
+  /** Full human sentence announced by `aria-valuetext`. The label word is the
+   *  canonical FONT_STOP_LABELS one; the rest is the bespoke description. */
   valuetext: string;
   /** Short plain-language gloss shown UNDER the label — always visible for all
    *  three stops so the control self-explains before the thumb is touched. */
   gloss: string;
 }
 
-// Order MUST match FONT_STOPS so the index is the aria-valuenow.
+// Order MUST match FONT_STOPS so the index is the aria-valuenow. The displayed
+// LABEL is not stored here — it comes from FONT_STOP_LABELS (single source of
+// truth) so it can never drift from the dry-notice / rebuild announcement.
 const DETENTS: readonly Detent[] = [
   {
     stop: 'everything',
-    label: 'MARQUEE',
     valuetext: 'Marquee — the whole bill, every act',
     gloss: 'the whole bill',
   },
   {
     stop: 'no-arenas',
-    label: 'TRIMMED',
     valuetext: 'Trimmed — each headliner cut to a single song',
     gloss: 'headliners: one song',
   },
   {
     stop: 'small-print',
-    label: 'SMALL PRINT',
-    valuetext: 'Small print — the opening and support acts only',
+    valuetext: 'Small Print — the opening and support acts only',
     gloss: 'openers only',
   },
 ];
@@ -233,7 +232,7 @@ export function EarshotDial({ value, onChange, className }: EarshotDialProps) {
                   color: active ? 'var(--riso-pink)' : 'var(--ash)',
                 }}
               >
-                {d.label}
+                {FONT_STOP_LABELS[d.stop].toUpperCase()}
               </span>
               <span
                 className="font-mono text-[10px] leading-tight"

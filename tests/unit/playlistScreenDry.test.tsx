@@ -114,7 +114,7 @@ describe('PlaylistScreen — Small Print runs dry notice (Task 3.7)', () => {
     expect(screen.queryByRole('button', { name: 'Play preview of ARENA0' })).toBeNull();
 
     // One tap on the real button → handleDialChange('no-arenas').
-    fireEvent.click(screen.getByRole('button', { name: 'try No Arenas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'try Trimmed' }));
 
     // Dial moved off small-print, canonical pushState to /…/no-arenas.
     expect(pushStateSpy).toHaveBeenCalled();
@@ -161,7 +161,7 @@ describe('PlaylistScreen — Small Print runs dry notice (Task 3.7)', () => {
 
     // Empty list, but the actionable escape hatch is shown (not just the bare fallback).
     expect(screen.getByText(DRY_NOTICE)).toBeTruthy();
-    const btn = screen.getByRole('button', { name: 'try No Arenas' });
+    const btn = screen.getByRole('button', { name: 'try Trimmed' });
 
     fireEvent.click(btn);
     const lastPath = pushStateSpy.mock.calls.at(-1)?.[2];

@@ -18,7 +18,7 @@ afterEach(cleanup);
 const VALUETEXT: Record<FontStop, string> = {
   everything: 'Marquee — the whole bill, every act',
   'no-arenas': 'Trimmed — each headliner cut to a single song',
-  'small-print': 'Small print — the opening and support acts only',
+  'small-print': 'Small Print — the opening and support acts only',
 };
 
 describe('EarshotDial — slider semantics', () => {

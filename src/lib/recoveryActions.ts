@@ -1,5 +1,5 @@
 import type { FontStop, TimeWindow } from './types';
-import { formatCanonicalPath } from './urlState';
+import { formatCanonicalPath, FONT_STOP_LABELS } from './urlState';
 
 /**
  * recoveryActions — pure derivation of the escape hatches an EmptyState offers
@@ -73,7 +73,7 @@ export function recoveryActionsForEmpty(ctx: EmptyContext): RecoveryAction[] {
   // filter rather than leave the wall bare over a filtering choice.
   if (ctx.fontStop !== 'everything' && ctx.unfilteredHadShows) {
     actions.push({
-      label: 'Everything on the dial',
+      label: `${FONT_STOP_LABELS.everything} on the dial`,
       action: { kind: 'dialStop', stop: 'everything' },
     });
   }

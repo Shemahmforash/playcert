@@ -6,8 +6,9 @@ import { applyFontStop } from './applyFontStop';
  * "Small Print runs dry" predicate (Task 3.7, §2.6 "Sparse").
  *
  * SSOT: docs/design/2026-07-19-phase2-design-system.md §2.6 —
- *   "If Small Print leaves < 8 shows: `Small Print runs dry here — try No Arenas`
- *    with a one-tap dial link (not just prose)."
+ *   "If Small Print leaves < 8 shows: `Small Print runs dry here — try {next stop}`
+ *    with a one-tap dial link (not just prose)." (The stop label — now "Trimmed" —
+ *    comes from FONT_STOP_LABELS so the notice never drifts from the dial.)
  *
  * The point is to fire ONLY when the Small Print stop is what emptied the bill —
  * the escape hatch is "you filtered too hard, back off the dial", NOT "it's a

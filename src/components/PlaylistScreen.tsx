@@ -20,7 +20,7 @@ import { WindowChips } from './WindowChips';
 import { EarshotDial } from './EarshotDial';
 import { LineupPoster } from './LineupPoster';
 import { posterActsFromEntries } from '../lib/posterLayout';
-import { formatCanonicalPath, FONT_STOPS } from '../lib/urlState';
+import { formatCanonicalPath, FONT_STOPS, FONT_STOP_LABELS } from '../lib/urlState';
 
 /**
  * PlaylistScreen — the client container that owns the audio + player state and
@@ -55,13 +55,6 @@ const REBUILD_ANNOUNCE_MS = 450;
 const CROSSFADE_MS = 400;
 // Lineup Poster long-press commit threshold (§2.4): hold 500ms to peel + reveal.
 const POSTER_LONG_PRESS_MS = 500;
-
-/** Human labels for the polite rebuild announcement (the dial's three stops). */
-const STOP_LABEL: Record<FontStop, string> = {
-  everything: 'Everything',
-  'no-arenas': 'No Arenas',
-  'small-print': 'Small Print',
-};
 
 /** Title-case a city slug for display, e.g. "new-york" → "New York". */
 function titleCaseCity(slug: string): string {
@@ -175,7 +168,7 @@ export function PlaylistScreen({
       announceMountedRef.current = true;
       return;
     }
-    setRebuildMsg(`Rebuilding: ${STOP_LABEL[fontStop]}.`);
+    setRebuildMsg(`Rebuilding: ${FONT_STOP_LABELS[fontStop]}.`);
     if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
     announceTimerRef.current = setTimeout(() => {
       setRebuildMsg(`${entries.length} tracks, ${distinctPosterCount(entries)} shows.`);
@@ -492,7 +485,7 @@ export function PlaylistScreen({
     return (
       <div className="flex flex-col gap-4">
         {dry ? (
-          <SmallPrintDryNotice onTryNoArenas={() => handleDialChange('no-arenas')} />
+          <SmallPrintDryNotice onTryTrimmed={() => handleDialChange('no-arenas')} />
         ) : null}
         <p className="rounded border border-dashed border-current/30 p-4 text-sm opacity-70">
           Nothing playable in this window yet.
@@ -620,7 +613,7 @@ export function PlaylistScreen({
       </p>
 
       {dry ? (
-        <SmallPrintDryNotice onTryNoArenas={() => handleDialChange('no-arenas')} />
+        <SmallPrintDryNotice onTryTrimmed={() => handleDialChange('no-arenas')} />
       ) : null}
       {widened ? <SparseNotice widened={widened} city={city} /> : null}
       {belowBar ? (
