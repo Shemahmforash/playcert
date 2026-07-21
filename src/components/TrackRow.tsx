@@ -1,8 +1,12 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { StubBack, type SameBillItem, type StubReport } from './StubBack';
+
+// useLayoutEffect on the client (measure before paint → no flash of overflow),
+// useEffect on the server (React would warn on useLayoutEffect during SSR).
+const useIsomorphicLayoutEffect = typeof document !== 'undefined' ? useLayoutEffect : useEffect;
 
 /**
  * TicketStubRow (front face) — the ticket-stub track row that is the visual
@@ -137,6 +141,43 @@ export function TrackRow({
   // `aria-expanded` on the chip is paired with an `aria-controls` target (§4).
   const backFaceId = useId();
 
+  // ── Fit-to-width display name (P0) ────────────────────────────────────────
+  // Names WRAP at word boundaries only (never mid-word — the old `break-words`
+  // split "SEBASTIAN" into "SEBASTI/AN", reading as a typo on the hero element).
+  // A single word longer than the column can't wrap, so we shrink the point size
+  // until the widest word fits. Measured on the client (SSR renders at the
+  // prominence-derived base size, then this fits before paint).
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const baseNamePx = nameSizePx(prominence);
+  const [namePx, setNamePx] = useState(baseNamePx);
+  useIsomorphicLayoutEffect(() => {
+    const el = nameRef.current;
+    const box = el?.parentElement;
+    if (!el || !box) return;
+    let lastWidth = -1;
+    const fit = () => {
+      const width = box.clientWidth;
+      if (width <= 0 || width === lastWidth) return; // width is flex-driven & font-independent → gate blocks resize loops
+      lastWidth = width;
+      let size = baseNamePx;
+      el.style.fontSize = `${size}px`;
+      let guard = 0;
+      while (el.scrollWidth > el.clientWidth + 0.5 && size > 12 && guard < 60) {
+        size -= 1;
+        el.style.fontSize = `${size}px`;
+        guard += 1;
+      }
+      setNamePx(size);
+    };
+    fit();
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(fit);
+      ro.observe(box);
+    }
+    return () => ro?.disconnect();
+  }, [artist, baseNamePx]);
+
   function setOpen(next: boolean) {
     if (!isControlled) setUncontrolledOpen(next);
     onOpenChange?.(next);
@@ -208,14 +249,19 @@ export function TrackRow({
             can occupy two rows — the song line is what tells them apart. */}
         <div className="min-w-0 flex-1 flex flex-col justify-center">
           <span
-            // WRAP, never truncate — the biggest (most prominent) names are the
-            // longest and were the ones getting cut to "BELLE AN…", which defeats
-            // the size-as-importance idea. Long names now wrap to a second line.
-            className="font-display uppercase break-words"
+            ref={nameRef}
+            // WRAP at word boundaries, never truncate and never mid-word. Long
+            // multi-word names fall to a second line ("BELLE AND / SEBASTIAN");
+            // a single word too wide for the column is shrunk to fit (namePx),
+            // so the display name never splits into a nonsense syllable.
+            className="font-display uppercase"
             style={{
-              fontSize: `${nameSizePx(prominence)}px`,
+              fontSize: `${namePx}px`,
               lineHeight: 1.0,
               letterSpacing: '-0.02em',
+              overflowWrap: 'normal',
+              wordBreak: 'keep-all',
+              textWrap: 'balance',
               opacity: isPlayed ? 0.6 : undefined, // used-stub: exact 60%
               color: 'var(--ink)',
               ...nameVariation(prominence),

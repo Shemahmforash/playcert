@@ -7,15 +7,17 @@ import { FONT_STOPS } from '../lib/urlState';
 /**
  * EarshotDial — the signature 3-detent font-stop control (Task 3.5).
  *
- * SSOT: docs/design/2026-07-19-phase2-design-system.md §2.2. It is drawn as a
- * printed point-size gauge: a paper ruler across the masthead reading
- * `72 — 24 — 6` with tick marks, the detent labels MARQUEE · NO ARENAS · SMALL
- * PRINT (Roboto Flex display, uppercase, tracked), a `--surface-raised` track
- * well, and a 44px `--riso-pink` rubber-stamp thumb (1px misregistration) parked
- * on the active detent.
+ * SSOT: docs/design/2026-07-19-phase2-design-system.md §2.2. A `--surface-raised`
+ * track well with detent tick marks and a 44px `--riso-pink` rubber-stamp thumb
+ * (1px misregistration) parked on the active detent; below it, three columns of
+ * label + always-visible plain-language gloss: MARQUEE / TRIMMED / SMALL PRINT.
+ * (The original bare "72 · 24 · 6" point-size numerals were removed — they
+ * measured a size nothing on screen embodied and read as an unexplained puzzle;
+ * the point-size romance now lives on the downloadable poster instead.)
  *
  * Three HARD detents map 1:1 to `FONT_STOPS` (index 0→2):
- *   everything → MARQUEE (72pt) · no-arenas → NO ARENAS (24pt) · small-print → SMALL PRINT (6pt).
+ *   everything → MARQUEE (whole bill) · no-arenas → TRIMMED (headliners: one song)
+ *   · small-print → SMALL PRINT (openers only).
  *
  * The control ONLY reports the chosen stop via `onChange`; the URL/history
  * pushState + the (Task 3.6) list re-typeset choreography live in the parent
@@ -25,18 +27,17 @@ import { FONT_STOPS } from '../lib/urlState';
  * aria-valuemin/max/now + a full-sentence `aria-valuetext` per stop; ←/→ step,
  * Home/End jump to the ends; ↑/↓ are deliberately NOT handled (reserved for row
  * nav elsewhere). Meaning is never color-only — the ACTIVE detent label carries
- * bold weight + an underline on top of ink, and the point-size numeral moves too.
+ * bold weight + an underline on top of ink.
  */
 
 interface Detent {
   stop: FontStop;
   label: string;
-  /** Point-size numeral on the printed gauge (§1.2 "72 · 24 · 6"). */
-  pt: string;
   /** Full human sentence announced by `aria-valuetext`. */
   valuetext: string;
-  /** Short plain-language caption shown under the dial for the active stop. */
-  blurb: string;
+  /** Short plain-language gloss shown UNDER the label — always visible for all
+   *  three stops so the control self-explains before the thumb is touched. */
+  gloss: string;
 }
 
 // Order MUST match FONT_STOPS so the index is the aria-valuenow.
@@ -44,23 +45,20 @@ const DETENTS: readonly Detent[] = [
   {
     stop: 'everything',
     label: 'MARQUEE',
-    pt: '72',
     valuetext: 'Marquee — the whole bill, every act',
-    blurb: 'The whole lineup — headliners and openers.',
+    gloss: 'the whole bill',
   },
   {
     stop: 'no-arenas',
-    label: 'NO ARENAS',
-    pt: '24',
-    valuetext: 'No arenas — headliners cut to a single song',
-    blurb: 'Headliners cut to one song each.',
+    label: 'TRIMMED',
+    valuetext: 'Trimmed — each headliner cut to a single song',
+    gloss: 'headliners: one song',
   },
   {
     stop: 'small-print',
     label: 'SMALL PRINT',
-    pt: '6',
     valuetext: 'Small print — the opening and support acts only',
-    blurb: 'Just the opening and support acts.',
+    gloss: 'openers only',
   },
 ];
 
@@ -69,18 +67,6 @@ const LAST = DETENTS.length - 1; // 2
 /** Detent centre as a percentage of the (inset) track width: 0 / 50 / 100. */
 function detentPct(i: number): number {
   return (i / LAST) * 100;
-}
-
-/**
- * Edge-anchored placement for the numerals/labels so the outermost ones never
- * bleed past the column: first left-aligns, last right-aligns, middle centres.
- * (The ticks + thumb stay translateX(-50%)-centred inside the 22px inset so the
- * 44px thumb reaches — but never clips past — the track edge.)
- */
-function anchorStyle(i: number): React.CSSProperties {
-  if (i === 0) return { left: 0 };
-  if (i === LAST) return { right: 0 };
-  return { left: `${detentPct(i)}%`, transform: 'translateX(-50%)' };
 }
 
 function vibrateTick(): void {
@@ -161,19 +147,6 @@ export function EarshotDial({ value, onChange, className }: EarshotDialProps) {
 
   return (
     <div className={['w-full select-none', className].filter(Boolean).join(' ')}>
-      {/* Printed point-size numerals — mono, ash-quiet, over each detent. */}
-      <div
-        aria-hidden
-        className="relative mx-[22px] h-4 font-mono text-[11px]"
-        style={{ color: 'var(--ash-quiet)' }}
-      >
-        {DETENTS.map((d, i) => (
-          <span key={d.stop} className="absolute top-0" style={anchorStyle(i)}>
-            {d.pt}
-          </span>
-        ))}
-      </div>
-
       {/* The slider itself — the paper ruler track (owns keyboard + drag). */}
       <div
         ref={trackRef}
@@ -226,45 +199,52 @@ export function EarshotDial({ value, onChange, className }: EarshotDialProps) {
         />
       </div>
 
-      {/* Detent labels — display face, uppercase, tracked; each a tap target.
-          The ACTIVE label is bold + underlined (never color-only, §4). Labels
-          are tabIndex=-1 so the single slider stays the one keyboard tab-stop. */}
-      <div className="relative mx-[22px] mt-1 h-11 font-display text-[11px] uppercase">
+      {/* Detent labels + ALWAYS-ON plain-language glosses — one column per stop.
+          Showing what all three positions do (not just the active one) lets a
+          first-timer understand the control before touching the thumb; the old
+          bare "72 · 24 · 6" numerals measured a point size nothing on screen
+          embodied, so they were removed (kept as poster flavor elsewhere). The
+          ACTIVE column is bold + underlined (never color-only, §4). Each column
+          is a tap target; tabIndex=-1 keeps the single slider the one tab-stop. */}
+      <div className="mx-[22px] mt-1 grid grid-cols-3">
         {DETENTS.map((d, i) => {
           const active = i === index;
+          const align =
+            i === 0
+              ? 'items-start text-left'
+              : i === LAST
+                ? 'items-end text-right'
+                : 'items-center text-center';
           return (
             <button
               key={d.stop}
               type="button"
               tabIndex={-1}
-              onClick={() => commit(d.stop)}
               aria-hidden
-              className="absolute top-0 whitespace-nowrap px-2 py-3"
-              style={{
-                ...anchorStyle(i),
-                letterSpacing: '0.08em',
-                fontWeight: active ? 700 : 400,
-                textDecoration: active ? 'underline' : 'none',
-                color: active ? 'var(--riso-pink)' : 'var(--ash)',
-              }}
+              onClick={() => commit(d.stop)}
+              className={`flex flex-col gap-0.5 px-1 py-2 ${align}`}
             >
-              {d.label}
+              <span
+                className="font-display text-[11px] uppercase leading-none"
+                style={{
+                  letterSpacing: '0.08em',
+                  fontWeight: active ? 700 : 400,
+                  textDecoration: active ? 'underline' : 'none',
+                  color: active ? 'var(--riso-pink)' : 'var(--ash)',
+                }}
+              >
+                {d.label}
+              </span>
+              <span
+                className="font-mono text-[10px] leading-tight"
+                style={{ color: active ? 'var(--ash)' : 'var(--ash-quiet)' }}
+              >
+                {d.gloss}
+              </span>
             </button>
           );
         })}
       </div>
-
-      {/* Plain-language caption for the active stop. The MARQUEE / NO ARENAS /
-          SMALL PRINT labels are a printed-poster metaphor; this line says what the
-          setting actually does, and updates as the dial moves. aria-hidden because
-          the slider already announces the same meaning via aria-valuetext. */}
-      <p
-        aria-hidden
-        className="mx-[22px] font-mono text-xs"
-        style={{ color: 'var(--ash)' }}
-      >
-        {DETENTS[index].blurb}
-      </p>
     </div>
   );
 }

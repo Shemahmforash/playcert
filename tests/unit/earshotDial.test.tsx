@@ -17,7 +17,7 @@ afterEach(cleanup);
 
 const VALUETEXT: Record<FontStop, string> = {
   everything: 'Marquee — the whole bill, every act',
-  'no-arenas': 'No arenas — headliners cut to a single song',
+  'no-arenas': 'Trimmed — each headliner cut to a single song',
   'small-print': 'Small print — the opening and support acts only',
 };
 
@@ -109,7 +109,7 @@ describe('EarshotDial — pointer', () => {
 describe('EarshotDial — active state is never color-only (§4)', () => {
   it('the active detent label carries bold weight AND an underline', () => {
     render(<EarshotDial value="no-arenas" onChange={() => {}} />);
-    const active = screen.getByText('NO ARENAS');
+    const active = screen.getByText('TRIMMED');
     expect(active.style.fontWeight).toBe('700');
     expect(active.style.textDecoration).toContain('underline');
 
