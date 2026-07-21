@@ -23,7 +23,16 @@ const toTrack = (a: Artist, c: ItunesCandidate, confidence: Track['confidence'])
 export async function resolveTracks(artists: Artist[], deps: Deps): Promise<Track[]> {
   const out: Track[] = [];
   for (const artist of artists) {
-    const candidates = await deps.searchTracks(artist.normalizedName);
+    // A thrown iTunes lookup (403/429/AbortError timeout) CATCH-AND-SKIPS this
+    // artist — same silent-drop semantics as an unmatched act below — so one
+    // throttled call yields a partial, cacheable bundle instead of rejecting
+    // the whole build. (crossCheck / MusicBrainz is already internally caught.)
+    let candidates: ItunesCandidate[];
+    try {
+      candidates = await deps.searchTracks(artist.normalizedName);
+    } catch {
+      continue; // SILENT DROP
+    }
     if (candidates.length === 0) continue;
     const exact = pickExact(candidates, artist.normalizedName);
 

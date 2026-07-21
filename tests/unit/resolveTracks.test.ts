@@ -47,6 +47,17 @@ describe('resolveTracks', () => {
     expect(cc).toHaveBeenCalled();
     expect(tracks).toHaveLength(0);
   });
+  it('thrown iTunes search (throttle/timeout) → skip that artist, others still resolve, no throw', async () => {
+    const searchTracks = vi.fn(async (name: string) => {
+      if (name === 'throttled') throw new Error('429 Too Many Requests');
+      return exactCandidates(name);
+    });
+    const tracks = await resolveTracks([mkArtist('throttled'), mkArtist('balthvs')], {
+      searchTracks, crossCheck: vi.fn(),
+    });
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].artistId).toBe('balthvs');
+  });
   it('R7: headliner ALWAYS gets a 2nd track in the bundle, flagged', async () => {
     const headliner = mkArtist('khruangbin', { billingSlots: [{ showId: 'tm:1', slot: 2, ofSlots: 3 }] });
     const tracks = await resolveTracks([headliner], {
