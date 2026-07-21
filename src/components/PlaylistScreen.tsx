@@ -502,7 +502,9 @@ export function PlaylistScreen({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    // pb-24 clears the FIXED RadioPlayer bar (see RadioPlayer + globals.css
+    // scroll-padding) so the final rows / ShareSheet never sit under it.
+    <div className="flex flex-col gap-4 pb-24">
       {/* The SINGLE reused audio element. Auto-advance on end (with the 300ms gap
           armed here) and prompt auto-skip on preview error. */}
       <audio
@@ -633,7 +635,7 @@ export function PlaylistScreen({
           while the audio + player bar stay live below. */}
       <div
         ref={containerRef}
-        className={`pb-24 sf-peel${posterOpen ? ' sf-peel-open' : ''}`}
+        className={`sf-peel${posterOpen ? ' sf-peel-open' : ''}`}
       >
         <PlaylistList
           entries={entries}

@@ -81,13 +81,20 @@ export function RadioPlayer({
     <div
       role="region"
       aria-label="Radio player"
-      className="sticky bottom-0 z-10 flex items-center gap-3 px-3 py-2"
+      // FIXED to the viewport bottom (not sticky): the bar wraps only itself, so a
+      // `sticky` element had zero travel inside its containing block and only ever
+      // appeared once the page was scrolled to the very end. `fixed` pins it to the
+      // viewport so it stays visible during playback regardless of scroll position.
+      // Full-bleed background (edge-to-edge + safe-area fill); controls align to the
+      // same max-w-xl content column as the page.
+      className="fixed inset-x-0 bottom-0 z-40"
       style={{
         background: 'var(--surface-raised)',
         borderTop: '1px solid var(--line)',
-        paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
+      <div className="mx-auto flex max-w-xl items-center gap-3 px-3 py-2">
       {/* 40px faux single-channel halftone artwork block (tinted, no promo photo). */}
       <div
         aria-hidden
@@ -174,6 +181,7 @@ export function RadioPlayer({
       >
         <span aria-hidden>⏭</span>
       </button>
+      </div>
     </div>
   );
 }

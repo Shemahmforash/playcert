@@ -32,6 +32,12 @@ test('open London → play a preview → dial to Small Print drops the headliner
   await expect(audio).toHaveCount(1);
   await expect(audio).toHaveAttribute('src', /^https:\/\/mock\.local\/.+\.m4a$/);
 
+  // ── The player bar must be ON SCREEN while playing, near the TOP of the list ──
+  // (regression guard: a `position: sticky` bar whose wrapper had zero travel only
+  // appeared once scrolled to the very end — playing but invisible). `fixed` pins
+  // it to the viewport, so it is in-viewport here without any scrolling.
+  await expect(page.getByRole('region', { name: 'Radio player' })).toBeInViewport();
+
   // ── Operate the dial to SMALL PRINT: focus the slider, press End. ──
   const dial = page.getByRole('slider', { name: /Reading level/i });
   await dial.focus();

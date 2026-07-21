@@ -126,6 +126,17 @@ body {
 }
 
 /*
+ * The RadioPlayer is a FIXED bar pinned to the viewport bottom. Reserve scroll
+ * space on the document scroller so the auto-scroll `scrollIntoView({block:
+ * 'nearest'})` never parks the active row underneath it, and so the page can
+ * always scroll its final content clear of the bar. Height ≈ 44px control + py
+ * + border; 5rem covers it with margin, plus the iOS home-indicator inset.
+ */
+html {
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+/*
  * Global keyboard focus ring (design doc §4 "Focus"): a visible 2px offset ring
  * on EVERY interactive element that gains focus via the keyboard. Components set
  * their own weekday-ink `outline-color` inline (which wins over this default),
