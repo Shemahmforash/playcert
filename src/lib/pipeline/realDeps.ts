@@ -1,11 +1,10 @@
 import { notFound } from 'next/navigation';
 import { cacheLife } from 'next/cache';
 import { geoForCity } from '../api/geo';
-import type { TimeWindow } from '../types';
 import type { BuildDeps } from './buildBundle';
 import { extractArtists } from './extractArtists';
 import { resolveTracks } from './resolveTracks';
-import { fetchJambaseShows } from '../api/jambase';
+import { fetchJambaseShows, filterShowsToWindow } from '../api/jambase';
 import { searchArtistTracks, type ItunesCandidate } from '../api/itunes';
 import { crossCheckArtist } from '../api/musicbrainz';
 import { itunesQueue } from '../queue';
@@ -15,11 +14,14 @@ const DAY = 60 * 60 * 24;
 
 /**
  * The JamBase show-fetch, in its OWN durable 48h 'use cache: remote' layer keyed
- * by (city, window) ONLY — NOT fontStop, NOT the dial. This is the single seam
- * that decouples the (paid, quota-limited) JamBase call from the bundle's
+ * by CITY ONLY — NOT the window, NOT fontStop, NOT the dial. This is the single
+ * seam that decouples the (paid, quota-limited) JamBase call from the bundle's
  * resolution: the ONE JamBase network call now lives exclusively inside this
- * 48h-cached function, so it fires at most ~once per 48h per (city, window)
- * regardless of how often the OUTER bundle rebuilds.
+ * 48h-cached function, and — because the fetch is window-INDEPENDENT (it returns
+ * the raw wide next-14-days Show[]) — it fires at most ~once per 48h per CITY,
+ * NOT once per (city × window). The three windows now SHARE one cached wide fetch
+ * and each derive their slice locally (see `filterShowsToWindow`), cutting the
+ * JamBase call count by 3× (540 → 180/month worst case).
  *
  * Because the outer `getBundle` can then run a SHORT TTL, a bundle rebuild reuses
  * this cached Show[] (zero new JamBase calls) and only re-runs the free iTunes
@@ -33,12 +35,12 @@ const DAY = 60 * 60 * 24;
  * build + 4 rebuilds the JamBase call fired EXACTLY ONCE while the free iTunes
  * re-resolution filled the bill out 12 → 24 → 30 songs.
  */
-async function getShows(city: string, window: TimeWindow) {
+async function getShows(city: string) {
   'use cache: remote';
   cacheLife({ stale: 3600, revalidate: TTL.SHOWS, expire: 2 * TTL.SHOWS });
   const geo = geoForCity(city);
   if (!geo) notFound();
-  return fetchJambaseShows(geo, window);
+  return fetchJambaseShows(geo);
 }
 
 // Durable per-artist iTunes cache in Next's Data Cache, keyed on the (already
@@ -63,12 +65,14 @@ export function realDeps(city: string): BuildDeps {
       return geo!;
     },
     // JamBase is the primary source. Exactly ONE network call per COLD show-fetch:
-    // a wide fetch (50km / next-14-days) with local window filtering — no
-    // escalating widen calls — to stay inside the 1k-calls/month free tier. The
-    // call is wrapped in the 48h `getShows` cache above, so short bundle rebuilds
-    // reuse the cached Show[] and make ZERO new JamBase calls. The passed geo is
-    // ignored here (getShows re-resolves it from the slug for a stable cache key).
-    fetchShows: (_g, w) => getShows(city, w),
+    // a wide, window-INDEPENDENT fetch (50km / next-14-days) — no escalating widen
+    // calls — to stay inside the 1k-calls/month free tier. The call is wrapped in
+    // the 48h `getShows` cache above, keyed on CITY ONLY, so all three windows
+    // share it and short bundle rebuilds make ZERO new JamBase calls. Here we take
+    // the cached wide Show[] and apply the PURE (network-free) window filter,
+    // returning the same { shows, widened } shape buildBundle expects. The passed
+    // geo is ignored (getShows re-resolves it from the slug for a stable cache key).
+    fetchShows: async (_g, w) => filterShowsToWindow(await getShows(city), w),
     extract: extractArtists,
     resolveArtist: (a) =>
       resolveTracks([a], {

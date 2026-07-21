@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchJambaseShows } from '../../src/lib/api/jambase';
+import { fetchJambaseShows, filterShowsToWindow } from '../../src/lib/api/jambase';
 import { buildBundle } from '../../src/lib/pipeline/buildBundle';
 import { mockDeps } from '../../src/lib/pipeline/mockDeps';
 import { CITY_TABLE, type Geo } from '../../src/lib/api/geo';
@@ -32,25 +32,28 @@ const SAFETY_THRESHOLD = 900;
 const HOURS_PER_MONTH = 720; // 30 days × 24h
 const CALLS_PER_BUILD = 1;
 
-describe('JamBase budget — one call per build (all windows cost 1 call)', () => {
-  // Every window (tonight / this-weekend / next-14-days) is served by ONE wide
-  // JamBase fetch + LOCAL filtering — the narrower windows never trigger a
-  // second network call, and the widen ladder is pure local logic.
-  it.each(WINDOWS)('window %s → EXACTLY ONE rawFetch call', async (window) => {
+describe('JamBase budget — one call per CITY (all windows share ONE wide fetch)', () => {
+  // The wide fetch (fetchJambaseShows) is window-INDEPENDENT: ONE JamBase call
+  // serves every window, and the PURE `filterShowsToWindow` derives each window's
+  // slice with ZERO further network calls. Re-slicing all three windows off one
+  // fetch is the whole point of the (city-only) cache key — it never re-fetches.
+  it('ONE wide fetch, then all windows filter locally → EXACTLY ONE rawFetch call', async () => {
     const rawFetch = vi.fn(async () => ({ events: [] }));
-    await fetchJambaseShows(geo, window, { rawFetch, now });
+    const wide = await fetchJambaseShows(geo, { rawFetch, now });
+    for (const window of WINDOWS) filterShowsToWindow(wide, window, now()); // pure — 0 calls
     expect(rawFetch).toHaveBeenCalledTimes(1);
   });
 
   it('a sparse result (which triggers the widen meta) still makes only ONE call', async () => {
-    // 2 events across 14 days → below the 8-viable bar → widen meta is emitted,
-    // but that is pure local logic: still exactly one network call.
+    // 2 events across 14 days → below the 8-viable bar → widen meta is emitted by
+    // the PURE filter, no network involved: still exactly one wide fetch.
     const events = [
       { identifier: 'jambase:1', name: 'A', startDate: '2026-07-20T20:00:00', performer: [{ name: 'A' }] },
       { identifier: 'jambase:2', name: 'B', startDate: '2026-07-27T20:00:00', performer: [{ name: 'B' }] },
     ];
     const rawFetch = vi.fn(async () => ({ events }));
-    const { widened } = await fetchJambaseShows(geo, 'tonight', { rawFetch, now });
+    const wide = await fetchJambaseShows(geo, { rawFetch, now });
+    const { widened } = filterShowsToWindow(wide, 'tonight', now());
     expect(rawFetch).toHaveBeenCalledTimes(1);
     expect(widened).toBeDefined(); // widen path exercised, still 1 call
   });
@@ -58,18 +61,18 @@ describe('JamBase budget — one call per build (all windows cost 1 call)', () =
 
 describe('JamBase budget — worst-case monthly projection ≤ 900', () => {
   // Same formula as scripts/verify-budgets.ts, computed from the REAL city
-  // table × windows × TTL.SHOWS. Post-decoupling (5.5) the JamBase call lives in
-  // the 48h `getShows` cache, so TTL.SHOWS — NOT TTL.BUNDLE — is the cost driver:
-  // bundle rebuilds reuse the cached Show[] at zero JamBase cost. Adding cities or
-  // shortening TTL.SHOWS fails CI here until the math is brought back within budget.
-  it('|CITY_TABLE| × |WINDOWS| × ceil(720/ttlHours) stays under the free-tier safety threshold', () => {
+  // table × TTL.SHOWS. Post-decoupling (5.5) the JamBase call lives in the 48h
+  // `getShows` cache, so TTL.SHOWS — NOT TTL.BUNDLE — is the cost driver: bundle
+  // rebuilds reuse the cached Show[] at zero JamBase cost. Post-P0-b the fetch is
+  // window-INDEPENDENT and getShows is keyed by CITY ONLY, so the shows dimension
+  // is CITIES, not city×window. Adding cities or shortening TTL.SHOWS fails CI
+  // here until the math is brought back within budget.
+  it('|CITY_TABLE| × ceil(720/ttlHours) stays under the free-tier safety threshold', () => {
     const cities = Object.keys(CITY_TABLE).length;
-    const windows = WINDOWS.length;
-    const combos = cities * windows;
 
     const ttlHours = TTL.SHOWS / 3600;
     const rebuildsPerMonth = Math.ceil(HOURS_PER_MONTH / ttlHours);
-    const worstCaseCallsPerMonth = combos * rebuildsPerMonth * CALLS_PER_BUILD;
+    const worstCaseCallsPerMonth = cities * rebuildsPerMonth * CALLS_PER_BUILD;
 
     expect(worstCaseCallsPerMonth).toBeLessThanOrEqual(SAFETY_THRESHOLD);
     // And, transitively, comfortably under the actual €5 free-tier hard cap.

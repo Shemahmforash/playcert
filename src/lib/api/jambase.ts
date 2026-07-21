@@ -134,18 +134,22 @@ export interface FetchJambaseDeps {
 }
 
 /**
- * Fetch JamBase shows for a geo/window with EXACTLY ONE network call.
+ * Fetch the WIDE, window-INDEPENDENT JamBase envelope with EXACTLY ONE network
+ * call, returning the raw next-14-days Show[]. THIS is the one-call invariant: it
+ * takes NO window, so the same wide fetch serves every window — the single paid
+ * JamBase call now lives here and here only.
  *
  * COST CONTROL (hard constraint — 1k calls/month free tier): we fetch the
  * WIDEST useful envelope once (radius 50km, the full next-14-days range, 50/page
- * sorted by date asc) and then satisfy narrower windows purely by LOCAL
- * filtering. There is never an escalating second widen call.
+ * sorted by date asc). Narrower windows are satisfied purely by LOCAL filtering
+ * downstream (see `filterShowsToWindow`) — there is never an escalating second
+ * widen call, and re-keying the cache on CITY only (realDeps) means this fires
+ * once per city, not once per (city × window).
  */
 export async function fetchJambaseShows(
   geo: Geo,
-  window: TimeWindow,
   deps: FetchJambaseDeps = {},
-): Promise<{ shows: Show[]; widened?: WidenMeta }> {
+): Promise<Show[]> {
   const now = deps.now ? deps.now() : new Date();
   const from = dateOnly(now);
   const to = dateOnly(new Date(now.getTime() + 14 * 864e5));
@@ -162,7 +166,22 @@ export async function fetchJambaseShows(
   };
 
   const json = await fetchOnce(params, deps);
-  const all = parseJambaseEvents(json); // full next-14-days set
+  return parseJambaseEvents(json); // full next-14-days set
+}
+
+/**
+ * PURE, network-free window filter over an already-fetched wide Show[] (the
+ * output of `fetchJambaseShows`). Makes ZERO network calls — it only slices the
+ * wide envelope to the requested window by startsAt DATE and derives the widen
+ * meta for SparseNotice. Split out from the fetch so the (city-only) cache can
+ * store the wide set once and every window re-derives its slice for free.
+ */
+export function filterShowsToWindow(
+  all: Show[],
+  window: TimeWindow,
+  now: Date = new Date(),
+): { shows: Show[]; widened?: WidenMeta } {
+  const from = dateOnly(now);
 
   // Locally filter to the requested window by startsAt DATE.
   const windowEnd = dateOnly(new Date(now.getTime() + windowDays(window) * 864e5));
@@ -171,7 +190,7 @@ export async function fetchJambaseShows(
     return d >= from && d <= windowEnd;
   });
 
-  // widened meta for SparseNotice — no extra network calls, pure local logic.
+  // widened meta for SparseNotice — no network calls, pure local logic.
   if (windowed.length < MIN_VIABLE_SHOWS && all.length >= MIN_VIABLE_SHOWS) {
     // narrow window is thin but the 14-day envelope is rich → widen the window.
     return { shows: all, widened: { window: 'next-14-days' } };

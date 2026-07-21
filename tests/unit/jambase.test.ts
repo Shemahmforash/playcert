@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   parseJambaseEvents,
   fetchJambaseShows,
+  filterShowsToWindow,
   JambaseError,
 } from '../../src/lib/api/jambase';
 import { extractArtists } from '../../src/lib/pipeline/extractArtists';
@@ -75,20 +76,20 @@ describe('parseJambaseEvents', () => {
   });
 });
 
-describe('fetchJambaseShows (call-minimised)', () => {
-  it('makes EXACTLY ONE fetch call and filters by window', async () => {
+describe('fetchJambaseShows (window-independent wide fetch)', () => {
+  it('makes EXACTLY ONE fetch call and returns the raw wide Show[]', async () => {
     const rawFetch = vi.fn(async () => fixture);
-    const { shows } = await fetchJambaseShows(geo, 'tonight', { rawFetch, now });
+    const shows = await fetchJambaseShows(geo, { rawFetch, now });
 
     expect(rawFetch).toHaveBeenCalledTimes(1);
-    // both fixture events are on today → present in the tonight window
+    // both fixture events are on today → present in the wide next-14-days set
     expect(shows.length).toBe(2);
     expect(shows.every((s) => s.id.startsWith('jb:'))).toBe(true);
   });
 
   it('sends one wide request covering the full next-14-days range', async () => {
     const rawFetch = vi.fn(async (_params: Record<string, string>) => ({ events: [] }));
-    await fetchJambaseShows(geo, 'tonight', { rawFetch, now });
+    await fetchJambaseShows(geo, { rawFetch, now });
 
     const params = rawFetch.mock.calls[0][0];
     expect(params.geoRadiusAmount).toBe('50');
@@ -99,13 +100,31 @@ describe('fetchJambaseShows (call-minimised)', () => {
     expect(rawFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('flags genuinely sparse results (radiusKm) when even 14d is below 8', async () => {
-    const rawFetch = vi.fn(async () => fixture); // only 2 events
-    const { widened } = await fetchJambaseShows(geo, 'next-14-days', { rawFetch, now });
+  it('throws JambaseError when the injected fetcher rejects with one', async () => {
+    const rawFetch = vi.fn(async () => {
+      throw new JambaseError('JamBase 403: quota');
+    });
+    await expect(fetchJambaseShows(geo, { rawFetch, now })).rejects.toBeInstanceOf(
+      JambaseError,
+    );
+  });
+});
+
+describe('filterShowsToWindow (pure, network-free)', () => {
+  it('slices the wide set to the requested window (both fixture events are tonight)', () => {
+    const all = parseJambaseEvents(fixture);
+    const { shows } = filterShowsToWindow(all, 'tonight', now());
+    expect(shows.length).toBe(2);
+    expect(shows.every((s) => s.id.startsWith('jb:'))).toBe(true);
+  });
+
+  it('flags genuinely sparse results (radiusKm) when even 14d is below 8', () => {
+    const all = parseJambaseEvents(fixture); // only 2 events
+    const { widened } = filterShowsToWindow(all, 'next-14-days', now());
     expect(widened).toEqual({ radiusKm: 50 });
   });
 
-  it('widens the window when the narrow window thins below 8 but 14d is rich', async () => {
+  it('widens the window when the narrow window thins below 8 but 14d is rich', () => {
     // 10 events: 2 today, 8 later this month → tonight is thin, 14d is rich.
     const mkEvent = (i: number, date: string) => ({
       identifier: `jambase:${i}`,
@@ -118,20 +137,10 @@ describe('fetchJambaseShows (call-minimised)', () => {
       mkEvent(2, '2026-07-20'),
       ...Array.from({ length: 8 }, (_, k) => mkEvent(10 + k, '2026-07-28')),
     ];
-    const rawFetch = vi.fn(async () => ({ events }));
-    const { shows, widened } = await fetchJambaseShows(geo, 'tonight', { rawFetch, now });
+    const all = parseJambaseEvents({ events });
+    const { shows, widened } = filterShowsToWindow(all, 'tonight', now());
 
-    expect(rawFetch).toHaveBeenCalledTimes(1);
     expect(widened).toEqual({ window: 'next-14-days' });
     expect(shows.length).toBe(10); // returns the wider 14-day set
-  });
-
-  it('throws JambaseError when the injected fetcher rejects with one', async () => {
-    const rawFetch = vi.fn(async () => {
-      throw new JambaseError('JamBase 403: quota');
-    });
-    await expect(fetchJambaseShows(geo, 'tonight', { rawFetch, now })).rejects.toBeInstanceOf(
-      JambaseError,
-    );
   });
 });
