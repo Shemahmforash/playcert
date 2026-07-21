@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import type { TimeWindow } from '../lib/types';
-import type { WidenMeta } from '../lib/pipeline/fetchShows';
+import type { TimeWindow, WidenMeta } from '../lib/types';
 
 /**
  * SparseNotice — the honest widen banner (Task 2.8, §2.6 "Sparse").
  *
- * SSOT: docs/design/2026-07-19-phase2-design-system.md §2.6. When the internal
- * widen ladder (fetchShowsWithWiden) had to reach past the requested radius
+ * SSOT: docs/design/2026-07-19-phase2-design-system.md §2.6. When the local
+ * window filter (filterShowsToWindow) had to reach past the requested radius
  * and/or window to find a viable bill, we say so plainly — an amber rubber-stamp
  * overprint sitting under the header. "Plain, never apologetic-cute." Dismissible
  * (local state only; nothing persisted, nothing in the URL).

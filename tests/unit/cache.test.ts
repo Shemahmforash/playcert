@@ -30,11 +30,18 @@ describe('cacheKeys', () => {
 
 describe('bundleCacheProfile (fill-out cadence — free iTunes re-resolution, no JamBase cost)', () => {
   it('returns 2h (7200s) degraded below the 8-playable-track bar', () => {
-    expect(bundleCacheProfile(7)).toEqual({ revalidate: 7_200 });
-    expect(bundleCacheProfile(0)).toEqual({ revalidate: 7_200 });
+    expect(bundleCacheProfile(7).revalidate).toBe(7_200);
+    expect(bundleCacheProfile(0).revalidate).toBe(7_200);
   });
   it('returns 3h (10800s) at/above the bar', () => {
-    expect(bundleCacheProfile(8)).toEqual({ revalidate: 10_800 });
-    expect(bundleCacheProfile(30)).toEqual({ revalidate: 10_800 });
+    expect(bundleCacheProfile(8).revalidate).toBe(10_800);
+    expect(bundleCacheProfile(30).revalidate).toBe(10_800);
+  });
+  // Pin the FULL cacheLife shape (mirrors the TTL.SHOWS discipline): stale/expire
+  // are explicit bookends, not framework defaults, so the cold-miss/warming SWR
+  // window is locked down. 60s stale · 3h/2h revalidate · 48h expire.
+  it('pins the full { stale, revalidate, expire } profile on both branches', () => {
+    expect(bundleCacheProfile(30)).toEqual({ stale: 60, revalidate: 10_800, expire: 172_800 });
+    expect(bundleCacheProfile(7)).toEqual({ stale: 60, revalidate: 7_200, expire: 172_800 });
   });
 });

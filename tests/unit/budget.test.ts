@@ -1,10 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fetchJambaseShows, filterShowsToWindow } from '../../src/lib/api/jambase';
+import * as jambase from '../../src/lib/api/jambase';
 import { buildBundle } from '../../src/lib/pipeline/buildBundle';
 import { mockDeps } from '../../src/lib/pipeline/mockDeps';
-import { CITY_TABLE, type Geo } from '../../src/lib/api/geo';
+import { realDeps } from '../../src/lib/pipeline/realDeps';
+import { CITY_TABLE, geoForCity, type Geo } from '../../src/lib/api/geo';
 import { WINDOWS } from '../../src/lib/urlState';
 import { TTL } from '../../src/lib/cache';
+
+// realDeps' `getShows` calls `cacheLife` from next/cache at the top of the cached
+// function; outside a Next request scope that call has nothing to register to, so
+// stub it to a no-op. We are exercising the COMPOSITION (getShows → fetchJambase),
+// not Next's cache runtime — the actual call-collapsing is a 'use cache' property
+// the 5.5 spike verified live; this file proves nothing window-specific reaches
+// the fetch, which is the necessary-and-sufficient condition for city-only keying.
+vi.mock('next/cache', () => ({ cacheLife: () => {} }));
 
 // ---------------------------------------------------------------------------
 // The €5/month JamBase budget, enforced in CI (Task 5.4).
@@ -89,5 +99,56 @@ describe('JamBase budget — reproducibility (R12): calls scale with cache keys,
     const a = await buildBundle('london', 'next-14-days', mockDeps('london'));
     const b = await buildBundle('london', 'next-14-days', mockDeps('london'));
     expect(a).toEqual(b);
+  });
+});
+
+describe('JamBase budget — the call is wired INSIDE getShows, keyed CITY-only (composed path)', () => {
+  // The blocks above spy the LEAF `fetchJambaseShows` in ISOLATION — they prove the
+  // one-network-call invariant of the fetch itself, but NOTHING exercises the real
+  // cost-defining WIRING: that the paid JamBase call actually fires from inside
+  // realDeps' 48h `getShows` layer, and that its cache key excludes the window. With
+  // only the leaf tested, someone could move the JamBase call out of getShows, or
+  // re-key it by (city × window) — tripling the worst case 180 → 540/month — and CI
+  // would stay green. This test drives the COMPOSED realDeps.fetchShows seam and spies
+  // the network boundary (`fetchJambaseShows`) through it, so the wiring is asserted.
+  it('realDeps.fetchShows drives the JamBase call through getShows, window-INDEPENDENTLY (one distinct fetch per city)', async () => {
+    // Spy the network-boundary function the composition calls. Resolving [] keeps
+    // the downstream PURE `filterShowsToWindow` (the real one) network-free.
+    const spy = vi.spyOn(jambase, 'fetchJambaseShows').mockResolvedValue([]);
+    try {
+      const deps = realDeps('london');
+      const londonGeo = geoForCity('london')!;
+
+      // Drive TWO different windows through the SAME city's composed fetchShows.
+      await deps.fetchShows(londonGeo, 'tonight');
+      await deps.fetchShows(londonGeo, 'next-14-days');
+
+      // (1) The JamBase call fires THROUGH the composed path. If someone moves the
+      // fetch out of getShows (e.g. into an uncached leaf), this spy never fires.
+      expect(spy).toHaveBeenCalled();
+
+      // (2) Every window drives the fetch with the SAME, window-INDEPENDENT argument
+      // — the geo re-derived from the city SLUG, and NO per-window deps (getShows
+      // calls `fetchJambaseShows(geo)` with one arg, so the paid rawFetch path runs
+      // in prod). The window is applied AFTER, by the pure local filter — it never
+      // reaches the fetch. That is exactly what lets getShows key on CITY only.
+      for (const call of spy.mock.calls) {
+        expect(call[0]).toEqual(londonGeo); // city-derived geo, identical across windows
+        expect(call[1]).toBeUndefined(); // no window / per-call deps threaded into the fetch
+      }
+
+      // (3) The DISTINCT fetch count — distinct argument tuples = distinct cache keys
+      // = distinct PAID calls at runtime — is ONE across all windows. Re-invoking for
+      // a different window adds NO new cache key, so the 48h city-keyed `getShows`
+      // collapses every window onto ONE JamBase call (180/mo, not 540). Re-keying
+      // getShows by window would make this set size 2 and fail here.
+      const distinctFetches = new Set(
+        spy.mock.calls.map((c) => JSON.stringify([c[0], c[1] ?? null])),
+      );
+      expect(distinctFetches.size).toBe(1);
+      expect([...distinctFetches][0]).toBe(JSON.stringify([londonGeo, null]));
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

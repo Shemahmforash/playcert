@@ -1,31 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cacheLife } from 'next/cache';
-import type { TimeWindow } from '@/lib/types';
 import { parseUrlState } from '@/lib/urlState';
 import { geoForCity } from '@/lib/api/geo';
-import { buildBundleCached } from '@/lib/pipeline/buildBundle';
-import { buildDeps } from '@/lib/pipeline/deps';
-import { bundleCacheProfile } from '@/lib/cache';
+import { getBundle } from '@/lib/pipeline/getBundle';
 import { JambaseError } from '@/lib/api/jambase';
 
 export const maxDuration = 60;
-
-/**
- * The (slow-on-cold) bundle build, in the SAME 48h/`'use cache: remote'` layer the
- * page used to hold open inside its stream. Serving it from a STANDALONE request is
- * the whole point of this route: the page's SSR response can now close instantly
- * (masthead + LoadingTheater), so iOS Safari — which refuses to paint a streamed
- * response that's still hanging open — has a finished document to render. The ~45s
- * cold build happens here, behind the client-side LoadingTheater, not in the page
- * stream. Warm calls return from the cache in ~1s; the cost driver is unchanged
- * (the 48h getShows cache inside buildDeps → realDeps).
- */
-async function getBundle(city: string, window: TimeWindow) {
-  'use cache: remote';
-  const b = await buildBundleCached(city, window, buildDeps(city));
-  cacheLife(bundleCacheProfile(b.tracks.length));
-  return b;
-}
 
 export async function GET(
   _req: Request,

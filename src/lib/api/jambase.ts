@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import type { Show, TimeWindow } from '@/lib/types';
+import type { Show, TimeWindow, WidenMeta } from '@/lib/types';
 import type { Geo } from './geo';
-import type { WidenMeta } from '../pipeline/fetchShows';
 import { jambaseQueue } from '../queue';
 
 // ---------------------------------------------------------------------------

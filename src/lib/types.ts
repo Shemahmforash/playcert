@@ -1,8 +1,15 @@
 import type { Geo } from './api/geo';
-import type { WidenMeta } from './pipeline/fetchShows';
 
 export type TimeWindow = 'tonight' | 'this-weekend' | 'next-14-days';
 export type FontStop = 'everything' | 'no-arenas' | 'small-print';
+
+/**
+ * Widen metadata surfaced on a bundle when the bill had to reach past the
+ * requested radius and/or window to stay viable. Drives SparseNotice's honest
+ * banner. Lives here (not in the pipeline) now that the escalating widen ladder
+ * is gone — `filterShowsToWindow` (jambase.ts) derives it purely and locally.
+ */
+export interface WidenMeta { radiusKm?: number; window?: TimeWindow }
 
 export interface Show {
   id: string; // "tm:{eventId}" — source-prefixed for the v1.1 SeatGeek merge

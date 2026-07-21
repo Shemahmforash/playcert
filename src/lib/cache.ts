@@ -22,10 +22,11 @@ export const cacheKeys = {
  *  shows 48h · bundle 3h (or 2h degraded) · per-artist itunes/mb/lb/yt 30d · geo 30d · geo-negative 24h
  *
  *  COST CONTROL lives in SHOWS (48h), NOT the bundle TTL. Post-decoupling (5.5/5.6)
- *  the one JamBase call sits inside the 48h `getShows` cache (realDeps.ts), so a
- *  (city, window) makes ~1 JamBase call per 48h no matter how often the bundle
- *  rebuilds. Worst case (all 12 cities x 3 windows = 36 combos active):
- *  36 x ceil(720/48) = 540 calls/month — under the 1,000 free cap (~460 headroom).
+ *  the one JamBase call sits inside the 48h `getShows` cache (realDeps.ts), keyed by
+ *  CITY ONLY — the fetch is window-independent (one wide 14-day envelope, sliced per
+ *  window locally, P0-b), so a CITY makes ~1 JamBase call per 48h no matter how often
+ *  the bundle rebuilds or which windows are viewed. Worst case (all 12 cities active):
+ *  12 x ceil(720/48) = 180 calls/month — under the 1,000 free cap (~820 headroom).
  *  `scripts/verify-budgets.ts` asserts this against SHOWS. Concert listings
  *  tolerate 1–2 days of staleness; the EUR5 hard cap wins over freshness.
  *
@@ -38,6 +39,22 @@ export const cacheKeys = {
  *  which is NOT a JamBase cost. */
 export const TTL = { BUNDLE: 10_800, BUNDLE_DEGRADED: 7_200, SHOWS: 172_800, ARTIST_30D: 2_592_000, GEO_NEG: 86_400 } as const;
 
+/** Stale + expire bookends for the OUTER bundle cacheLife profile. `revalidate`
+ *  (3h/2h) is the fill-out cadence; these two frame the SWR window around it.
+ *
+ *  BUNDLE_STALE (~60s): how long the client router may reuse a cached bundle
+ *  without even asking the server — keeps in-session navigation instant while a
+ *  background revalidate refreshes the bill.
+ *
+ *  BUNDLE_EXPIRE (48h): the HARD ceiling past which a cached bundle may no longer
+ *  be served stale and a miss must BLOCK on a fresh build. Deliberately a generous
+ *  multiple of revalidate (48h ≈ 16× the 3h full TTL) so stale-while-revalidate
+ *  reliably HIDES cold builds — including the empty in-memory cache right after a
+ *  deploy — instead of forcing users onto a blocking cold rebuild. It has ZERO
+ *  JamBase-cost impact (the one paid call lives in the 48h getShows layer). */
+const BUNDLE_STALE = 60;
+const BUNDLE_EXPIRE = 172_800; // 48h
+
 /**
  * Full/degraded revalidate for the OUTER bundle cache. Post-decoupling (5.5) the
  * JamBase call lives in the 48h `getShows` layer (see realDeps.ts), so this TTL
@@ -46,12 +63,24 @@ export const TTL = { BUNDLE: 10_800, BUNDLE_DEGRADED: 7_200, SHOWS: 172_800, ART
  * so a fresh or below-bar playlist fills toward the full bill within hours at zero
  * JamBase cost.
  *
+ * Returns the FULL cacheLife shape { stale, revalidate, expire } — leaving stale
+ * and expire implicit let them fall to framework defaults, which the cold-miss /
+ * warming plan can't rely on; they are now pinned explicitly (see the bookend
+ * consts above) and passed straight to `cacheLife` (see getBundle.ts).
+ *
  * `SPIKE_BUNDLE_REVALIDATE` (seconds) is an env override used ONLY to observe
  * rebuilds empirically; unset in prod/tests, so the committed 3h/2h values (and
  * the budget assertions, which key off TTL.SHOWS) are unaffected.
  */
-export function bundleCacheProfile(playableTracks: number): { revalidate: number } {
+export function bundleCacheProfile(
+  playableTracks: number,
+): { stale: number; revalidate: number; expire: number } {
   const spike = Number(process.env.SPIKE_BUNDLE_REVALIDATE);
-  if (Number.isFinite(spike) && spike > 0) return { revalidate: spike };
-  return { revalidate: playableTracks < 8 ? TTL.BUNDLE_DEGRADED : TTL.BUNDLE };
+  const revalidate =
+    Number.isFinite(spike) && spike > 0
+      ? spike
+      : playableTracks < 8
+        ? TTL.BUNDLE_DEGRADED
+        : TTL.BUNDLE;
+  return { stale: BUNDLE_STALE, revalidate, expire: BUNDLE_EXPIRE };
 }

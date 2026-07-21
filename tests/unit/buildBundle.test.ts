@@ -60,7 +60,7 @@ describe('buildBundle (R3/R4)', () => {
     expect(seen).toEqual(['opener-a', 'headliner-a', 'opener-b', 'headliner-b']);
   });
 
-  it('stops resolving once the 40s budget is exceeded → partial bundle + belowBar', async () => {
+  it('stops resolving once the 25s budget is exceeded → partial bundle + belowBar', async () => {
     const shows = [
       mkShow('tm:1', '2026-07-20T10:00:00Z', ['A1', 'A2']),
       mkShow('tm:2', '2026-07-20T11:00:00Z', ['B1', 'B2']),
@@ -68,8 +68,8 @@ describe('buildBundle (R3/R4)', () => {
     ];
     const start = 1_000;
     let calls = 0;
-    // Clock: within budget until two artists have resolved, then jumps past the 40s budget.
-    const now = vi.fn(() => (calls < 2 ? start : start + 40_001));
+    // Clock: within budget until two artists have resolved, then jumps past the 25s budget.
+    const now = vi.fn(() => (calls < 2 ? start : start + 25_001));
     const resolveArtist = vi.fn(async (a: Artist) => {
       calls++;
       return [trackFor(a)];
@@ -89,7 +89,7 @@ describe('buildBundle (R3/R4)', () => {
       fetchShows: async () => ({ shows: [mkShow('tm:1', '2026-07-20T10:00:00Z', ['X', 'Y'])] }),
     }));
     expect(partial.belowBar).toBe(true);
-    expect(bundleCacheProfile(partial.tracks.length)).toEqual({ revalidate: 7_200 });
+    expect(bundleCacheProfile(partial.tracks.length)).toEqual({ stale: 60, revalidate: 7_200, expire: 172_800 });
 
     // Full bundle (8 acts → 8 tracks).
     const eight = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -98,7 +98,7 @@ describe('buildBundle (R3/R4)', () => {
     }));
     expect(full.tracks.length).toBe(8);
     expect(full.belowBar).toBe(false);
-    expect(bundleCacheProfile(full.tracks.length)).toEqual({ revalidate: 10_800 });
+    expect(bundleCacheProfile(full.tracks.length)).toEqual({ stale: 60, revalidate: 10_800, expire: 172_800 });
   });
 
   it('buildBundleCached coalesces concurrent calls for the same key into ONE build', async () => {

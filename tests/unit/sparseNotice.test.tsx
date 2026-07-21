@@ -1,7 +1,7 @@
 import { afterEach, describe, it, expect } from 'vitest';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { SparseNotice } from '../../src/components/SparseNotice';
-import type { WidenMeta } from '../../src/lib/pipeline/fetchShows';
+import type { WidenMeta } from '../../src/lib/types';
 
 // vitest globals are disabled in this project → register RTL cleanup by hand.
 afterEach(cleanup);
