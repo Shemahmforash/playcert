@@ -1,21 +1,13 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { cacheLife } from 'next/cache';
 import { resolvePageState } from '../../../../lib/pageState';
 import { formatCanonicalPath, type RequestKey } from '../../../../lib/urlState';
 import type { TimeWindow } from '../../../../lib/types';
 import { pageTitle, pageDescription } from '../../../../lib/title';
 import { geoForCity } from '../../../../lib/api/geo';
-import { buildBundleCached } from '../../../../lib/pipeline/buildBundle';
-import { buildDeps } from '../../../../lib/pipeline/deps';
-import { bundleCacheProfile } from '../../../../lib/cache';
-import { JambaseError } from '../../../../lib/api/jambase';
-import { PlaylistScreen } from '../../../../components/PlaylistScreen';
 import { LoadingTheater } from '../../../../components/LoadingTheater';
-import { EmptyState } from '../../../../components/EmptyState';
-import { ErrorState } from '../../../../components/ErrorState';
-import { recoveryActionsForEmpty } from '../../../../lib/recoveryActions';
+import { PlaylistLoader } from '../../../../components/PlaylistLoader';
 
 export const maxDuration = 60;
 
@@ -72,13 +64,6 @@ async function resolveKey(params: Params): Promise<RequestKey> {
   return state.key;
 }
 
-async function getBundle(city: string, window: TimeWindow) {
-  'use cache: remote';
-  const b = await buildBundleCached(city, window, buildDeps(city));
-  cacheLife(bundleCacheProfile(b.tracks.length));
-  return b;
-}
-
 async function CityTitle({ params }: { params: Params }) {
   const key = await resolveKey(params);
   return (
@@ -90,51 +75,13 @@ async function CityTitle({ params }: { params: Params }) {
 
 async function PlaylistSection({ params }: { params: Params }) {
   const key = await resolveKey(params);
-  // NOTE: reading params above already makes this boundary request-time dynamic,
-  // so no connection() is needed. Crucially, connection() here was ALSO defeating
-  // the nested `getBundle` "use cache" persistence on Vercel serverless (the
-  // bundle rebuilt every request); removing it lets the Data Cache persist.
-  try {
-    const b = await getBundle(key.city, key.window);
-    // The full internal widen ladder still yielded nothing playable → the bare
-    // wall, with honest escape hatches (§2.6 "Empty"). `unfilteredHadShows` lets
-    // the derivation offer an "Everything on the dial" reset when the emptiness
-    // is a filtering choice, not a genuinely dead city+window.
-    if (b.tracks.length === 0) {
-      return (
-        <EmptyState
-          city={key.city}
-          window={key.window}
-          actions={recoveryActionsForEmpty({
-            city: key.city,
-            window: key.window,
-            fontStop: key.fontStop,
-            unfilteredHadShows: b.shows.length > 0,
-          })}
-        />
-      );
-    }
-    // Ship the WHOLE bundle to the client and let `applyFontStop` produce what's
-    // rendered. The SSR render shows `applyFontStop(b, key.fontStop)` for the
-    // URL's stop (e.g. /london/next-14-days/small-print server-renders the
-    // small-print view), and the Phase-3.5 dial can re-filter locally with ZERO
-    // fetches because every track is already on the client.
-    return (
-      <PlaylistScreen
-        bundle={b}
-        fontStop={key.fontStop}
-        city={key.city}
-        window={key.window}
-      />
-    );
-  } catch (err) {
-    // JamBase is the live source: a quota/error → ErrorState while the edge
-    // serves stale is acceptable graceful degradation.
-    if (err instanceof JambaseError) {
-      return <ErrorState />;
-    }
-    throw err;
-  }
+  // The bundle is NOT built here. Building it in the SSR path holds the streamed
+  // response open for the whole ~45s cold build, which iOS Safari refuses to paint
+  // (black screen until the stream closes). Instead this boundary resolves instantly
+  // (params only) and hands off to the CLIENT `PlaylistLoader`, which fetches the
+  // bundle from /api/bundle behind its own LoadingTheater — so the page response
+  // closes fast and every browser paints the shell + theater immediately.
+  return <PlaylistLoader city={key.city} window={key.window} fontStop={key.fontStop} />;
 }
 
 export default function Page({ params }: { params: Params }) {
