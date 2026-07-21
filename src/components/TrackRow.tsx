@@ -2,7 +2,14 @@
 
 import type { CSSProperties } from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import type { FontStop } from '../lib/types';
 import { StubBack, type SameBillItem, type StubReport } from './StubBack';
+import { HeartFilledIcon, HeartOutlineIcon, PauseIcon, PlayIcon } from './icons';
+
+// Chroma-coupled-to-SIZE gate, mirrored from posterLayout.ts (SPOT_INK_MIN_PX):
+// a display name only earns a loud spot ink once it renders ≥ 28px; anything
+// smaller stays newsprint --ink. Size, never colour alone, carries the billing.
+const SPOT_INK_MIN_PX = 28;
 
 // useLayoutEffect on the client (measure before paint → no flash of overflow),
 // useEffect on the server (React would warn on useLayoutEffect during SSR).
@@ -38,6 +45,13 @@ export interface TrackRowProps {
   widenTag?: string;        // e.g. "+38 KM" or "OUTSIDE WINDOW"
   hearted?: boolean;
   accentHue?: string;       // day's weekday-ink; falls back to --admission
+  /**
+   * The active dial stop — the ONLY signal needed to pick the loud spot ink on
+   * a fame-sized name, exactly as posterLayout's `colorFor` does: pink at the
+   * marquee / no-arenas stops (headliners are the big type), blue at Small Print
+   * (openers are the big type). Omit → names stay newsprint --ink (test default).
+   */
+  fontStop?: FontStop;
   onPlay?: () => void;
   onHeart?: () => void;
   onOpenGig?: () => void;   // the gig-chip tap (fired alongside the flip)
@@ -116,6 +130,7 @@ export function TrackRow({
   widenTag,
   hearted,
   accentHue,
+  fontStop,
   onPlay,
   onHeart,
   onOpenGig,
@@ -187,6 +202,20 @@ export function TrackRow({
   // as the standalone fallback) + a subtle perforation glow.
   const accent = accentHue ?? 'var(--admission)';
 
+  // ── The two-colour bill reaches the on-screen names ───────────────────────
+  // Same rule as posterLayout.colorFor, keyed off the ACTUAL fitted size so the
+  // poster and the screen agree: a name that renders ≥ 28px earns the loud spot
+  // ink of whoever the current stop features (pink at marquee / no-arenas where
+  // headliners are biggest; blue at Small Print where openers are biggest);
+  // smaller type stays newsprint --ink. Without a stop signal (standalone/tests)
+  // we can't name the featured ink, so names stay --ink.
+  const nameColor =
+    fontStop && namePx >= SPOT_INK_MIN_PX
+      ? fontStop === 'small-print'
+        ? 'var(--riso-blue)'
+        : 'var(--riso-pink)'
+      : 'var(--ink)';
+
   const chipText =
     `${dateLabel} · ${venue.toUpperCase()}` + (doors ? ` · DOORS ${doors}` : '');
 
@@ -241,7 +270,7 @@ export function TrackRow({
             outlineColor: accent,
           }}
         >
-          <span aria-hidden>{isPlaying ? '❚❚' : '▶'}</span>
+          {isPlaying ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
         </button>
 
         {/* The fame-sized display name + the song title beneath it. The title is
@@ -263,7 +292,7 @@ export function TrackRow({
               wordBreak: 'keep-all',
               textWrap: 'balance',
               opacity: isPlayed ? 0.6 : undefined, // used-stub: exact 60%
-              color: 'var(--ink)',
+              color: nameColor,
               ...nameVariation(prominence),
             }}
           >
@@ -291,7 +320,7 @@ export function TrackRow({
             outlineColor: accent,
           }}
         >
-          <span aria-hidden>{hearted ? '♥' : '♡'}</span>
+          {hearted ? <HeartFilledIcon aria-hidden /> : <HeartOutlineIcon aria-hidden />}
         </button>
       </div>
 

@@ -142,6 +142,9 @@ export default function Page({ params }: { params: Params }) {
     <main className="mx-auto w-full max-w-xl px-5 py-10 flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.2em] text-foreground opacity-50">Earshot</p>
+        <p className="text-[0.7rem] leading-snug tracking-[0.04em] text-ash">
+          Tonight&rsquo;s lineups, as a playlist — read from the bottom up.
+        </p>
         <Suspense
           fallback={
             <h1 className="text-2xl font-bold tracking-tight text-foreground opacity-40">

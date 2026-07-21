@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Artist, TimeWindow } from '../lib/types';
+import type { Artist, FontStop, TimeWindow } from '../lib/types';
 import type { PlaylistEntry } from '../lib/pipeline/order';
 import { diffEntries, entryKey } from '../lib/pipeline/rebuildDiff';
 import { dayAccentHue } from '../lib/dayAccent';
@@ -54,6 +54,13 @@ export interface PlaylistListProps {
   /** Report context threaded into each stub-back beacon. */
   city: string;
   window: TimeWindow;
+  /**
+   * The active dial stop, forwarded to each row so a fame-sized (≥28px) display
+   * name takes the featured spot ink (pink at marquee / no-arenas, blue at Small
+   * Print) — the same chroma-coupled-to-size rule the Lineup Poster prints.
+   * Optional + additive: omit (standalone / tests) and names stay newsprint --ink.
+   */
+  fontStop?: FontStop;
   onPlayIndex: (index: number) => void;
   onHeart?: (artistId: string) => void;
   heartedIds?: Set<string>;
@@ -92,6 +99,7 @@ export function PlaylistList({
   playing,
   city,
   window,
+  fontStop,
   onPlayIndex,
   onHeart,
   heartedIds,
@@ -301,6 +309,7 @@ export function PlaylistList({
           prominence={artists[artistId]?.prominence ?? 0.5}
           isEncore={isEncore}
           accentHue={dayAccentHue(show.startsAt)}
+          fontStop={fontStop}
           hearted={heartedIds?.has(artistId)}
           role={roleOf}
           headliner={nameOf(lastId)}

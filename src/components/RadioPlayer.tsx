@@ -3,6 +3,7 @@
 import type { Show } from '../lib/types';
 import { dateLabelFor } from '../lib/playlistGrouping';
 import { NowPlayingTicker } from './NowPlayingTicker';
+import { PauseIcon, PlayIcon, SkipNextIcon } from './icons';
 
 /**
  * RadioPlayer — the box-office counter-edge sticky bar (Task 2.5).
@@ -91,7 +92,12 @@ export function RadioPlayer({
       style={{
         background: 'var(--surface-raised)',
         borderTop: '1px solid var(--line)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        // iOS 100vh / collapsing-toolbar trap (metriq 5785e89a): the home-indicator
+        // inset is only non-zero now that layout.tsx opts in with viewport-fit=cover.
+        // Add a small fixed offset ON TOP of the inset so the controls also clear
+        // Safari's bottom toolbar in BOTH its expanded and collapsed states, not just
+        // the home indicator. The 0.5rem also acts as a floor where the inset is 0.
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)',
       }}
     >
       <div className="mx-auto flex max-w-xl items-center gap-3 px-3 py-2">
@@ -157,9 +163,11 @@ export function RadioPlayer({
             outlineColor: 'var(--admission)',
           }}
         >
-          {/* Cueing… → ▶ with one settle pulse the moment the stamp goes live. */}
+          {/* Cueing… → ▶ with one settle pulse the moment the stamp goes live.
+              The cueing state stays TEXT ('…'); the live states are inline SVG so
+              iOS Safari can't promote ▶/❚❚ to multicolour emoji off-palette. */}
           <span aria-hidden className={showCueing ? undefined : 'sf-cue-pulse'}>
-            {showCueing ? '…' : playing ? '❚❚' : '▶'}
+            {showCueing ? '…' : playing ? <PauseIcon /> : <PlayIcon />}
           </span>
         </button>
       </div>
@@ -179,7 +187,7 @@ export function RadioPlayer({
           outlineColor: 'var(--admission)',
         }}
       >
-        <span aria-hidden>⏭</span>
+        <SkipNextIcon aria-hidden />
       </button>
       </div>
     </div>

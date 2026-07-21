@@ -7,6 +7,7 @@ import { CITY_TABLE, geoForCity } from '../lib/api/geo';
 import { slugify } from '../lib/pipeline/extractArtists';
 import { WindowChips } from './WindowChips';
 import { UseMyLocation } from './UseMyLocation';
+import { PlayIcon } from './icons';
 
 /**
  * CityPicker — the landing entry point (Task 2.7).
@@ -80,9 +81,9 @@ export function CityPicker({ prefill }: CityPickerProps) {
           <button
             type="button"
             onClick={playPrefill}
-            className="self-start rounded-[4px] bg-riso-pink px-6 py-4 font-display text-3xl font-extrabold uppercase tracking-[-0.02em] text-canvas outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-weekday-fri sm:text-4xl"
+            className="inline-flex items-center gap-2 self-start rounded-[4px] bg-riso-pink px-6 py-4 font-display text-3xl font-extrabold uppercase tracking-[-0.02em] text-canvas outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-weekday-fri sm:text-4xl"
           >
-            <span aria-hidden="true">▶ </span>Play {prefill.displayName}
+            <PlayIcon className="h-[0.8em] w-[0.8em] shrink-0" />Play {prefill.displayName}
           </button>
           <button
             type="button"
@@ -94,8 +95,8 @@ export function CityPicker({ prefill }: CityPickerProps) {
           </button>
         </div>
       ) : (
-        <p className="font-display text-3xl font-extrabold uppercase tracking-[-0.02em] text-ink sm:text-4xl">
-          <span aria-hidden="true">▶ </span>Play your city
+        <p className="inline-flex items-center gap-2 font-display text-3xl font-extrabold uppercase tracking-[-0.02em] text-ink sm:text-4xl">
+          <PlayIcon className="h-[0.8em] w-[0.8em] shrink-0" />Play your city
         </p>
       )}
 

@@ -637,6 +637,7 @@ export function PlaylistScreen({
           playing={state.playing}
           city={city}
           window={timeWindow}
+          fontStop={fontStop}
           onPlayIndex={playIndex}
           onHeart={toggleHeart}
           heartedIds={heartedIds}

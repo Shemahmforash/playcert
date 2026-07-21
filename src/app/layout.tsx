@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Roboto_Flex, Inter, Spline_Sans_Mono } from "next/font/google";
 import "./globals.css";
 import { AttributionFooter } from "../components/AttributionFooter";
@@ -30,6 +30,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://earshot-one.vercel.app"),
   title: "Earshot",
   description: "The gig listings you read from the bottom up.",
+};
+
+// LOAD-BEARING for the fixed RadioPlayer's iOS safe-area handling (metriq
+// 5785e89a). `viewport-fit=cover` lets the page draw into the home-indicator /
+// notch region AND is what activates the `env(safe-area-inset-*)` values —
+// without it those insets resolve to 0, so the player's `paddingBottom:
+// env(safe-area-inset-bottom)` and the html `scroll-padding-bottom` inset are
+// silent no-ops. In Next 16 this is emitted via the `viewport` export, not a
+// hand-written <meta> tag.
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

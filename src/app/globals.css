@@ -130,10 +130,14 @@ body {
  * space on the document scroller so the auto-scroll `scrollIntoView({block:
  * 'nearest'})` never parks the active row underneath it, and so the page can
  * always scroll its final content clear of the bar. Height ≈ 44px control + py
- * + border; 5rem covers it with margin, plus the iOS home-indicator inset.
+ * + border; 5rem covers it with margin, plus the iOS home-indicator inset and
+ * the same 0.5rem collapsed-toolbar offset the fixed bar pads itself with, so
+ * the reservation stays in lockstep with the bar's real height (metriq
+ * 5785e89a). The insets are live only because layout.tsx opts in with
+ * viewport-fit=cover; without it env(safe-area-inset-*) resolves to 0.
  */
 html {
-  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom) + 0.5rem);
 }
 
 /*
