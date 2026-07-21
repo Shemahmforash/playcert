@@ -27,7 +27,10 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     // Build + start the real production server with the mock APIs wired in.
-    command: `MOCK_APIS=1 pnpm build && MOCK_APIS=1 pnpm start -p ${PORT}`,
+    // NEXT_DIST_DIR isolates this production build into `.next-e2e` so it never
+    // clobbers a running `pnpm dev`'s `.next` (which would make dev serve stale
+    // 404s — see next.config.ts distDir note).
+    command: `NEXT_DIST_DIR=.next-e2e MOCK_APIS=1 pnpm build && NEXT_DIST_DIR=.next-e2e MOCK_APIS=1 pnpm start -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
