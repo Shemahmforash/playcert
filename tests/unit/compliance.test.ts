@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import pkg from '../../package.json';
 import itunesFixture from '../fixtures/itunes/exact-hit.json';
 import { parseSearch } from '../../src/lib/api/itunes';
-import { tmQueue, itunesQueue, mbQueue, jambaseQueue } from '../../src/lib/queue';
+import { itunesQueue, mbQueue, jambaseQueue } from '../../src/lib/queue';
 
 /**
  * compliance.test.ts — the launch-checklist invariants that had no automated
@@ -97,9 +97,6 @@ describe('rate queues — configured minSpacing floors are not loosened', () => 
   const spacing = (q: unknown) =>
     (q as { opts: { minSpacingMs: number } }).opts.minSpacingMs;
 
-  it('Ticketmaster queue holds its ~350ms spike-arrest floor', () => {
-    expect(spacing(tmQueue)).toBe(350);
-  });
   it('iTunes queue holds its 3500ms (~17/min) floor', () => {
     expect(spacing(itunesQueue)).toBe(3500);
   });

@@ -1,5 +1,7 @@
 # Earshot — Personalization & Taste-Matching: Future Paths
 
+> **⚠️ PARTIALLY SUPERSEDED — 2026-07-22.** Two current-stack facts stated below are now false: prominence scoring is **not** ListenBrainz-based (the fame/ListenBrainz pipeline was deleted — prominence/tier now come from objective **billing order** in `score.ts`), and the concert source is **JamBase**, not Ticketmaster. So the Tier-2 claim "ListenBrainz is already in the v1 stack (prominence scoring)" no longer holds — a future taste feature would integrate ListenBrainz fresh, not reuse an existing client. The personalization *ideas* here still stand as a backlog; only the stated current-stack facts are stale. See memory `earshot-ranking-is-billing-not-fame` and `2026-07-19-earshot.md` STATUS UPDATE.
+
 > **Status:** Not in v1 scope. This is a captured idea backlog, not a commitment.
 > **Companion to:** `2026-07-19-earshot.md` (the v1 implementation plan).
 > **Date:** 2026-07-19

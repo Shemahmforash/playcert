@@ -37,8 +37,10 @@ export function cityFromHeaders(headers: Headers): CityHint | null {
 }
 
 /**
- * Ticketmaster-covered launch markets. Small hand-curated table (no geocoding
- * key needed) — a later task can add real geocoding for arbitrary typed cities.
+ * Covered launch markets, hand-curated. Source is now JamBase, which — unlike
+ * the retired Ticketmaster path — covers Portugal, so Lisbon/Porto are in. This
+ * table snaps IP coords to a covered city with no per-request call; real
+ * geocoding of arbitrary typed cities uses GOOGLE_GEOCODING_KEY elsewhere.
  */
 export const CITY_TABLE: Record<string, Geo> = {
   london: { lat: 51.5074, lng: -0.1278, displayName: 'London', countryCode: 'GB', tz: 'Europe/London' },

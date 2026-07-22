@@ -35,4 +35,30 @@ describe('PlaylistLoader — client bundle load', () => {
     render(<PlaylistLoader city="london" window="next-14-days" fontStop="everything" />);
     await waitFor(() => expect(screen.getByText('Try another city')).toBeTruthy());
   });
+
+  // A build that blows past the function maxDuration surfaces as a timeout/network
+  // error; the loader retries ONCE automatically before giving up. These lock both
+  // outcomes of that single retry — recover, then still-fail.
+  it('retries once after a transient network error, then renders the recovered bundle', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('bundle build timed out'))
+      .mockResolvedValueOnce({ ok: true, json: async () => emptyBundle });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<PlaylistLoader city="london" window="next-14-days" fontStop="everything" />);
+    // Second attempt succeeds → the (empty) bundle renders, escape hatches and all.
+    await waitFor(() => expect(screen.getByText('Try another city')).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledTimes(2); // one retry, no more
+  });
+
+  it('falls to ErrorState when both the initial fetch and the single retry fail', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('bundle build timed out'))
+      .mockRejectedValueOnce(new TypeError('still down'));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<PlaylistLoader city="london" window="next-14-days" fontStop="everything" />);
+    await waitFor(() => expect(screen.getByText('The poster wall is down.')).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledTimes(2); // initial + one retry, then give up
+  });
 });

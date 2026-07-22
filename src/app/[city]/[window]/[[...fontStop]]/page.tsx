@@ -11,6 +11,12 @@ import { PlaylistLoader } from '../../../../components/PlaylistLoader';
 
 export const maxDuration = 60;
 
+// NB: no generateStaticParams. Prerendering these route shells statically forces
+// generateMetadata to run at build time, where its request-time `new Date()` (the
+// date-aware title) is disallowed — it broke the build. The client-load already
+// gives an instant shell on every route, so build-time shell warm-up isn't worth
+// fighting the dynamic metadata (metriq aa95617d — investigated, backed out).
+
 const WINDOW_LABEL: Record<TimeWindow, string> = {
   tonight: 'Tonight',
   'this-weekend': 'This weekend',
@@ -54,8 +60,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   };
 }
 
-// Resolves + validates the dynamic params inside a Suspense boundary. With
-// dynamicParams=false this always succeeds, but the checks stay as defense.
+// Resolves + validates the dynamic params inside a Suspense boundary. The route is
+// dynamic (rendered per request), so these notFound() checks are LOAD-BEARING — a bad
+// slug that isn't in CITY_TABLE 404s here.
 async function resolveKey(params: Params): Promise<RequestKey> {
   const { city, window, fontStop } = await params;
   const state = resolvePageState({ city, window, fontStop });
@@ -81,6 +88,16 @@ async function PlaylistSection({ params }: { params: Params }) {
   // (params only) and hands off to the CLIENT `PlaylistLoader`, which fetches the
   // bundle from /api/bundle behind its own LoadingTheater — so the page response
   // closes fast and every browser paints the shell + theater immediately.
+  //
+  // ADR — this is a DELIBERATE SEO tradeoff, not an accident (metriq 9a597466).
+  // Moving the lineup rows to a client fetch pulls them OUT of the
+  // server HTML, so crawlers no longer see the bill as body copy. That is
+  // ACCEPTED and COMPENSATED, not lost: the indexable surface is instead the
+  // URL-derived shell (generateMetadata title/description/canonical + opengraph
+  // -image) plus sitemap.ts enumerating every CITY_TABLE × WINDOWS page and
+  // robots.ts pointing at it. Do NOT "fix SEO" by rendering the bundle server-side
+  // here — that reintroduces the iOS cold-load black screen this split exists to
+  // cure.
   return <PlaylistLoader city={key.city} window={key.window} fontStop={key.fontStop} />;
 }
 

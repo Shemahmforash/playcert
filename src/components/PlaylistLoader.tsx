@@ -20,6 +20,21 @@ type LoadState =
   | { kind: 'ready'; bundle: CityWindowBundle };
 
 /**
+ * Upper bound for a single bundle fetch. The cold bundle build runs ~45s; we sit a
+ * little above that so a healthy-but-slow cold start still lands, while a build that
+ * blows past the 60s function maxDuration is aborted locally (instead of hanging until
+ * the function dies) and handed to the retry path.
+ */
+const FETCH_TIMEOUT_MS = 60_000;
+
+/**
+ * A non-ok HTTP status is a real answer from the server, not a transport failure — it
+ * goes STRAIGHT to ErrorState. Only a timeout/network error (anything else thrown) is
+ * treated as retryable, so we tag the ok-check rejection to tell the two apart.
+ */
+class BundleHttpError extends Error {}
+
+/**
  * Client-side bundle loader — the fix for the iOS Safari cold-load BLACK SCREEN.
  *
  * The page's SSR response closes instantly with this component's initial
@@ -38,19 +53,54 @@ export function PlaylistLoader({ city, window, fontStop }: PlaylistLoaderProps) 
   useEffect(() => {
     let cancelled = false;
     setState({ kind: 'loading' });
-    fetch(`/api/bundle/${encodeURIComponent(city)}/${encodeURIComponent(window)}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`bundle ${r.status}`);
-        return r.json() as Promise<CityWindowBundle>;
-      })
-      .then((bundle) => {
+
+    const url = `/api/bundle/${encodeURIComponent(city)}/${encodeURIComponent(window)}`;
+    // The controller/timer of the CURRENTLY in-flight attempt, so unmount/cancel can
+    // abort whichever attempt (first or retry) is running.
+    let controller: AbortController | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    // One fetch attempt, bounded by an AbortController timeout. Resolves with the parsed
+    // bundle, or throws — a BundleHttpError for a non-ok status (not retried) or the raw
+    // AbortError/network error (retryable).
+    const attempt = async (): Promise<CityWindowBundle> => {
+      controller = new AbortController();
+      timer = setTimeout(() => controller?.abort(), FETCH_TIMEOUT_MS);
+      try {
+        const r = await fetch(url, { signal: controller.signal });
+        if (!r.ok) throw new BundleHttpError(`bundle ${r.status}`);
+        return (await r.json()) as CityWindowBundle;
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    // Try once; on a timeout/network error retry EXACTLY once before falling to error.
+    // A non-ok status (BundleHttpError) skips the retry — the server already answered.
+    const run = async () => {
+      try {
+        const bundle = await attempt();
         if (!cancelled) setState({ kind: 'ready', bundle });
-      })
-      .catch(() => {
-        if (!cancelled) setState({ kind: 'error' });
-      });
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof BundleHttpError) {
+          setState({ kind: 'error' });
+          return;
+        }
+        try {
+          const bundle = await attempt();
+          if (!cancelled) setState({ kind: 'ready', bundle });
+        } catch {
+          if (!cancelled) setState({ kind: 'error' });
+        }
+      }
+    };
+    run();
+
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
+      controller?.abort();
     };
   }, [city, window]);
 
