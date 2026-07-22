@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Earshot mark: a stage-dot with three arcs of sound carrying right,
+       riso-pink ink on the bitumen poster-black tile. Geometry is tuned for
+       16px: 44px strokes and 44px clear gaps survive as ~1.4px each at
+       favicon scale instead of merging into mud. -->
+  <rect width="512" height="512" rx="77" fill="#16120d"/>
+  <g fill="none" stroke="#ff4d82" stroke-width="44" stroke-linecap="round">
+    <path d="M205.3 186.4 A104 104 0 0 1 205.3 325.6"/>
+    <path d="M270.7 127.5 A192 192 0 0 1 270.7 384.5"/>
+    <path d="M336.0 68.7 A280 280 0 0 1 336.0 443.3"/>
+  </g>
+  <circle cx="128" cy="256" r="32" fill="#ff4d82"/>
+</svg>
