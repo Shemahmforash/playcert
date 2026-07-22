@@ -18,6 +18,7 @@ import { SparseNotice } from './SparseNotice';
 import { SmallPrintDryNotice } from './SmallPrintDryNotice';
 import { WindowChips } from './WindowChips';
 import { EarshotDial } from './EarshotDial';
+import { HeartedShelf } from './HeartedShelf';
 import { LineupPoster } from './LineupPoster';
 import { posterActsFromEntries } from '../lib/posterLayout';
 import { formatCanonicalPath, FONT_STOPS, FONT_STOP_LABELS } from '../lib/urlState';
@@ -313,9 +314,25 @@ export function PlaylistScreen({
     });
   };
 
-  // Hearted shelf open/closed (Hearted Shelf step 3 mounts the sheet itself;
-  // the dock button below already toggles this so the entry point is wired).
+  // Hearted shelf open/closed. The dock heart toggles it; the shelf itself is
+  // mounted at the bottom of the tree only while open (like the LineupPoster).
+  // Closing returns focus to the dock heart that opened it, mirroring the
+  // ShareSheet's grabber-return convention.
   const [heartedOpen, setHeartedOpen] = useState(false);
+  const heartTriggerRef = useRef<HTMLButtonElement>(null);
+  const closeHearted = () => {
+    setHeartedOpen(false);
+    heartTriggerRef.current?.focus();
+  };
+
+  // The shelf's `onWillPlay`: a shelf preview must PAUSE the main radio (two
+  // previews at once is noise). The shelf can't reach the screen-local audio
+  // element or player state, so the screen hands it this callback. Opening the
+  // shelf alone never calls it — only actually starting a shelf preview does.
+  const pauseMainRadio = () => {
+    audioRef.current?.pause();
+    dispatch({ type: 'pause' });
+  };
 
   const current = entries[state.index];
 
@@ -603,9 +620,10 @@ export function PlaylistScreen({
               this count up where the eye already is. Empty → quiet --ash outline,
               no count; non-empty → the outline heart + small mono tally take
               --riso-pink (the heart's own ink). Count is a VALUE, not billing —
-              no prominence rules apply here. Step 3 mounts the sheet; until then
-              this only toggles the (already-wired) open state. */}
+              no prominence rules apply here. Toggles the HeartedShelf mounted
+              at the bottom of the tree; the shelf's close returns focus here. */}
           <button
+            ref={heartTriggerRef}
             type="button"
             aria-label={`Your hearted songs (${heartedSongs.length})`}
             aria-haspopup="dialog"
@@ -788,6 +806,20 @@ export function PlaylistScreen({
           window={timeWindow}
           fontStop={fontStop}
           onClose={() => setPosterOpen(false)}
+        />
+      ) : null}
+
+      {/* The Hearted shelf (Hearted Shelf §Part 2–3). Mounted only while open —
+          a focus-trapped overlay above the player bar, rendering purely from
+          the localStorage snapshots (zero fetches, taste never serialized into
+          any request). Opening it never touches the main audio element; only a
+          shelf preview does, via pauseMainRadio. Unheart is just the toggle. */}
+      {heartedOpen ? (
+        <HeartedShelf
+          songs={heartedSongs}
+          onUnheart={toggleHeartSong}
+          onWillPlay={pauseMainRadio}
+          onClose={closeHearted}
         />
       ) : null}
     </div>
