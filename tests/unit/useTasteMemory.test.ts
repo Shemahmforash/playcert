@@ -161,6 +161,29 @@ describe('useTasteMemory (v2)', () => {
       expect(result.current.heartedSongs).toEqual([]);
       expect([...result.current.skipped]).toEqual([]);
     });
+
+    it('migrates a v1 record whose skipped is the wrong shape without inventing garbage', () => {
+      // A string is iterable — without sanitization `new Set('nope')` would
+      // hydrate {'n','o','p','e'} and the persist effect would write that
+      // garbage into v2 permanently (v1 is already deleted by then).
+      localStorage.setItem(
+        TASTE_STORAGE_KEY_V1,
+        JSON.stringify({ hearted: [], skipped: 'nope' }),
+      );
+      const { result } = renderHook(() => useTasteMemory());
+      expect([...result.current.skipped]).toEqual([]);
+      const v2 = JSON.parse(localStorage.getItem(TASTE_STORAGE_KEY) as string);
+      expect(v2.skipped).toEqual([]);
+    });
+
+    it('filters non-string entries out of a v1 skipped array', () => {
+      localStorage.setItem(
+        TASTE_STORAGE_KEY_V1,
+        JSON.stringify({ skipped: ['keep', 42, null, {}] }),
+      );
+      const { result } = renderHook(() => useTasteMemory());
+      expect([...result.current.skipped]).toEqual(['keep']);
+    });
   });
 
   it('treats malformed stored JSON as empty and never throws', () => {
@@ -180,6 +203,29 @@ describe('useTasteMemory (v2)', () => {
     const { result } = renderHook(() => useTasteMemory());
     expect(result.current.heartedSongs).toEqual([]);
     expect([...result.current.skipped]).toEqual([]);
+  });
+
+  it('drops a snapshot whose gig.startsAt is not a calendar-date ISO (it would crash the shelf)', () => {
+    // The shelf renders every stub through `dateLabelFor`, whose calendarParts
+    // THROWS on any string without a leading YYYY-MM-DD. A merely-string
+    // startsAt ("TBA", a single-digit month) would pass a typeof check, hydrate,
+    // and then crash the whole screen render on every shelf open — the exact
+    // half-rendered outcome the strict validator exists to prevent.
+    const good = makeSong();
+    const tba = makeSong({
+      itunesTrackId: 8,
+      gig: { ...good.gig, startsAt: 'TBA' },
+    });
+    const looseIso = makeSong({
+      itunesTrackId: 9,
+      gig: { ...good.gig, startsAt: '2026-8-1T20:00' }, // unpadded month/day
+    });
+    localStorage.setItem(
+      TASTE_STORAGE_KEY,
+      JSON.stringify({ heartedSongs: [good, tba, looseIso], skipped: [] }),
+    );
+    const { result } = renderHook(() => useTasteMemory());
+    expect(result.current.heartedSongs).toEqual([good]);
   });
 
   it('drops individual malformed hearted entries but keeps the valid ones', () => {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent, within } from '@testing-library/react';
 import { PlaylistScreen } from '../../src/components/PlaylistScreen';
+import { TASTE_STORAGE_KEY } from '../../src/hooks/useTasteMemory';
 import type { Artist, CityWindowBundle, Show, Track } from '../../src/lib/types';
 import type { Geo } from '../../src/lib/api/geo';
 
@@ -144,6 +145,38 @@ describe('PlaylistScreen — the Hearted shelf (step 3)', () => {
         .getByRole('button', { name: 'Play preview of ALPHA' })
         .getAttribute('aria-pressed'),
     ).toBe('false');
+  });
+
+  it('global Space/N shortcuts go deaf while the shelf is open — nothing drives the radio behind the modal', () => {
+    renderScreen();
+    const dialog = heartAndOpen();
+
+    // Space with focus fallen to <body> (post-unheart, or a stray click on
+    // inert sheet content) must NOT start the radio behind the aria-modal shelf.
+    fireEvent.keyDown(document.body, { key: ' ', code: 'Space' });
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
+
+    // N / ArrowRight must not skip the hidden radio — and must not record a
+    // phantom taste-skip for an artist the user never interacted with.
+    fireEvent.keyDown(document.body, { key: 'n' });
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+    expect(screen.getByRole('status').textContent).toContain('ALPHA');
+    const stored = JSON.parse(
+      window.localStorage.getItem(TASTE_STORAGE_KEY) as string,
+    );
+    expect(stored.skipped).toEqual([]);
+
+    // Closing the shelf re-arms the shortcuts.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    fireEvent.keyDown(document.body, { key: ' ', code: 'Space' });
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+  });
+
+  it('the dock heart is a 44px touch target, like every other control in the feature', () => {
+    renderScreen();
+    const heart = screen.getByRole('button', { name: 'Your hearted songs (0)' });
+    expect(heart.style.minWidth).toBe('44px');
+    expect(heart.style.minHeight).toBe('44px');
   });
 
   it('an in-shelf unheart empties the shelf, the dock count and the row heart together', () => {

@@ -74,6 +74,16 @@ function toStringArray(value: unknown): string[] {
 }
 
 /**
+ * The leading calendar-date shape the shelf's date rendering REQUIRES:
+ * `dateLabelFor`/`dayKeyFor` (playlistGrouping) throw on any string without a
+ * `YYYY-MM-DD` prefix. So "is a string" is not strict enough for `startsAt` —
+ * a corrupted "TBA" or an unpadded "2026-8-1T20:00" would pass typeof, hydrate,
+ * and then crash the ENTIRE screen render on every shelf open until storage is
+ * cleared. Mirrors calendarParts' own regex (including its trim).
+ */
+const CALENDAR_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}/;
+
+/**
  * Validate one stored entry as a usable HeartedSong. Strict on purpose: a stub
  * with a missing gig or a non-numeric id would crash or lie in the shelf, so a
  * bad entry is dropped rather than half-rendered. Valid neighbours survive.
@@ -96,6 +106,7 @@ function isHeartedSong(value: unknown): value is HeartedSong {
     typeof gig.venue === 'string' &&
     typeof gig.city === 'string' &&
     typeof gig.startsAt === 'string' &&
+    CALENDAR_DATE_PREFIX.test(gig.startsAt.trim()) &&
     typeof gig.ticketUrl === 'string'
   );
 }

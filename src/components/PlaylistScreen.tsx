@@ -488,6 +488,16 @@ export function PlaylistScreen({
   toggleRef.current = toggle;
   skipRef.current = skip;
 
+  // While an aria-modal overlay (hearted shelf / lineup poster) is up, the
+  // global radio shortcuts go DEAF: a modal claims the whole keyboard, and a
+  // Space/N that reaches the window would drive — or RESUME — the radio behind
+  // the overlay (two previews sounding at once when a shelf preview plays, and
+  // a phantom `markSkipped` taste signal for an artist the user never touched).
+  // A latest-value ref, like the handlers above, so the listener stays
+  // subscribed exactly once.
+  const overlayOpenRef = useRef(false);
+  overlayOpenRef.current = heartedOpen || posterOpen;
+
   useEffect(() => {
     function isTypingTarget(el: EventTarget | null): boolean {
       if (!(el instanceof HTMLElement)) return false;
@@ -501,6 +511,10 @@ export function PlaylistScreen({
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Modal overlay open → the shortcuts stand down entirely (see the ref
+      // above). The overlay's own trap owns Esc/Tab; nothing here may touch
+      // the radio while it is hidden behind an aria-modal surface.
+      if (overlayOpenRef.current) return;
       const t = e.target;
       if (isTypingTarget(t)) return;
       const role = t instanceof HTMLElement ? t.getAttribute('role') : null;
@@ -629,8 +643,13 @@ export function PlaylistScreen({
             aria-haspopup="dialog"
             aria-expanded={heartedOpen}
             onClick={() => setHeartedOpen((v) => !v)}
-            className="flex shrink-0 items-center gap-1 rounded-md p-2 font-mono text-xs"
+            className="flex shrink-0 items-center justify-center gap-1 rounded-md p-2 font-mono text-xs"
             style={{
+              // 44px touch floor — every other control in this feature (shelf
+              // play/✕/close, row hearts) meets it; p-2 around a 16px glyph
+              // alone is a ~32px target, easy to fumble in the cramped dock row.
+              minWidth: '44px',
+              minHeight: '44px',
               color: heartedSongs.length > 0 ? 'var(--riso-pink)' : 'var(--ash)',
             }}
           >

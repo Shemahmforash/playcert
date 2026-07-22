@@ -205,6 +205,22 @@ describe('spot inks on size (chroma-only-≥28px rule) — large text 3:1', () =
   });
 });
 
+describe('hearted shelf stub links — 12px mono NORMAL text ≥ 4.5:1', () => {
+  // The stub's "full tour →" / "Apple Music ▸" links render at text-xs (12px)
+  // on the stub's --surface ground — unambiguously NORMAL text, 4.5:1 floor.
+  it('riso-blue FAILS 4.5:1 on the stub surface at 12px (why the links are ash)', () => {
+    // Documents the failure the ash fix resolves — both themes miss the floor
+    // (dark ~3.6:1, light ~4.1:1), so the spot ink stays reserved for display type.
+    expect(contrastRatio(DARK.risoBlue, DARK.surface)).toBeLessThan(AA_NORMAL);
+    expect(contrastRatio(LIGHT.risoBlue, LIGHT.surface)).toBeLessThan(AA_NORMAL);
+  });
+
+  it('the shipped link ink (--ash) clears 4.5:1 on the stub surface on both themes', () => {
+    expect(contrastRatio(DARK.ash, DARK.surface)).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(contrastRatio(LIGHT.ash, LIGHT.surface)).toBeGreaterThanOrEqual(AA_NORMAL);
+  });
+});
+
 describe('OpenGraph card — text 4.5:1, accent 3:1 (large display)', () => {
   it('card text (#F4F1EA) clears 4.5:1 on the ground', () => {
     expect(contrastRatio(OG.text, OG.ground)).toBeGreaterThanOrEqual(AA_NORMAL);
