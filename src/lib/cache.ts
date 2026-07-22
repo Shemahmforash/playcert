@@ -52,7 +52,7 @@ export const TTL = { BUNDLE: 10_800, BUNDLE_DEGRADED: 7_200, SHOWS: 259_200, ART
  *  multiple of revalidate (48h ≈ 16× the 3h full TTL) so stale-while-revalidate
  *  reliably HIDES cold builds — including the empty in-memory cache right after a
  *  deploy — instead of forcing users onto a blocking cold rebuild. It has ZERO
- *  JamBase-cost impact (the one paid call lives in the 48h getShows layer). */
+ *  JamBase-cost impact (the one paid call lives in the 72h getShows layer). */
 const BUNDLE_STALE = 60;
 const BUNDLE_EXPIRE = 172_800; // 48h
 

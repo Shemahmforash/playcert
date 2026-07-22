@@ -13,15 +13,15 @@ import { TTL } from '../cache';
 const DAY = 60 * 60 * 24;
 
 /**
- * The JamBase show-fetch, in its OWN durable 48h 'use cache: remote' layer keyed
+ * The JamBase show-fetch, in its OWN durable 72h 'use cache: remote' layer keyed
  * by CITY ONLY — NOT the window, NOT fontStop, NOT the dial. This is the single
  * seam that decouples the (paid, quota-limited) JamBase call from the bundle's
  * resolution: the ONE JamBase network call now lives exclusively inside this
- * 48h-cached function, and — because the fetch is window-INDEPENDENT (it returns
- * the raw wide next-14-days Show[]) — it fires at most ~once per 48h per CITY,
+ * 72h-cached function, and — because the fetch is window-INDEPENDENT (it returns
+ * the raw wide next-14-days Show[]) — it fires at most ~once per 72h per CITY,
  * NOT once per (city × window). The three windows now SHARE one cached wide fetch
  * and each derive their slice locally (see `filterShowsToWindow`), cutting the
- * JamBase call count by 3× (540 → 180/month worst case).
+ * JamBase call count by 3× (1,680 → 560/month worst case at the 56-city table).
  *
  * Because the outer `getBundle` can then run a SHORT TTL, a bundle rebuild reuses
  * this cached Show[] (zero new JamBase calls) and only re-runs the free iTunes
@@ -46,7 +46,7 @@ async function getShows(city: string) {
 // Durable per-artist iTunes cache in Next's Data Cache, keyed on the (already
 // normalized) artist name. Because it survives across serverless instances and
 // bundle revalidations, a below-bar playlist genuinely FILLS OUT over successive
-// 120s bundle rebuilds — each rebuild's first artists are cache hits (no queue
+// bundle rebuilds (3h, 2h degraded) — each rebuild's first artists are cache hits (no queue
 // slot), so the 25s budget reaches further down the bill. Only cold misses hit
 // the rate queue, so iTunes' ~20/min limit is still respected.
 async function cachedItunesSearch(name: string): Promise<ItunesCandidate[]> {
@@ -55,7 +55,7 @@ async function cachedItunesSearch(name: string): Promise<ItunesCandidate[]> {
   return itunesQueue.schedule(() => searchArtistTracks(name));
 }
 
-/** Wires the hardened pipeline to the real TM/iTunes/MB clients for a given city slug. */
+/** Wires the hardened pipeline to the real JamBase/iTunes/MB clients for a given city slug. */
 export function realDeps(city: string): BuildDeps {
   const geo = geoForCity(city);
   const ctx = { countryCode: geo?.countryCode ?? '', genreHints: [] as string[] };
@@ -67,7 +67,7 @@ export function realDeps(city: string): BuildDeps {
     // JamBase is the primary source. Exactly ONE network call per COLD show-fetch:
     // a wide, window-INDEPENDENT fetch (50km / next-14-days) — no escalating widen
     // calls — to stay inside the 1k-calls/month free tier. The call is wrapped in
-    // the 48h `getShows` cache above, keyed on CITY ONLY, so all three windows
+    // the 72h `getShows` cache above, keyed on CITY ONLY, so all three windows
     // share it and short bundle rebuilds make ZERO new JamBase calls. Here we take
     // the cached wide Show[] and apply the PURE (network-free) window filter,
     // returning the same { shows, widened } shape buildBundle expects. The passed

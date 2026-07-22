@@ -10,12 +10,12 @@
  * from the REAL city table × windows × cache TTL — not hardcoded.
  *
  * COST DRIVER = TTL.SHOWS, NOT the bundle TTL (post-decoupling, 5.5). The single
- * JamBase call now lives inside the 48h `getShows` ('use cache: remote') layer in
+ * JamBase call now lives inside the 72h `getShows` ('use cache: remote') layer in
  * realDeps.ts, keyed by CITY ONLY. The fetch is window-INDEPENDENT (it returns the
  * raw wide next-14-days Show[]) so all three windows SHARE one cached fetch and
  * each derive their slice locally — the shows dimension is CITIES, not city×window
  * (P0-b, 3a9e7cf9). The OUTER bundle can rebuild as often as it likes (to fill the
- * bill out via the FREE iTunes re-resolution) and every rebuild inside the 48h
+ * bill out via the FREE iTunes re-resolution) and every rebuild inside the 72h
  * window reuses the cached Show[] — ZERO new JamBase calls. So the number that
  * gates cost is TTL.SHOWS, and `TTL.BUNDLE` is now a fill-out-speed knob with no
  * budget impact.
@@ -28,16 +28,17 @@
  *                              city, stale-while-revalidate)
  *     callsPerFetch          = 1                               (INVARIANT, asserted below)
  *
- * CURRENT PROJECTION (12 cities, window-independent fetch, 48h TTL.SHOWS):
- *   showsRefetchesPerMonth = ceil(720/48) = 15  →  12 × 15 × 1 = 180 calls/month.
- *   180 ≤ 900 (safety threshold) ≤ 1,000 (free cap). ~820 calls of headroom.
+ * CURRENT PROJECTION (56 cities, window-independent fetch, 72h TTL.SHOWS):
+ *   showsRefetchesPerMonth = ceil(720/72) = 10  →  56 × 10 × 1 = 560 calls/month.
+ *   560 ≤ 900 (safety threshold) ≤ 1,000 (free cap). ~440 calls of headroom.
  *
  * If this projection EVER exceeds 900 (e.g. someone adds many cities or shortens
  * TTL.SHOWS), this script exits non-zero. THE FIX is to raise TTL.SHOWS in
  * src/lib/cache.ts to the smallest clean value that brings the worst case back
  * ≤ 900, update the TTL tests, and re-run. (History: 5.4 set the shows/bundle TTL
  * to 48h; 5.5 keyed getShows by (city, window) = 540/month; P0-b re-keyed it to
- * CITY ONLY, since the fetch is window-independent = 180/month.)
+ * CITY ONLY, since the fetch is window-independent = 180/month; the city table
+ * then grew 12 → 56 and TTL.SHOWS was raised 48h → 72h to fund it = 560/month.)
  * Concert listings tolerate 1–2 days of staleness; the €5 hard cap wins over
  * freshness. NOTE: `TTL.BUNDLE` no longer appears here — shortening it is free.
  *

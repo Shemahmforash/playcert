@@ -19,8 +19,8 @@ section and clearly marked manual.
 
 | Gate | Result |
 | --- | --- |
-| `pnpm test` (Vitest unit) | **398 passed** (59 files) |
-| `pnpm verify:budgets` | **pass** — worst case 540 ≤ 900 ≤ 1,000 calls/mo |
+| `pnpm test` (Vitest unit) | **401 passed** (58 files) |
+| `pnpm verify:budgets` | **pass** — worst case 560 ≤ 900 ≤ 1,000 calls/mo |
 | `pnpm typecheck` | **exit 0** |
 | `pnpm build` | **exit 0** |
 | `pnpm test:e2e` (Playwright smoke) | **pass** |
@@ -36,14 +36,13 @@ section and clearly marked manual.
 | JamBase ≤ 1,000 calls/mo (€5), **one call per build**, R12 reproducibility | `scripts/verify-budgets.ts` + `tests/unit/budget.test.ts` | `pnpm verify:budgets` · `pnpm exec vitest run tests/unit/budget.test.ts` |
 | Audio always streams from **Apple** — never proxied (previewUrl is an Apple host; `<audio>` is bound only to `track.previewUrl`) | `tests/unit/compliance.test.ts` | `pnpm exec vitest run tests/unit/compliance.test.ts` |
 | MusicBrainz **User-Agent** is set (non-empty, names the app + contact) | `tests/unit/compliance.test.ts` | `pnpm exec vitest run tests/unit/compliance.test.ts` |
-| Rate queues hold their configured floors (`tm` 350ms · `itunes` 3500ms · `mb` 1000ms · `jambase` 250ms) | `tests/unit/compliance.test.ts` (+ `tests/unit/queue.test.ts`) | `pnpm exec vitest run tests/unit/compliance.test.ts tests/unit/queue.test.ts` |
+| Rate queues hold their configured floors (`itunes` 3500ms · `mb` 1000ms · `jambase` 250ms) | `tests/unit/compliance.test.ts` (+ `tests/unit/queue.test.ts`) | `pnpm exec vitest run tests/unit/compliance.test.ts tests/unit/queue.test.ts` |
 | **No cookies** — no `Set-Cookie` / `document.cookie` / `cookies()` anywhere in `src` (taste memory is `localStorage`) | `tests/unit/compliance.test.ts` | `pnpm exec vitest run tests/unit/compliance.test.ts` |
 | **No database / KV** — no `pg`/`mysql`/`mongodb`/`@vercel/kv`/`redis`/`prisma`/`drizzle`/… in dependencies | `tests/unit/compliance.test.ts` | `pnpm exec vitest run tests/unit/compliance.test.ts` |
 | Auto-location redirect + `/?pick=1` escape hatch (`nearestCity` / `rootRedirectSlug`) | `tests/unit/geo.test.ts` | `pnpm exec vitest run tests/unit/geo.test.ts` |
 | **Geo read only in middleware** — the cached `/[city]/[window]` surface reads no request headers (cache-safe) | `tests/unit/compliance.test.ts` | `pnpm exec vitest run tests/unit/compliance.test.ts` |
 | Contrast ≥ WCAG floors on both canvases | `tests/unit/contrast.test.ts` | `pnpm exec vitest run tests/unit/contrast.test.ts` |
 | Reduced-motion honored | `tests/unit/reducedMotion.test.ts` | `pnpm exec vitest run tests/unit/reducedMotion.test.ts` |
-| `report-artist` ("wrong artist?") sink live — validates + logs, no DB | `tests/unit/reportArtist.test.ts` + `src/app/api/report-artist/route.ts` | `pnpm exec vitest run tests/unit/reportArtist.test.ts` |
 | **Full journey** works: open London → play a preview → dial to Small Print drops the headliners | `tests/e2e/smoke.spec.ts` (with the `MOCK_APIS` factory) | `pnpm test:e2e` |
 
 Re-run everything at once:
