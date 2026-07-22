@@ -32,7 +32,11 @@ const csp = [
 ].join('; ');
 
 const securityHeaders = [
-  { key: 'Content-Security-Policy', value: csp },
+  // Report-Only for the initial rollout: the browser reports would-be
+  // violations but blocks nothing, so a mistaken directive can't break audio
+  // playback or hydration on the live site. Once a deploy is confirmed clean,
+  // flip this key to 'Content-Security-Policy' to enforce.
+  { key: 'Content-Security-Policy-Report-Only', value: csp },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
