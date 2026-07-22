@@ -19,25 +19,26 @@ export const cacheKeys = {
 } as const;
 
 /** TTL table (enforced via "use cache" + cacheLife at call sites):
- *  shows 48h · bundle 3h (or 2h degraded) · per-artist itunes/mb/lb/yt 30d · geo 30d · geo-negative 24h
+ *  shows 72h · bundle 3h (or 2h degraded) · per-artist itunes/mb/lb/yt 30d · geo 30d · geo-negative 24h
  *
- *  COST CONTROL lives in SHOWS (48h), NOT the bundle TTL. Post-decoupling (5.5/5.6)
- *  the one JamBase call sits inside the 48h `getShows` cache (realDeps.ts), keyed by
+ *  COST CONTROL lives in SHOWS (72h), NOT the bundle TTL. Post-decoupling (5.5/5.6)
+ *  the one JamBase call sits inside the 72h `getShows` cache (realDeps.ts), keyed by
  *  CITY ONLY — the fetch is window-independent (one wide 14-day envelope, sliced per
- *  window locally, P0-b), so a CITY makes ~1 JamBase call per 48h no matter how often
- *  the bundle rebuilds or which windows are viewed. Worst case (all 12 cities active):
- *  12 x ceil(720/48) = 180 calls/month — under the 1,000 free cap (~820 headroom).
- *  `scripts/verify-budgets.ts` asserts this against SHOWS. Concert listings
- *  tolerate 1–2 days of staleness; the EUR5 hard cap wins over freshness.
+ *  window locally, P0-b), so a CITY makes ~1 JamBase call per 72h no matter how often
+ *  the bundle rebuilds or which windows are viewed. Worst case (all 56 cities active):
+ *  56 x ceil(720/72) = 560 calls/month — under the 1,000 free cap (~440 headroom).
+ *  (Raised 48h→72h when the table grew 12→56 cities, funding the coverage AND leaving
+ *  margin for the all-city warmer.) `scripts/verify-budgets.ts` asserts this against
+ *  SHOWS. Concert listings tolerate up to ~3 days of staleness; the EUR5 cap wins.
  *
  *  BUNDLE / BUNDLE_DEGRADED are now short (3h / 2h) FILL-OUT knobs with ZERO budget
- *  impact: each bundle rebuild reuses the 48h-cached Show[] (no new JamBase call)
+ *  impact: each bundle rebuild reuses the 72h-cached Show[] (no new JamBase call)
  *  and re-runs the FREE, keyless iTunes resolution, so a fresh (or below-bar)
  *  playlist climbs toward the full bill within hours instead of up to 2 days.
  *  Degraded (partial, <8 tracks) is the shorter of the two so sparse bills fill
  *  fastest. Trade-off: more frequent background revalidation = more Vercel compute,
  *  which is NOT a JamBase cost. */
-export const TTL = { BUNDLE: 10_800, BUNDLE_DEGRADED: 7_200, SHOWS: 172_800, ARTIST_30D: 2_592_000, GEO_NEG: 86_400 } as const;
+export const TTL = { BUNDLE: 10_800, BUNDLE_DEGRADED: 7_200, SHOWS: 259_200, ARTIST_30D: 2_592_000, GEO_NEG: 86_400 } as const;
 
 /** Stale + expire bookends for the OUTER bundle cacheLife profile. `revalidate`
  *  (3h/2h) is the fill-out cadence; these two frame the SWR window around it.

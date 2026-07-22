@@ -46,7 +46,8 @@ describe('cityDisplay', () => {
     expect(cityDisplay('new-york')).toBe('New York');
   });
   it('title-cases a slug fallback for uncovered cities', () => {
-    expect(cityDisplay('sao-paulo')).toBe('Sao Paulo');
+    // A slug NOT in CITY_TABLE falls back to title-casing the slug itself.
+    expect(cityDisplay('kansas-city')).toBe('Kansas City');
   });
 });
 
