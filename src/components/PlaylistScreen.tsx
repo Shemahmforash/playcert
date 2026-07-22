@@ -21,6 +21,7 @@ import { EarshotDial } from './EarshotDial';
 import { LineupPoster } from './LineupPoster';
 import { posterActsFromEntries } from '../lib/posterLayout';
 import { formatCanonicalPath, FONT_STOPS, FONT_STOP_LABELS } from '../lib/urlState';
+import { HeartOutlineIcon } from './icons';
 
 /**
  * PlaylistScreen — the client container that owns the audio + player state and
@@ -275,17 +276,46 @@ export function PlaylistScreen({
   // ── Taste memory (localStorage-backed) — Task 2.10, v2 per Hearted Shelf ───
   // Hearts + skips live in the shared `useTasteMemory` hook (SSR-safe, never
   // sent to the server). v2 moved hearts from artistId to per-song snapshots.
-  const { markSkipped } = useTasteMemory();
+  const { heartedSongs, toggleHeartSong, markSkipped } = useTasteMemory();
 
-  // TEMP STUB (Hearted Shelf step 1 of 3): the hook's artist-keyed
-  // `hearted`/`toggleHeart` surface is gone, but TrackRow/PlaylistList still
-  // speak artistId. Step 2/3 reworks them to build a `HeartedSong` snapshot
-  // here (track + show + artist are all in scope at heart-time) and key rows
-  // by `itunesTrackId` via `isHearted`/`toggleHeartSong`. Until then the heart
-  // buttons render un-hearted and taps are no-ops — replace this stub, don't
-  // extend it.
-  const heartedIds = undefined;
-  const toggleHeart = (_artistId: string) => {};
+  // Hearted itunesTrackIds for the rows. Hearts are PER-SONG: a headliner's
+  // two rows are two independent hearts, so the set keys on the track id, not
+  // the artist. Derived (not the hook's `isHearted` callback) so PlaylistList
+  // gets a plain value prop.
+  const heartedIds = useMemo(
+    () => new Set(heartedSongs.map((s) => s.itunesTrackId)),
+    [heartedSongs],
+  );
+
+  // A heart tap builds the FULL self-contained `HeartedSong` snapshot RIGHT
+  // HERE, at heart-time — this is the one place track + show + artist are all
+  // in scope. The snapshot must be complete (the strict reload validator drops
+  // partial entries) so the shelf can later render it with ZERO fetches.
+  // PRIVACY: the snapshot lives only in localStorage; it is never serialized
+  // into any request.
+  const heartEntry = (entry: PlaylistEntry) => {
+    const { track, show } = entry;
+    toggleHeartSong({
+      itunesTrackId: track.itunesTrackId,
+      title: track.title,
+      artist: artists[track.artistId]?.normalizedName ?? track.artistId,
+      artistId: track.artistId,
+      previewUrl: track.previewUrl,
+      artworkUrl: track.artworkUrl,
+      itunesUrl: track.itunesUrl,
+      heartedAt: new Date().toISOString(),
+      gig: {
+        venue: show.venue.name,
+        city: show.venue.city,
+        startsAt: show.startsAt,
+        ticketUrl: show.ticketUrl,
+      },
+    });
+  };
+
+  // Hearted shelf open/closed (Hearted Shelf step 3 mounts the sheet itself;
+  // the dock button below already toggles this so the entry point is wired).
+  const [heartedOpen, setHeartedOpen] = useState(false);
 
   const current = entries[state.index];
 
@@ -566,40 +596,66 @@ export function PlaylistScreen({
         }}
       >
         <EarshotDial value={fontStop} onChange={handleDialChange} />
-        {/* Poster trigger (§2.4): click opens directly (desktop-discoverable);
-            a 500ms click-hold / long-press also commits. The corner-curl is the
-            hold affordance. Audio keeps playing — this only mounts an overlay. */}
-        <button
-          ref={posterTriggerRef}
-          type="button"
-          aria-label="Make a poster"
-          title="Make a poster (hold to peel)"
-          onClick={openPoster}
-          onPointerDown={startLongPress}
-          onPointerUp={clearLongPress}
-          onPointerLeave={clearLongPress}
-          onPointerCancel={clearLongPress}
-          className="relative shrink-0 rounded-md border p-2 text-xs"
-          style={{ borderColor: 'var(--ash)', color: 'var(--ash)' }}
-        >
-          <span aria-hidden style={{ fontSize: '16px', lineHeight: 1 }}>
-            ◲
-          </span>
-          {/* Corner-curl affordance — a peeling top-right corner. */}
-          <span
-            aria-hidden
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Dock heart — the Hearted shelf's entry point (Hearted Shelf §Part 2),
+              between the dial and the poster trigger: the dock is "the controls
+              that must stay reachable while you scroll", and hearting a row ticks
+              this count up where the eye already is. Empty → quiet --ash outline,
+              no count; non-empty → the outline heart + small mono tally take
+              --riso-pink (the heart's own ink). Count is a VALUE, not billing —
+              no prominence rules apply here. Step 3 mounts the sheet; until then
+              this only toggles the (already-wired) open state. */}
+          <button
+            type="button"
+            aria-label={`Your hearted songs (${heartedSongs.length})`}
+            aria-haspopup="dialog"
+            aria-expanded={heartedOpen}
+            onClick={() => setHeartedOpen((v) => !v)}
+            className="flex shrink-0 items-center gap-1 rounded-md p-2 font-mono text-xs"
             style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: 0,
-              height: 0,
-              borderTop: '8px solid var(--ash)',
-              borderLeft: '8px solid transparent',
-              opacity: 0.5,
+              color: heartedSongs.length > 0 ? 'var(--riso-pink)' : 'var(--ash)',
             }}
-          />
-        </button>
+          >
+            <HeartOutlineIcon aria-hidden style={{ fontSize: '16px' }} />
+            {heartedSongs.length > 0 ? (
+              <span style={{ color: 'var(--riso-pink)' }}>{heartedSongs.length}</span>
+            ) : null}
+          </button>
+          {/* Poster trigger (§2.4): click opens directly (desktop-discoverable);
+              a 500ms click-hold / long-press also commits. The corner-curl is the
+              hold affordance. Audio keeps playing — this only mounts an overlay. */}
+          <button
+            ref={posterTriggerRef}
+            type="button"
+            aria-label="Make a poster"
+            title="Make a poster (hold to peel)"
+            onClick={openPoster}
+            onPointerDown={startLongPress}
+            onPointerUp={clearLongPress}
+            onPointerLeave={clearLongPress}
+            onPointerCancel={clearLongPress}
+            className="relative shrink-0 rounded-md border p-2 text-xs"
+            style={{ borderColor: 'var(--ash)', color: 'var(--ash)' }}
+          >
+            <span aria-hidden style={{ fontSize: '16px', lineHeight: 1 }}>
+              ◲
+            </span>
+            {/* Corner-curl affordance — a peeling top-right corner. */}
+            <span
+              aria-hidden
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: 0,
+                height: 0,
+                borderTop: '8px solid var(--ash)',
+                borderLeft: '8px solid transparent',
+                opacity: 0.5,
+              }}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Box-office tally: what the playlist actually is — how many songs, drawn
@@ -663,7 +719,7 @@ export function PlaylistScreen({
           playing={state.playing}
           fontStop={fontStop}
           onPlayIndex={playIndex}
-          onHeart={toggleHeart}
+          onHeart={heartEntry}
           heartedIds={heartedIds}
           activeItemRef={itemRef}
           entering

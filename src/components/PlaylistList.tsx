@@ -59,8 +59,15 @@ export interface PlaylistListProps {
    */
   fontStop?: FontStop;
   onPlayIndex: (index: number) => void;
-  onHeart?: (artistId: string) => void;
-  heartedIds?: Set<string>;
+  /**
+   * Heart tap → the whole entry (track + show), not just an id: the screen
+   * builds the self-contained `HeartedSong` snapshot at heart-time (Hearted
+   * Shelf, 2026-07-22), and the entry is everything it needs beyond the
+   * artists map it already holds.
+   */
+  onHeart?: (entry: PlaylistEntry) => void;
+  /** Hearted songs by `itunesTrackId` — hearts are per-SONG, not per-artist. */
+  heartedIds?: Set<number>;
   /**
    * Attached to the `<li>` at `currentIndex` so the container's `useAutoScroll`
    * can scroll the active row into view. Optional + additive — standalone /
@@ -305,14 +312,14 @@ export function PlaylistList({
           isEncore={isEncore}
           accentHue={dayAccentHue(show.startsAt)}
           fontStop={fontStop}
-          hearted={heartedIds?.has(artistId)}
+          hearted={heartedIds?.has(track.itunesTrackId)}
           role={roleOf}
           headliner={nameOf(lastId)}
           sameBill={sameBill}
           isOpen={openKey === key}
           onOpenChange={(next) => setOpenKey(next ? key : null)}
           onPlay={() => index >= 0 && onPlayIndex(index)}
-          onHeart={onHeart ? () => onHeart(artistId) : undefined}
+          onHeart={onHeart ? () => onHeart(entry) : undefined}
         />
       </li>,
     );

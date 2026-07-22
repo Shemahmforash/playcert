@@ -158,12 +158,19 @@ describe('a11y — RadioPlayer semantics', () => {
 
 // ── Row semantics ───────────────────────────────────────────────────────────
 describe('a11y — TrackRow controls', () => {
-  it('heart is a stateful toggle button (aria-pressed)', () => {
+  it('heart is a stateful toggle button (aria-pressed) whose label names the SONG', () => {
+    // Hearts are per-song (Hearted Shelf, 2026-07-22): the accessible name
+    // carries the title too, so a headliner's two rows never present the same
+    // name on two independently-stateful hearts.
     const { rerender } = render(<TrackRow {...rowProps({ hearted: false })} />);
-    const heart = screen.getByRole('button', { name: 'Heart ALPHA' });
+    const heart = screen.getByRole('button', { name: 'Heart ALPHA — a1-title-1' });
     expect(heart.getAttribute('aria-pressed')).toBe('false');
     rerender(<TrackRow {...rowProps({ hearted: true })} />);
-    expect(screen.getByRole('button', { name: 'Unheart ALPHA' }).getAttribute('aria-pressed')).toBe('true');
+    expect(
+      screen
+        .getByRole('button', { name: 'Unheart ALPHA — a1-title-1' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
   });
 
   it('play button is a stateful toggle button (aria-pressed)', () => {

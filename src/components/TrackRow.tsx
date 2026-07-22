@@ -336,10 +336,18 @@ export function TrackRow({
           </span>
         </div>
 
-        {/* Heart — outline → filled riso-pink on tap (localStorage in 2.4). */}
+        {/* Heart — outline → filled riso-pink on tap. Hearts are PER-SONG
+            (Hearted Shelf, 2026-07-22): the label names the song, not just the
+            act, because a headliner's two rows are two independent hearts —
+            "Heart ALPHA" twice would be the same accessible name on two
+            differently-stateful buttons. */}
         <button
           type="button"
-          aria-label={hearted ? `Unheart ${displayName}` : `Heart ${displayName}`}
+          aria-label={
+            hearted
+              ? `Unheart ${displayName} — ${title}`
+              : `Heart ${displayName} — ${title}`
+          }
           aria-pressed={Boolean(hearted)}
           onClick={onHeart}
           className="flex shrink-0 items-center justify-center rounded-full text-lg leading-none focus-visible:outline-2 focus-visible:outline-offset-2"
