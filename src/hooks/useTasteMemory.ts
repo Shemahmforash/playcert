@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 
 /**
- * useTasteMemory — the listener's private taste memory: the artists they've
- * hearted and the ones they've skipped, keyed by a stable per-artist id
- * (artistId). Task 2.10 formalizes the ad-hoc hearts localStorage that Task 2.5
- * inlined into PlaylistScreen.
+ * useTasteMemory — the listener's private taste memory: the songs they've
+ * hearted and the artists they've skipped. Task 2.10 formalized the ad-hoc
+ * hearts localStorage; the Hearted Shelf design (2026-07-22) moves hearts from
+ * artist-level to song-level so a heart can build a takeaway playlist.
+ *
+ * A heart now stores a self-contained `HeartedSong` snapshot — track, artwork,
+ * preview, Apple Music link, AND the gig that introduced it — captured at
+ * heart-time so the shelf renders with ZERO fetches. Skips stay artistId-keyed.
  *
  * PRIVACY CONSTRAINT (not code — a rule this module and its callers must keep):
  * taste memory lives ONLY in the browser's localStorage. It is NEVER serialized
@@ -15,45 +19,121 @@ import { useCallback, useEffect, useState } from 'react';
  * sees nor stores it.
  *
  * SSR-safety: nothing here touches `window`/`localStorage` during render, so the
- * server render and the first client render are identical (empty sets). The
- * stored value is read in a mount `useEffect` and hydrated in. Every storage
- * access is wrapped in try/catch so a throwing/absent localStorage (private
- * mode, disabled storage) degrades to an in-memory no-op instead of crashing.
+ * server render and the first client render are identical (empty). The stored
+ * value is read in a mount `useEffect` and hydrated in. Every storage access is
+ * wrapped in try/catch so a throwing/absent localStorage (private mode,
+ * disabled storage) degrades to an in-memory no-op instead of crashing.
  */
 
-// Versioned so the shape can evolve without misreading old data.
-export const TASTE_STORAGE_KEY = 'earshot:taste:v1';
+// Versioned so the shape can evolve without misreading old data. v2 replaces
+// v1's artist-keyed heart set with song snapshots (see migration below).
+export const TASTE_STORAGE_KEY = 'earshot:taste:v2';
+export const TASTE_STORAGE_KEY_V1 = 'earshot:taste:v1';
+
+/**
+ * Everything the Hearted shelf needs to render one hearted song — snapshotted
+ * at heart-time, self-contained on purpose: reading it back must never require
+ * a fetch (protects both the €5/mo JamBase cap and the privacy rule above).
+ */
+export interface HeartedSong {
+  itunesTrackId: number; // stable key (dedupe/toggle)
+  title: string;
+  artist: string; // normalizedName at heart-time
+  artistId: string;
+  previewUrl: string; // 30s preview — playable in the shelf
+  artworkUrl: string;
+  itunesUrl: string; // "open in Apple Music" per song
+  heartedAt: string; // ISO — shelf sorts newest-first
+  gig: {
+    // the show that introduced you
+    venue: string;
+    city: string;
+    startsAt: string; // ISO — lets the shelf say "past gig" honestly
+    ticketUrl: string; // JamBase deep link
+  };
+}
 
 export interface TasteMemory {
-  hearted: Set<string>;
+  heartedSongs: HeartedSong[];
   skipped: Set<string>;
-  toggleHeart(id: string): void;
+  toggleHeartSong(snapshot: HeartedSong): void;
+  isHearted(itunesTrackId: number): boolean;
   markSkipped(id: string): void;
 }
 
 interface StoredTaste {
-  hearted: string[];
+  heartedSongs: HeartedSong[];
   skipped: string[];
 }
 
-const EMPTY: StoredTaste = { hearted: [], skipped: [] };
+const EMPTY: StoredTaste = { heartedSongs: [], skipped: [] };
 
 /** Only keep string entries — tolerates a malformed / wrong-shape payload. */
 function toStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 }
 
-/** Read + parse the stored taste. Server, absent storage, or garbage → EMPTY. */
+/**
+ * Validate one stored entry as a usable HeartedSong. Strict on purpose: a stub
+ * with a missing gig or a non-numeric id would crash or lie in the shelf, so a
+ * bad entry is dropped rather than half-rendered. Valid neighbours survive.
+ */
+function isHeartedSong(value: unknown): value is HeartedSong {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const gig = v.gig as Record<string, unknown> | null | undefined;
+  return (
+    typeof v.itunesTrackId === 'number' &&
+    typeof v.title === 'string' &&
+    typeof v.artist === 'string' &&
+    typeof v.artistId === 'string' &&
+    typeof v.previewUrl === 'string' &&
+    typeof v.artworkUrl === 'string' &&
+    typeof v.itunesUrl === 'string' &&
+    typeof v.heartedAt === 'string' &&
+    typeof gig === 'object' &&
+    gig !== null &&
+    typeof gig.venue === 'string' &&
+    typeof gig.city === 'string' &&
+    typeof gig.startsAt === 'string' &&
+    typeof gig.ticketUrl === 'string'
+  );
+}
+
+/** Only keep well-formed song snapshots — tolerates garbage among the good. */
+function toHeartedSongs(value: unknown): HeartedSong[] {
+  return Array.isArray(value) ? value.filter(isHeartedSong) : [];
+}
+
+/**
+ * Read + parse the stored taste, migrating v1 if that's all there is.
+ * Server, absent storage, or garbage → EMPTY.
+ *
+ * Migration is honest about what it can keep: v1 hearts were artistIds, and an
+ * artistId cannot reconstruct a song snapshot — so `skipped` is carried forward
+ * and the old artist-hearts are let go. One-time: v1 is removed after reading,
+ * and once a v2 record exists v1 is never consulted again (so v2 can't be
+ * clobbered by a stale v1 left behind by a failed removeItem).
+ */
 function readStored(): StoredTaste {
   if (typeof window === 'undefined') return EMPTY;
   try {
     const raw = window.localStorage.getItem(TASTE_STORAGE_KEY);
-    if (!raw) return EMPTY;
-    const parsed = JSON.parse(raw) as unknown as Partial<StoredTaste>;
-    return {
-      hearted: toStringArray(parsed?.hearted),
-      skipped: toStringArray(parsed?.skipped),
-    };
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown as Partial<StoredTaste>;
+      return {
+        heartedSongs: toHeartedSongs(parsed?.heartedSongs),
+        skipped: toStringArray(parsed?.skipped),
+      };
+    }
+    // No v2 yet — migrate whatever v1 left us, then retire the key. The
+    // persist effect writes the migrated state under the v2 key right after
+    // hydration, which is what makes this a one-time move.
+    const rawV1 = window.localStorage.getItem(TASTE_STORAGE_KEY_V1);
+    if (!rawV1) return EMPTY;
+    window.localStorage.removeItem(TASTE_STORAGE_KEY_V1);
+    const parsedV1 = JSON.parse(rawV1) as unknown as { skipped?: unknown };
+    return { heartedSongs: [], skipped: toStringArray(parsedV1?.skipped) };
   } catch {
     // Malformed JSON or unavailable storage — treat as no memory.
     return EMPTY;
@@ -63,14 +143,14 @@ function readStored(): StoredTaste {
 export function useTasteMemory(): TasteMemory {
   // Start empty on both server and first client render (SSR-stable). Real data
   // is hydrated in the mount effect below.
-  const [hearted, setHearted] = useState<Set<string>>(() => new Set());
+  const [heartedSongs, setHeartedSongs] = useState<HeartedSong[]>(() => []);
   const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
   const [hydrated, setHydrated] = useState(false);
 
   // Hydrate from localStorage once, on mount (client only).
   useEffect(() => {
     const stored = readStored();
-    setHearted(new Set(stored.hearted));
+    setHeartedSongs(stored.heartedSongs);
     setSkipped(new Set(stored.skipped));
     setHydrated(true);
   }, []);
@@ -82,21 +162,27 @@ export function useTasteMemory(): TasteMemory {
     try {
       window.localStorage.setItem(
         TASTE_STORAGE_KEY,
-        JSON.stringify({ hearted: [...hearted], skipped: [...skipped] }),
+        JSON.stringify({ heartedSongs, skipped: [...skipped] }),
       );
     } catch {
       // Private mode / disabled storage — best-effort, stay in memory.
     }
-  }, [hydrated, hearted, skipped]);
+  }, [hydrated, heartedSongs, skipped]);
 
-  const toggleHeart = useCallback((id: string) => {
-    setHearted((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  const toggleHeartSong = useCallback((snapshot: HeartedSong) => {
+    setHeartedSongs((prev) => {
+      // Identity is the itunesTrackId — a re-heart with drifted metadata still
+      // unhears, and filtering (not splicing) also sweeps out any duplicate
+      // ids a corrupt stored payload might have smuggled in.
+      const without = prev.filter((s) => s.itunesTrackId !== snapshot.itunesTrackId);
+      return without.length < prev.length ? without : [...prev, snapshot];
     });
   }, []);
+
+  const isHearted = useCallback(
+    (itunesTrackId: number) => heartedSongs.some((s) => s.itunesTrackId === itunesTrackId),
+    [heartedSongs],
+  );
 
   const markSkipped = useCallback((id: string) => {
     setSkipped((prev) => {
@@ -107,5 +193,5 @@ export function useTasteMemory(): TasteMemory {
     });
   }, []);
 
-  return { hearted, skipped, toggleHeart, markSkipped };
+  return { heartedSongs, skipped, toggleHeartSong, isHearted, markSkipped };
 }

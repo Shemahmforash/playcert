@@ -3,6 +3,8 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import {
   useTasteMemory,
   TASTE_STORAGE_KEY,
+  TASTE_STORAGE_KEY_V1,
+  type HeartedSong,
 } from '../../src/hooks/useTasteMemory';
 
 afterEach(() => {
@@ -10,39 +12,95 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe('useTasteMemory', () => {
+/** A complete, valid HeartedSong snapshot — overridable per test. */
+function makeSong(overrides: Partial<HeartedSong> = {}): HeartedSong {
+  return {
+    itunesTrackId: 1440,
+    title: 'Starburster',
+    artist: 'Fontaines D.C.',
+    artistId: 'artist-fontaines',
+    previewUrl: 'https://audio.example/preview.m4a',
+    artworkUrl: 'https://img.example/art.jpg',
+    itunesUrl: 'https://music.apple.com/track/1440',
+    heartedAt: '2026-07-22T12:00:00.000Z',
+    gig: {
+      venue: 'Paradise',
+      city: 'Lisbon',
+      startsAt: '2026-07-25T20:00:00.000Z',
+      ticketUrl: 'https://www.jambase.com/show/1',
+    },
+    ...overrides,
+  };
+}
+
+describe('useTasteMemory (v2)', () => {
   it('starts empty when nothing is stored', () => {
     const { result } = renderHook(() => useTasteMemory());
-    expect([...result.current.hearted]).toEqual([]);
+    expect(result.current.heartedSongs).toEqual([]);
     expect([...result.current.skipped]).toEqual([]);
   });
 
-  it('toggleHeart persists to localStorage and restores across a remount', () => {
+  it('toggleHeartSong persists the full snapshot under the v2 key and restores across a remount', () => {
+    const song = makeSong();
     const first = renderHook(() => useTasteMemory());
 
-    act(() => first.result.current.toggleHeart('artist-1'));
-    expect(first.result.current.hearted.has('artist-1')).toBe(true);
+    act(() => first.result.current.toggleHeartSong(song));
+    expect(first.result.current.heartedSongs).toEqual([song]);
+    expect(first.result.current.isHearted(song.itunesTrackId)).toBe(true);
 
-    // It was written under the versioned key.
+    // It was written under the versioned v2 key — the whole snapshot, gig included.
     const raw = localStorage.getItem(TASTE_STORAGE_KEY);
     expect(raw).toBeTruthy();
-    expect(JSON.parse(raw as string).hearted).toContain('artist-1');
+    expect(JSON.parse(raw as string).heartedSongs).toEqual([song]);
 
     // A fresh mount (new component instance) hydrates it back.
     first.unmount();
     const second = renderHook(() => useTasteMemory());
-    expect(second.result.current.hearted.has('artist-1')).toBe(true);
+    expect(second.result.current.heartedSongs).toEqual([song]);
+    expect(second.result.current.isHearted(song.itunesTrackId)).toBe(true);
   });
 
-  it('toggleHeart is a toggle — a second call removes the id', () => {
+  it('toggleHeartSong is a toggle — a second call with the same itunesTrackId removes it', () => {
     const { result } = renderHook(() => useTasteMemory());
-    act(() => result.current.toggleHeart('a'));
-    expect(result.current.hearted.has('a')).toBe(true);
-    act(() => result.current.toggleHeart('a'));
-    expect(result.current.hearted.has('a')).toBe(false);
-    expect(JSON.parse(localStorage.getItem(TASTE_STORAGE_KEY) as string).hearted).toEqual(
-      [],
+    act(() => result.current.toggleHeartSong(makeSong()));
+    expect(result.current.isHearted(1440)).toBe(true);
+
+    // Even a snapshot with *different* metadata unhears — identity is the track id.
+    act(() => result.current.toggleHeartSong(makeSong({ title: 'Renamed' })));
+    expect(result.current.isHearted(1440)).toBe(false);
+    expect(result.current.heartedSongs).toEqual([]);
+    expect(
+      JSON.parse(localStorage.getItem(TASTE_STORAGE_KEY) as string).heartedSongs,
+    ).toEqual([]);
+  });
+
+  it('never duplicates a track id, even if storage already holds duplicates', () => {
+    // Simulate a corrupt/duplicated stored list — the same id twice.
+    const dupe = makeSong();
+    localStorage.setItem(
+      TASTE_STORAGE_KEY,
+      JSON.stringify({ heartedSongs: [dupe, dupe], skipped: [] }),
     );
+    const { result } = renderHook(() => useTasteMemory());
+
+    // One toggle removes EVERY copy of that id (toggle lands on "not hearted").
+    act(() => result.current.toggleHeartSong(makeSong()));
+    expect(result.current.heartedSongs).toEqual([]);
+  });
+
+  it('keeps distinct tracks independent', () => {
+    const a = makeSong({ itunesTrackId: 1 });
+    const b = makeSong({ itunesTrackId: 2, title: 'In ár gCroíthe go deo' });
+    const { result } = renderHook(() => useTasteMemory());
+
+    act(() => result.current.toggleHeartSong(a));
+    act(() => result.current.toggleHeartSong(b));
+    expect(result.current.heartedSongs).toEqual([a, b]);
+
+    act(() => result.current.toggleHeartSong(a));
+    expect(result.current.heartedSongs).toEqual([b]);
+    expect(result.current.isHearted(1)).toBe(false);
+    expect(result.current.isHearted(2)).toBe(true);
   });
 
   it('markSkipped persists and restores across a remount', () => {
@@ -62,20 +120,85 @@ describe('useTasteMemory', () => {
     expect([...result.current.skipped]).toEqual(['x']);
   });
 
+  describe('v1 → v2 migration', () => {
+    it('carries skipped forward, drops artist-hearts, writes v2, removes v1', () => {
+      localStorage.setItem(
+        TASTE_STORAGE_KEY_V1,
+        JSON.stringify({ hearted: ['artist-1', 'artist-9'], skipped: ['artist-2'] }),
+      );
+
+      const { result } = renderHook(() => useTasteMemory());
+
+      // skipped survives; artist-hearts cannot become songs, so they're gone.
+      expect([...result.current.skipped]).toEqual(['artist-2']);
+      expect(result.current.heartedSongs).toEqual([]);
+
+      // The migration is one-time: v2 is now the record, v1 is removed.
+      const v2 = JSON.parse(localStorage.getItem(TASTE_STORAGE_KEY) as string);
+      expect(v2).toEqual({ heartedSongs: [], skipped: ['artist-2'] });
+      expect(localStorage.getItem(TASTE_STORAGE_KEY_V1)).toBeNull();
+    });
+
+    it('ignores v1 when v2 already exists (migration never overwrites v2)', () => {
+      const song = makeSong();
+      localStorage.setItem(
+        TASTE_STORAGE_KEY,
+        JSON.stringify({ heartedSongs: [song], skipped: ['kept-v2'] }),
+      );
+      localStorage.setItem(
+        TASTE_STORAGE_KEY_V1,
+        JSON.stringify({ hearted: ['artist-1'], skipped: ['stale-v1'] }),
+      );
+
+      const { result } = renderHook(() => useTasteMemory());
+      expect(result.current.heartedSongs).toEqual([song]);
+      expect([...result.current.skipped]).toEqual(['kept-v2']);
+    });
+
+    it('treats malformed v1 JSON as nothing to migrate', () => {
+      localStorage.setItem(TASTE_STORAGE_KEY_V1, '{ not json ]');
+      const { result } = renderHook(() => useTasteMemory());
+      expect(result.current.heartedSongs).toEqual([]);
+      expect([...result.current.skipped]).toEqual([]);
+    });
+  });
+
   it('treats malformed stored JSON as empty and never throws', () => {
     localStorage.setItem(TASTE_STORAGE_KEY, '{ this is : not valid json ]');
     expect(() => {
       const { result } = renderHook(() => useTasteMemory());
-      expect([...result.current.hearted]).toEqual([]);
+      expect(result.current.heartedSongs).toEqual([]);
       expect([...result.current.skipped]).toEqual([]);
     }).not.toThrow();
   });
 
-  it('tolerates stored JSON of the wrong shape (missing arrays)', () => {
-    localStorage.setItem(TASTE_STORAGE_KEY, JSON.stringify({ hearted: 'nope' }));
+  it('tolerates stored JSON of the wrong shape (missing / mistyped fields)', () => {
+    localStorage.setItem(
+      TASTE_STORAGE_KEY,
+      JSON.stringify({ heartedSongs: 'nope', skipped: 42 }),
+    );
     const { result } = renderHook(() => useTasteMemory());
-    expect([...result.current.hearted]).toEqual([]);
+    expect(result.current.heartedSongs).toEqual([]);
     expect([...result.current.skipped]).toEqual([]);
+  });
+
+  it('drops individual malformed hearted entries but keeps the valid ones', () => {
+    const good = makeSong();
+    localStorage.setItem(
+      TASTE_STORAGE_KEY,
+      JSON.stringify({
+        heartedSongs: [
+          good,
+          null,
+          'a string',
+          { itunesTrackId: 'not-a-number', title: 'x' }, // wrong id type
+          { ...makeSong({ itunesTrackId: 7 }), gig: null }, // gig snapshot missing
+        ],
+        skipped: [],
+      }),
+    );
+    const { result } = renderHook(() => useTasteMemory());
+    expect(result.current.heartedSongs).toEqual([good]);
   });
 
   it('is a safe no-op when localStorage is unavailable (private mode / SSR-like)', () => {
@@ -93,10 +216,10 @@ describe('useTasteMemory', () => {
     expect(() => {
       const { result } = renderHook(() => useTasteMemory());
       // Reads must not throw…
-      expect([...result.current.hearted]).toEqual([]);
-      // …and neither must writes.
-      act(() => result.current.toggleHeart('z'));
-      expect(result.current.hearted.has('z')).toBe(true);
+      expect(result.current.heartedSongs).toEqual([]);
+      // …and neither must writes — the heart still works in memory.
+      act(() => result.current.toggleHeartSong(makeSong()));
+      expect(result.current.isHearted(1440)).toBe(true);
     }).not.toThrow();
 
     getSpy.mockRestore();

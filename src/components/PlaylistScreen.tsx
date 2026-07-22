@@ -272,10 +272,20 @@ export function PlaylistScreen({
     state.index,
   );
 
-  // ── Taste memory (localStorage-backed, artistId keyed) — Task 2.10 ─────────
-  // Hearts + skips now live in the shared `useTasteMemory` hook (SSR-safe,
-  // never sent to the server) instead of the ad-hoc storage Task 2.5 inlined.
-  const { hearted: heartedIds, toggleHeart, markSkipped } = useTasteMemory();
+  // ── Taste memory (localStorage-backed) — Task 2.10, v2 per Hearted Shelf ───
+  // Hearts + skips live in the shared `useTasteMemory` hook (SSR-safe, never
+  // sent to the server). v2 moved hearts from artistId to per-song snapshots.
+  const { markSkipped } = useTasteMemory();
+
+  // TEMP STUB (Hearted Shelf step 1 of 3): the hook's artist-keyed
+  // `hearted`/`toggleHeart` surface is gone, but TrackRow/PlaylistList still
+  // speak artistId. Step 2/3 reworks them to build a `HeartedSong` snapshot
+  // here (track + show + artist are all in scope at heart-time) and key rows
+  // by `itunesTrackId` via `isHearted`/`toggleHeartSong`. Until then the heart
+  // buttons render un-hearted and taps are no-ops — replace this stub, don't
+  // extend it.
+  const heartedIds = undefined;
+  const toggleHeart = (_artistId: string) => {};
 
   const current = entries[state.index];
 
