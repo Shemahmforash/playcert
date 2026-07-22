@@ -79,6 +79,12 @@ describe('parseJambaseEvents', () => {
     expect(parseJambaseEvents({ events: [] })).toEqual([]);
   });
 
+  it('throws JambaseError (not a raw ZodError) on a malformed envelope', () => {
+    // `events` is not an array → the route should degrade to 502 + serve-stale,
+    // which it only does for JambaseError.
+    expect(() => parseJambaseEvents({ events: 'nope' })).toThrow(JambaseError);
+  });
+
   it('does not throw on a garbage/missing-field event (non-strict)', () => {
     const junk = { events: [{ identifier: 'jambase:1' }, { foo: 'bar' }] };
     expect(() => parseJambaseEvents(junk)).not.toThrow();

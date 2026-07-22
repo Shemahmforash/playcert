@@ -105,12 +105,18 @@ export function toShow(event: JambaseEvent): Show {
 }
 
 /**
- * Parse a JamBase `{ events }` envelope into Show[]. Zod-validated; never throws
- * on real data. Empty/absent events → [].
+ * Parse a JamBase `{ events }` envelope into Show[]. Zod-validated; the schema is
+ * non-strict so it never throws on real (field-varying) data. A genuinely
+ * malformed envelope (e.g. `events` not an array) throws JambaseError — NOT a
+ * raw ZodError — so the bundle route takes the intended 502 + serve-stale
+ * degradation path instead of surfacing an uncaught 500. Empty/absent events → [].
  */
 export function parseJambaseEvents(json: unknown): Show[] {
-  const env = eventsEnvelopeSchema.parse(json);
-  return (env.events ?? []).map(toShow);
+  const env = eventsEnvelopeSchema.safeParse(json);
+  if (!env.success) {
+    throw new JambaseError('malformed JamBase events envelope');
+  }
+  return (env.data.events ?? []).map(toShow);
 }
 
 // --- call-minimised fetch --------------------------------------------------
