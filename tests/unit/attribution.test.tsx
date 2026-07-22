@@ -100,8 +100,6 @@ function renderList() {
       artists={artists}
       currentIndex={-1}
       playing={false}
-      city="lisbon"
-      window="next-14-days"
       onPlayIndex={() => {}}
     />,
   );
@@ -146,8 +144,6 @@ describe('AttributionFooter renders on every surface', () => {
           artists={artists}
           currentIndex={-1}
           playing={false}
-          city="lisbon"
-          window="next-14-days"
           onPlayIndex={() => {}}
         />
         <AttributionFooter />

@@ -3,7 +3,7 @@
 import type { CSSProperties } from 'react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { FontStop } from '../lib/types';
-import { StubBack, type SameBillItem, type StubReport } from './StubBack';
+import { StubBack, type SameBillItem } from './StubBack';
 import { HeartFilledIcon, HeartOutlineIcon, PauseIcon, PlayIcon } from './icons';
 
 // Chroma-coupled-to-SIZE gate, mirrored from posterLayout.ts (SPOT_INK_MIN_PX):
@@ -69,7 +69,6 @@ export interface TrackRowProps {
   role?: 'opener' | 'headliner';
   headliner?: string;
   sameBill?: SameBillItem[];
-  report?: StubReport;
 }
 
 /** Guarded `prefers-reduced-motion: reduce` probe — false (motion) under SSR/jsdom. */
@@ -150,7 +149,6 @@ export function TrackRow({
   role,
   headliner,
   sameBill,
-  report,
 }: TrackRowProps) {
   const isPlaying = state === 'playing';
   const isPlayed = state === 'played';
@@ -504,7 +502,6 @@ export function TrackRow({
         role={role}
         headliner={headliner}
         sameBill={sameBill}
-        report={report}
         onClose={() => setOpen(false)}
       />
     </div>

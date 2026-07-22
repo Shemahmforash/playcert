@@ -172,43 +172,6 @@ describe('TrackRow — stub flip + back face (Task 2.3)', () => {
     expect(screen.queryByText(/opening for/i)).toBeNull();
   });
 
-  it('fires the wrong-artist beacon exactly once, then reads "Thanks — noted"', () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    render(
-      <TrackRow
-        {...makeProps({
-          report: {
-            city: 'lisbon',
-            window: 'next-14-days',
-            artistId: 'artist-42',
-            showId: 'show-99',
-          },
-        })}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /MUSICBOX/ }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'wrong artist?' }));
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('/api/report-artist');
-    expect(opts.method).toBe('POST');
-    expect(opts.keepalive).toBe(true);
-    expect(String(opts.body)).toContain('artist-42');
-    expect(String(opts.body)).toContain('show-99');
-
-    // Control flips to the noted state and disables.
-    const noted = screen.getByRole('button', { name: 'Thanks — noted' });
-    expect((noted as HTMLButtonElement).disabled).toBe(true);
-
-    // A second click does NOT fetch again.
-    fireEvent.click(noted);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
   it('points the Tickets link at ticketUrl and opens it safely in a new tab', () => {
     render(<TrackRow {...makeProps({ ticketUrl: 'https://tm.example/xyz' })} />);
     fireEvent.click(screen.getByRole('button', { name: /MUSICBOX/ }));

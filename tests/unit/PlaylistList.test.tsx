@@ -64,8 +64,6 @@ function renderList(overrides: Partial<React.ComponentProps<typeof PlaylistList>
       artists={artists}
       currentIndex={-1}
       playing={false}
-      city="lisbon"
-      window="next-14-days"
       onPlayIndex={() => {}}
       {...overrides}
     />,
@@ -167,8 +165,6 @@ describe('PlaylistList — billing + same-bill derivation', () => {
         artists={artists}
         currentIndex={-1}
         playing={false}
-        city="lisbon"
-        window="next-14-days"
         onPlayIndex={onPlayIndex}
       />,
     );
@@ -199,8 +195,6 @@ describe('PlaylistList — billing + same-bill derivation', () => {
         artists={artists}
         currentIndex={-1}
         playing={false}
-        city="lisbon"
-        window="next-14-days"
         onPlayIndex={vi.fn()}
       />,
     );

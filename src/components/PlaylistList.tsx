@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Artist, FontStop, TimeWindow } from '../lib/types';
+import type { Artist, FontStop } from '../lib/types';
 import type { PlaylistEntry } from '../lib/pipeline/order';
 import { diffEntries, entryKey } from '../lib/pipeline/rebuildDiff';
 import { dayAccentHue } from '../lib/dayAccent';
@@ -51,9 +51,6 @@ export interface PlaylistListProps {
   /** The playing row's flat index, or -1 if none. */
   currentIndex: number;
   playing: boolean;
-  /** Report context threaded into each stub-back beacon. */
-  city: string;
-  window: TimeWindow;
   /**
    * The active dial stop, forwarded to each row so a fame-sized (≥28px) display
    * name takes the featured spot ink (pink at marquee / no-arenas, blue at Small
@@ -97,8 +94,6 @@ export function PlaylistList({
   artists,
   currentIndex,
   playing,
-  city,
-  window,
   fontStop,
   onPlayIndex,
   onHeart,
@@ -314,7 +309,6 @@ export function PlaylistList({
           role={roleOf}
           headliner={nameOf(lastId)}
           sameBill={sameBill}
-          report={{ city, window, artistId, showId: show.id }}
           isOpen={openKey === key}
           onOpenChange={(next) => setOpenKey(next ? key : null)}
           onPlay={() => index >= 0 && onPlayIndex(index)}

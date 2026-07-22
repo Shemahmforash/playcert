@@ -1,7 +1,3 @@
-'use client';
-
-import { useState } from 'react';
-
 /**
  * StubBack — the flipped-over ticket-stub back face (Task 2.3).
  *
@@ -9,27 +5,16 @@ import { useState } from 'react';
  * box-office mono voice (`--font-mono`) on `--surface-raised`: venue + doors +
  * date, the billing sentence (opener → "opening for {headliner}" with the
  * headliner in `--riso-blue`; headliner → "— headlining"), optional same-bill
- * mini-rows, the full-width `Tickets ▸` admission-stamp deep link (the required
- * TM attribution), and the fire-once `wrong artist?` beacon that becomes
- * `Thanks — noted`.
+ * mini-rows, and the full-width `Tickets ▸` admission-stamp deep link (the
+ * required TM attribution).
  *
  * This face is rendered by TrackRow inside the 3D flip container; TrackRow owns
- * whether it is visible/inert. StubBack itself is presentation + the beacon.
+ * whether it is visible/inert. StubBack itself is pure presentation.
  */
-
-/** A `next-14-days`-style listing window, matching the report endpoint's Zod enum. */
-export type ReportWindow = 'tonight' | 'this-weekend' | 'next-14-days';
 
 export interface SameBillItem {
   artist: string;
   onPlay: () => void;
-}
-
-export interface StubReport {
-  city: string;
-  window: ReportWindow;
-  artistId: string;
-  showId: string;
 }
 
 export interface StubBackProps {
@@ -48,8 +33,6 @@ export interface StubBackProps {
   role?: 'opener' | 'headliner';
   headliner?: string;
   sameBill?: SameBillItem[];
-  /** Payload POSTed to /api/report-artist when `wrong artist?` is tapped. */
-  report?: StubReport;
   /** Flip back to the front (the ✕ close). */
   onClose: () => void;
 }
@@ -64,32 +47,8 @@ export function StubBack({
   role,
   headliner,
   sameBill,
-  report,
   onClose,
 }: StubBackProps) {
-  // The `wrong artist?` beacon fires exactly once: once noted, the control
-  // disables and never fetches again (fire-and-forget, errors swallowed).
-  const [noted, setNoted] = useState(false);
-
-  function reportWrongArtist() {
-    if (noted) return;
-    setNoted(true);
-    try {
-      void fetch('/api/report-artist', {
-        method: 'POST',
-        keepalive: true,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(
-          report ?? { city: '', window: 'next-14-days', artistId: '', showId: '' },
-        ),
-      }).catch(() => {
-        // fire-and-forget — the client never depends on the response.
-      });
-    } catch {
-      // swallow — a missing fetch / sync throw must never surface to the user.
-    }
-  }
-
   return (
     <div
       className="flex h-full flex-col gap-2 px-3 py-2 font-mono text-xs"
@@ -179,19 +138,6 @@ export function StubBack({
           Apple Music ▸
         </a>
       ) : null}
-
-      {/* wrong artist? — fires the beacon once, then reads "Thanks — noted". */}
-      <div className="mt-auto flex justify-end">
-        <button
-          type="button"
-          onClick={reportWrongArtist}
-          disabled={noted}
-          className="text-[11px] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
-          style={{ color: 'var(--ash)' }}
-        >
-          {noted ? 'Thanks — noted' : 'wrong artist?'}
-        </button>
-      </div>
     </div>
   );
 }
