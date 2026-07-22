@@ -210,18 +210,23 @@ export function ShareSheet({
           <div
             data-testid="share-sheet-backdrop"
             onClick={closeSheet}
-            className="fixed inset-0 z-30"
+            // z-40/z-50 — the SAME ladder as the LineupPoster overlay: backdrop
+            // covers the z-40 player bar (an aria-modal dialog must not leave
+            // Play/Skip clickable behind it), dialog above the backdrop. At
+            // z-40/DOM-order the player painted OVER the sheet's bottom rows.
+            className="fixed inset-0 z-40"
             style={{ background: 'rgba(0,0,0,0.4)' }}
             aria-hidden
           />
-          {/* The dialog itself. */}
+          {/* The dialog itself. max-h + overflow so short viewports scroll the
+              sheet instead of clipping the growth CTA at the bottom. */}
           <div
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-label="Take it with you"
             tabIndex={-1}
-            className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-md flex-col gap-4 rounded-t-2xl p-5"
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[85dvh] max-w-md flex-col gap-4 overflow-y-auto rounded-t-2xl p-5"
             style={{
               background: 'var(--surface-raised)',
               borderTop: '1px solid var(--line)',
@@ -274,11 +279,12 @@ export function ShareSheet({
               <span aria-hidden>↗</span>
             </button>
 
-            {/* 3) Hear the full versions — SEARCH deep-links for the CURRENT track. */}
+            {/* 3) SEARCH deep-links for the CURRENT track — the label names it,
+                so it can't read as playlist-level links beside Copy/Share. */}
             {currentTrack ? (
               <div className="flex flex-col gap-2">
                 <p className="font-mono text-xs" style={{ color: 'var(--ash)' }}>
-                  Hear the full versions
+                  Hear {currentTrack.artist} — {currentTrack.title} in full
                 </p>
                 <div className="flex gap-2">
                   <a

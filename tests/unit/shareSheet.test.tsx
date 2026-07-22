@@ -71,6 +71,11 @@ describe('ShareSheet', () => {
     expect(screen.getByRole('button', { name: /copy link/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /^share$/i })).toBeTruthy();
 
+    // The section labels WHICH track the deep-links search for (the current
+    // one) — "the full versions" read as playlist-level links next to the
+    // page-level Copy/Share actions.
+    expect(screen.getByText(/hear THE BAND — Loud Song in full/i)).toBeTruthy();
+
     const term = encodeURIComponent('THE BAND Loud Song');
     const spotify = screen.getByRole('link', { name: /spotify/i });
     const apple = screen.getByRole('link', { name: /apple music/i });
