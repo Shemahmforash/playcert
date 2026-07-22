@@ -193,6 +193,35 @@ html {
 .sf-cue-pulse { animation: sf-cue-pulse 320ms ease-out 1; display: inline-block; }
 
 /*
+ * Player bar controls (§2.3) — hover/press feedback for the ADMIT-ONE stamp and
+ * the Skip control. Hover is gated behind (hover: hover) so iOS Safari never
+ * sticks a hover state after a tap; :active gives a rubber-stamp "press into the
+ * paper" give. Reduced motion flattens the transforms but keeps the tint change.
+ */
+.sf-stamp,
+.sf-skip {
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+@media (hover: hover) {
+  .sf-stamp:enabled:hover { filter: brightness(1.12); transform: scale(1.05); }
+  .sf-skip:enabled:hover {
+    background-color: var(--surface);
+    border-color: var(--ash-quiet);
+    transform: scale(1.05);
+  }
+}
+.sf-stamp:enabled:active { filter: brightness(0.92); transform: scale(0.9); }
+.sf-skip:enabled:active {
+  background-color: var(--surface);
+  border-color: var(--ash-quiet);
+  transform: scale(0.9);
+}
+
+/*
  * Dial rebuild — removed acts shrink + collapse off the sheet (§2.2 step 2,
  * --dur-shrink 250ms). Spot ink drains to --ash, the type shrinks toward 40% and
  * the row's height/opacity collapse so survivors close the gap. transform-origin
@@ -240,6 +269,10 @@ html {
   .sf-cue-pulse {
     animation: none !important;
   }
+  /* Player controls: no scale travel — hover/press read through tint only. */
+  .sf-stamp, .sf-skip { transition: filter 120ms ease, background-color 120ms ease, border-color 120ms ease; }
+  .sf-stamp:enabled:hover, .sf-stamp:enabled:active,
+  .sf-skip:enabled:hover, .sf-skip:enabled:active { transform: none; }
   /* Static resting states: readable copy, filled poster strips, filled rule. */
   .sf-grow { font-size: 0.92rem; letter-spacing: 0.1em; opacity: 0.85; }
   .sf-strip { opacity: 0.4; }

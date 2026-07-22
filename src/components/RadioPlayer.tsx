@@ -156,7 +156,7 @@ export function RadioPlayer({
           aria-pressed={playing}
           onClick={onToggle}
           disabled={!track}
-          className="absolute inset-0 flex items-center justify-center rounded-full text-sm leading-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40"
+          className="sf-stamp absolute inset-0 flex cursor-pointer items-center justify-center rounded-full text-sm leading-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40"
           style={{
             background: 'var(--admission)',
             color: 'var(--canvas)',
@@ -178,7 +178,7 @@ export function RadioPlayer({
         aria-label="Skip to next track"
         onClick={onSkip}
         disabled={!track}
-        className="flex shrink-0 items-center justify-center rounded-full font-mono text-xs leading-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40"
+        className="sf-skip flex shrink-0 cursor-pointer items-center justify-center rounded-full font-mono text-xs leading-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-40"
         style={{
           width: '44px',
           height: '44px',
