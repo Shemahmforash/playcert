@@ -64,9 +64,6 @@ before (or immediately at) go-live.
       hard belt: with no card on file, the free tier simply stops serving at 1,000
       calls instead of billing for call 1,001. The TTL math (`verify:budgets`) is
       belt-and-suspenders on top of this. *(Manual — JamBase account settings.)*
-- [ ] **Rotate the exposed key.** A JamBase key was committed earlier in history —
-      generate a fresh one, set it in Vercel (above), and revoke the old one.
-      *(Manual — JamBase dashboard + Vercel.)*
 - [ ] **Decide the domain.** Currently live at `earshot-one.vercel.app`; the launch
       plan assumes `earshot.fm` (and the MusicBrainz User-Agent already advertises
       `earshot.fm`). Either register/point `earshot.fm` or update the copy to match
