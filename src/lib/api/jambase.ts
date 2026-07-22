@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Show, TimeWindow, WidenMeta } from '@/lib/types';
 import type { Geo } from './geo';
 import { jambaseQueue } from '../queue';
+import { safeHttpUrl } from '../safeUrl';
 
 // ---------------------------------------------------------------------------
 // JamBase v3 events adapter — mirrors the Ticketmaster client's shape so the
@@ -66,12 +67,15 @@ export function toShow(event: JambaseEvent): Show {
 
   // ticketUrl: prefer the primary ticketing offer, else first offer, else the
   // jambase linkback. Any utm_source=jambase attribution query is kept intact.
+  // safeHttpUrl drops any non-http(s) scheme (e.g. a poisoned `javascript:`
+  // offer URL) before it reaches the client's <a href>.
   const offers = event.offers ?? [];
-  const ticketUrl =
+  const ticketUrl = safeHttpUrl(
     offers.find((o) => o.category === 'ticketingLinkPrimary')?.url ??
-    offers[0]?.url ??
-    event.url ??
-    '';
+      offers[0]?.url ??
+      event.url ??
+      '',
+  );
 
   // Billing order is LOAD-BEARING: the slot model needs opener-first,
   // headliner-LAST. JamBase's performer[] is NOT guaranteed in that order but

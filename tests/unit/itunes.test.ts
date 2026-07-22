@@ -17,4 +17,26 @@ describe('itunes', () => {
     const c = parseSearch(exactHit);
     expect(pickExact(c, 'zzz nonexistent artist')).toBeNull();
   });
+
+  it('drops a row whose previewUrl is not http(s), and blanks bad link/artwork URLs', () => {
+    const poisoned = {
+      results: [
+        // non-http preview → whole row dropped (no playable stream)
+        { trackId: 1, artistName: 'A', previewUrl: 'javascript:alert(1)' },
+        // valid preview, but poisoned linkback + artwork → those blank out
+        {
+          trackId: 2,
+          artistName: 'B',
+          previewUrl: 'https://audio.example/p.m4a',
+          trackViewUrl: 'javascript:alert(2)',
+          artworkUrl100: 'data:image/svg+xml,<svg/onload=alert(3)>',
+        },
+      ],
+    };
+    const c = parseSearch(poisoned);
+    expect(c.length).toBe(1);
+    expect(c[0].artistName).toBe('B');
+    expect(c[0].itunesUrl).toBe('');
+    expect(c[0].artworkUrl).toBe('');
+  });
 });

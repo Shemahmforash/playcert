@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { safeHttpUrl } from '../safeUrl';
 
 // ---------------------------------------------------------------------------
 // KEYLESS iTunes Search API client (spike Task 0.3).
@@ -57,7 +58,11 @@ export function parseSearch(json: unknown): ItunesCandidate[] {
   const results = parsed.results ?? [];
   const out: ItunesCandidate[] = [];
   for (const r of results) {
-    if (!r.previewUrl) continue; // must be playable
+    // safeHttpUrl drops any non-http(s) scheme before these URLs reach the
+    // client's <audio src>/<img src>/<a href>. A row whose previewUrl is not a
+    // playable http(s) stream is dropped entirely (same as a missing preview).
+    const previewUrl = safeHttpUrl(r.previewUrl);
+    if (!previewUrl) continue; // must be a playable http(s) stream
     if (r.trackId == null || r.artistName == null) continue;
     out.push({
       artistId: r.artistId != null ? String(r.artistId) : '',
@@ -65,10 +70,10 @@ export function parseSearch(json: unknown): ItunesCandidate[] {
       collectionId: r.collectionId,
       artistName: r.artistName,
       title: r.trackName ?? '',
-      previewUrl: r.previewUrl,
-      artworkUrl: r.artworkUrl100 ?? '',
+      previewUrl,
+      artworkUrl: safeHttpUrl(r.artworkUrl100),
       // Apple linkback (ToS): prefer the track view, fall back to artist view.
-      itunesUrl: r.trackViewUrl ?? r.artistViewUrl ?? '',
+      itunesUrl: safeHttpUrl(r.trackViewUrl ?? r.artistViewUrl ?? ''),
     });
   }
   return out;

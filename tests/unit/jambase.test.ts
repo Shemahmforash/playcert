@@ -62,6 +62,19 @@ describe('parseJambaseEvents', () => {
     expect(juanes.venue.city).toBe('London');
   });
 
+  it('drops a poisoned javascript: offer URL (XSS guard)', () => {
+    const evil = {
+      events: [
+        {
+          identifier: 'jambase:evil',
+          name: 'Evil Show',
+          offers: [{ url: 'javascript:alert(document.cookie)', category: 'ticketingLinkPrimary' }],
+        },
+      ],
+    };
+    expect(parseJambaseEvents(evil)[0].ticketUrl).toBe('');
+  });
+
   it('empty envelope → []', () => {
     expect(parseJambaseEvents({ events: [] })).toEqual([]);
   });
