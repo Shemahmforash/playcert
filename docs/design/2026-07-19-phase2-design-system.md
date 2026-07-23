@@ -123,7 +123,7 @@ Contents: 48px halftone artwork · `NowPlayingTicker` (mono, `aria-hidden`, a po
 
 ### 2.4 LineupPoster — the week as a downloadable festival bill
 
-Long-press the masthead (500ms, corner-curl affordance; desktop = click-hold + a poster icon button). On commit the list **peels away** (`rotateX ~8°, 550ms`); **audio keeps playing**, player bar stays. Reveals the week as `{CITY} WEEK FEST` — and here the palette flips to the **light paper context** (§1.1) so figure/ground inverts and it reads as an ink-on-real-paper printout. Type ∝ prominence, **inverted at Small Print** (openers become the giant blue headline; ex-headliners shrink to pink small print at the foot). Dates/venues bottom in mono, `earshot.fm/{city}/{window}` URL watermark, halftone/registration texture, **1080×1920 download** rendered from an offscreen canvas of the same layout, ✕ reverses. Reduced motion: fade + filling ring, no rotate.
+Long-press the masthead (500ms, corner-curl affordance; desktop = click-hold + a poster icon button). On commit the list **peels away** (`rotateX ~8°, 550ms`); **audio keeps playing**, player bar stays. Reveals the week as `{CITY} WEEK FEST` — and here the palette flips to the **light paper context** (§1.1) so figure/ground inverts and it reads as an ink-on-real-paper printout. Type ∝ prominence, **inverted at Small Print** (openers become the giant blue headline; ex-headliners shrink to pink small print at the foot). Dates/venues bottom in mono, `earshotlive.com/{city}/{window}` URL watermark, halftone/registration texture, **1080×1920 download** rendered from an offscreen canvas of the same layout, ✕ reverses. Reduced motion: fade + filling ring, no rotate.
 
 ### 2.5 Loading — the crate-digging theater (`never a spinner`)
 

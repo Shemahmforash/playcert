@@ -55,7 +55,7 @@ const MAX_WEIGHT = 800;
 const LINE_HEIGHT = 1.08; // multiplied by each line's sizePx
 const GAP_PX = 20; // vertical gap between stacked lines
 const TITLE_BAND_PX = 260; // {CITY} WEEK FEST title + top margin
-const FOOTER_BAND_PX = 300; // dates/venues row + earshot.fm watermark
+const FOOTER_BAND_PX = 300; // dates/venues row + earshotlive.com watermark
 
 export interface PosterAct {
   name: string;

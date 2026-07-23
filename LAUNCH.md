@@ -3,7 +3,7 @@
 **Earshot** turns a city's upcoming concert lineup into a playable radio: it reads
 gig listings from JamBase, matches each act to a 30-second Apple Music preview, and
 lets you *hear* your city before it happens — then dial from the headliners down to
-the small print. It's live at **https://earshot-one.vercel.app**.
+the small print. It's live at **https://earshotlive.com**.
 
 The whole thing runs on a **€5/month budget**: JamBase's free tier is 1,000 API
 calls/month, and the account carries **no payment method**, so an overage is
@@ -64,10 +64,15 @@ before (or immediately at) go-live.
       hard belt: with no card on file, the free tier simply stops serving at 1,000
       calls instead of billing for call 1,001. The TTL math (`verify:budgets`) is
       belt-and-suspenders on top of this. *(Manual — JamBase account settings.)*
-- [ ] **Decide the domain.** Currently live at `earshot-one.vercel.app`; the launch
-      plan assumes `earshot.fm` (and the MusicBrainz User-Agent already advertises
-      `earshot.fm`). Either register/point `earshot.fm` or update the copy to match
-      the real domain. *(Manual — DNS + Vercel domains.)*
+- [x] **Point the domain.** `earshotlive.com` is registered and attached to the Vercel
+      project; the app copy, metadata fallback, sitemap/robots origin, poster watermark,
+      and MusicBrainz User-Agent all reference it. `NEXT_PUBLIC_SITE_URL` is **optional** —
+      the code falls back to `https://earshotlive.com` in every environment, so canonical /
+      OG / sitemap URLs resolve correctly with no env config. Set it explicitly only to make
+      a specific environment (e.g. staging) advertise a different origin.
+- [ ] **Stand up `contact@earshotlive.com`.** The MusicBrainz User-Agent advertises it
+      as the ToS-required contact; make sure that mailbox (or an alias) actually receives
+      mail before launch. *(Manual — email/DNS MX.)*
 - [ ] **Confirm JamBase's ToS attribution wording.** The footer credits "Concert
       listings via JamBase" with a linkback; verify that matches JamBase's current
       required attribution text/format before launch. *(Manual — read JamBase ToS.)*

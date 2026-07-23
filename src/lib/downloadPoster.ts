@@ -40,7 +40,7 @@ export interface PosterCanvasOpts {
   dates?: string[];
   /** A few distinct venue names — footer, mono ash. */
   venues?: string[];
-  /** The `earshot.fm/{path}` watermark, inked. */
+  /** The `earshotlive.com/{path}` watermark, inked. */
   watermarkPath?: string;
 }
 

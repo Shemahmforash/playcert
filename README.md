@@ -4,7 +4,7 @@
 
 Earshot turns the concerts near you into an instantly playable mixtape — and it reads the gig poster from the bottom up. Open `/{city}/{window}` and press play: one 30-second preview per act playing your city, in show order, each stamped with its gig (venue, date, ticket link). No account, no app, no login wall — the whole product is a shareable URL. Its signature control, the **Earshot dial**, pulls the top-billed headliners out of the mix and rebuilds it around the openers and small-room acts.
 
-Live at **[earshot-one.vercel.app](https://earshot-one.vercel.app)** (auto-locates you to the nearest covered city). The design and roadmap live in [`docs/plans/`](docs/plans/) — start with `2026-07-19-earshot.md` (read its **STATUS UPDATE** block first — the product diverged from the original plan in a few deliberate ways, captured there).
+Live at **[earshotlive.com](https://earshotlive.com)** (auto-locates you to the nearest covered city). The design and roadmap live in [`docs/plans/`](docs/plans/) — start with `2026-07-19-earshot.md` (read its **STATUS UPDATE** block first — the product diverged from the original plan in a few deliberate ways, captured there).
 
 ---
 
@@ -109,7 +109,7 @@ Test-driven throughout: modules have failing tests written before implementation
 
 ## Status
 
-**Live on Vercel** at [earshot-one.vercel.app](https://earshot-one.vercel.app).
+**Live on Vercel** at [earshotlive.com](https://earshotlive.com).
 
 - **Phase 0 — walking skeleton:** ✅ complete.
 - **Phase 1 — core pipeline:** ✅ complete (URL→bundle engine: validated params, rate-limited queues, sparse-market widen, artist extraction, iTunes + MusicBrainz resolution with silent-drop, chronological/bill-mirrored ordering, edge-cached bundle; invalid routes 404 via middleware).

@@ -85,7 +85,7 @@ describe('renderPosterCanvas', () => {
     const canvas = renderPosterCanvas(layout, {
       dates: ['MON 20', 'TUE 21'],
       venues: ['The Lexington'],
-      watermarkPath: 'earshot.fm/london/tonight',
+      watermarkPath: 'earshotlive.com/london/tonight',
     });
 
     // Fixed export dimensions (SSOT §2.4).
@@ -104,7 +104,7 @@ describe('renderPosterCanvas', () => {
     // Footer content: dates, venue, watermark.
     expect(rec.fillTexts.some((t) => t.includes('MON 20'))).toBe(true);
     expect(rec.fillTexts.some((t) => t.includes('The Lexington'))).toBe(true);
-    expect(rec.fillTexts).toContain('earshot.fm/london/tonight');
+    expect(rec.fillTexts).toContain('earshotlive.com/london/tonight');
 
     // Each act line's spot-ink colour was used as a fillStyle (matches the DOM).
     for (const line of layout.lines) {
@@ -152,7 +152,7 @@ describe('downloadPosterPng', () => {
       });
 
     await downloadPosterPng(layout, 'earshot-london-tonight.png', {
-      watermarkPath: 'earshot.fm/london/tonight',
+      watermarkPath: 'earshotlive.com/london/tonight',
     });
 
     expect(toBlob).toHaveBeenCalled();

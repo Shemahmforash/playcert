@@ -27,7 +27,7 @@ const splineSansMono = Spline_Sans_Mono({
 export const metadata: Metadata = {
   // Absolute base so per-page canonical + OG/Twitter image URLs resolve to
   // fully-qualified links when crawlers unfurl a shared link.
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://earshot-one.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://earshotlive.com"),
   title: "Earshot",
   description: "The gig listings you read from the bottom up.",
 };

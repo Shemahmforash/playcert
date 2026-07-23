@@ -7,7 +7,7 @@ import type { PosterAct } from '../../src/lib/posterLayout';
 /**
  * Task 4.6 — the on-screen LineupPoster reveal (the peel + PNG download are 4.7).
  * A focus-trapped modal on the light paper context: title, sized act lines, the
- * earshot.fm/… watermark, and a ✕ / ESC close.
+ * earshotlive.com/… watermark, and a ✕ / ESC close.
  */
 
 afterEach(cleanup);
@@ -42,15 +42,15 @@ const baseProps = {
 };
 
 describe('LineupPoster', () => {
-  it('renders the title, act names, and the earshot.fm/… watermark', () => {
+  it('renders the title, act names, and the earshotlive.com/… watermark', () => {
     render(<LineupPoster {...baseProps} onClose={() => {}} />);
 
     expect(screen.getByRole('dialog', { name: /london week fest/i })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /london week fest/i })).toBeTruthy();
     expect(screen.getByText('GIANT HEADLINER')).toBeTruthy();
     expect(screen.getByText('TINY OPENER')).toBeTruthy();
-    // Watermark = earshot.fm + the canonical path (everything → no stop segment).
-    expect(screen.getByText('earshot.fm/london/tonight')).toBeTruthy();
+    // Watermark = earshotlive.com + the canonical path (everything → no stop segment).
+    expect(screen.getByText('earshotlive.com/london/tonight')).toBeTruthy();
     // A venue name derived from `shows` appears in the footer.
     expect(screen.getByText(/the lexington/i)).toBeTruthy();
   });

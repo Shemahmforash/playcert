@@ -106,7 +106,7 @@ export function LineupPoster({
     };
   }, [shows]);
 
-  const watermark = `earshot.fm${formatCanonicalPath({ city, window: timeWindow, fontStop })}`;
+  const watermark = `earshotlive.com${formatCanonicalPath({ city, window: timeWindow, fontStop })}`;
 
   const close = useCallback(() => {
     onClose();

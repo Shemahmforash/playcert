@@ -4,7 +4,7 @@ import { WINDOWS, formatCanonicalPath } from '../lib/urlState';
 
 // Same absolute base as layout.tsx's metadataBase — sitemap `url`s must be
 // fully-qualified, so mirror the one env var the rest of the app resolves against.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://earshot-one.vercel.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://earshotlive.com';
 
 /**
  * The indexable surface, enumerated as CITY_TABLE × WINDOWS in SHORT canonical
